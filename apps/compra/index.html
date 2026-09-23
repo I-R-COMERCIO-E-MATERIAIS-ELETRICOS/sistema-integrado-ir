@@ -7,6 +7,20 @@
     <link rel="icon" type="image/png" href="/compra/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="/compra/styles.css">
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <!-- Redirecionamento para mobile antes de renderizar -->
+    <script>
+    (function () {
+        const ua = navigator.userAgent.toLowerCase();
+        const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+        const smallTouch = window.innerWidth <= 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        if (uaMobile || smallTouch) {
+            const path = window.location.pathname.replace(/\/$/, '');
+            window.location.replace(path + '/m/');
+        }
+    })();
+    </script>
+
     <script>
         const PORTAL_URL = window.location.origin;
         const DEVELOPMENT_MODE = false;
