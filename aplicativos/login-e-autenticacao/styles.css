@@ -1,0 +1,258 @@
+/* ============================================================
+   I.R. Comércio — Tela de Login
+   Tema claro fixo · preto, laranja, branco, cinza
+   ============================================================ */
+
+:root {
+    --primary:          #FF521D;
+    --primary-hover:    #E8451A;
+    --primary-soft:     rgba(255, 82, 29, 0.10);
+
+    --bg-secondary:     #F4F5F7;
+    --bg-card:          #FFFFFF;
+
+    --text-primary:     #111111;
+    --text-secondary:   #5B6470;
+    --text-tertiary:    #9CA3AF;
+
+    --border-soft:      #EDEFF2;
+    --input-bg:         #F7F8FA;
+
+    --danger-color:     #EF4444;
+
+    --font-sans:        'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono:        'IBM Plex Mono', ui-monospace, monospace;
+
+    --safe-top:         env(safe-area-inset-top, 0px);
+    --safe-bottom:      env(safe-area-inset-bottom, 0px);
+
+    color-scheme: light only;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+
+html, body {
+    height: 100%;
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+body { overflow-x: hidden; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input { font-family: inherit; }
+
+/* ============================================================
+   LINHAS ANIMADAS (fundo do painel lateral)
+   ============================================================ */
+.line { position: absolute; pointer-events: none; z-index: 1; }
+.line-h {
+    left: 0; width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,140,60,0) 15%, rgba(255,140,60,0.55) 50%, rgba(255,140,60,0) 85%, transparent 100%);
+    animation: slideH linear infinite;
+}
+.line-v {
+    top: 0; height: 100%; width: 1px;
+    background: linear-gradient(180deg, transparent 0%, rgba(255,140,60,0) 15%, rgba(255,140,60,0.55) 50%, rgba(255,140,60,0) 85%, transparent 100%);
+    animation: slideV linear infinite;
+}
+@keyframes slideH { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes slideV { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+
+.line-h:nth-child(1) { top: 18%;  animation-duration: 11s; animation-delay: 0s;   }
+.line-h:nth-child(2) { top: 42%;  animation-duration: 14s; animation-delay: -3s;  }
+.line-h:nth-child(3) { top: 68%;  animation-duration: 10s; animation-delay: -6s;  }
+.line-h:nth-child(4) { top: 88%;  animation-duration: 16s; animation-delay: -9s;  }
+.line-v:nth-child(5) { left: 12%;  animation-duration: 13s; animation-delay: -2s;  }
+.line-v:nth-child(6) { left: 38%;  animation-duration: 11s; animation-delay: -5s;  }
+.line-v:nth-child(7) { left: 62%;  animation-duration: 15s; animation-delay: -8s;  }
+.line-v:nth-child(8) { left: 86%;  animation-duration: 12s; animation-delay: -11s; }
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.login-screen {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg-card);
+}
+
+.login-aside {
+    display: none;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(155deg, #000000 0%, #141414 55%, #1F1B18 100%);
+}
+
+@media (min-width: 900px) {
+    .login-screen { grid-template-columns: 1.05fr 1fr; }
+    .login-aside { display: block; }
+}
+
+.login-form-side {
+    display: flex; align-items: center; justify-content: center;
+    padding: calc(2rem + var(--safe-top)) 1.5rem calc(2rem + var(--safe-bottom));
+    background: var(--bg-card);
+    overflow-y: auto;
+}
+
+.login-form-wrapper {
+    width: 100%;
+    max-width: 380px;
+    animation: fadeUp 0.5s ease;
+}
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   LOGO
+   ============================================================ */
+.logo-box {
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 2.5rem;
+}
+.logo-box img {
+    max-width: 200px;
+    max-height: 90px;
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* ============================================================
+   CAMPOS
+   ============================================================ */
+.field { margin-bottom: 1.25rem; }
+
+.field label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.field input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    min-height: 48px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    outline: none;
+}
+.field input::placeholder { color: var(--text-tertiary); }
+.field input:focus {
+    border-color: var(--primary);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.field input.invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+/* Campo de senha com botão mostrar */
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 5rem; }
+.toggle-password {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+.toggle-password:hover { color: var(--primary); background: var(--primary-soft); }
+
+/* ============================================================
+   BOTÃO
+   ============================================================ */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.9rem 1.25rem;
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-height: 52px;
+    transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+    letter-spacing: 0.01em;
+    margin-top: 0.5rem;
+}
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:active:not(:disabled) { transform: scale(0.99); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   MENSAGEM
+   ============================================================ */
+.message {
+    display: none;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+.message.show { display: block; }
+.message.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #B91C1C;
+}
+
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+@media (min-width: 900px) {
+    .login-form-side { padding: 3rem; }
+}
+@media (min-width: 1280px) {
+    .login-form-wrapper { max-width: 420px; }
+    .logo-box img { max-width: 230px; max-height: 100px; }
+    .logo-box { margin-bottom: 3rem; }
+}
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 899px) {
+    .login-form-side { padding: 2rem 1.5rem; }
+    .logo-box img { max-width: 140px; max-height: 55px; }
+    .logo-box { margin-bottom: 1.5rem; }
+    .field { margin-bottom: 0.85rem; }
+}
