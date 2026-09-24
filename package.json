@@ -1,7 +1,7 @@
 {
   "name": "sistema-integrado-ir",
   "version": "1.0.0",
-  "description": "Sistema integrado da empresa I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA",
+  "description": "Sistema Central",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
