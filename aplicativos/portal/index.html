@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal</title>
+    <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/portal/styles.css">
+    <script>
+    (function () {
+        const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        const smallTouch = window.innerWidth <= 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        if (uaMobile || smallTouch) window.location.replace('/portal/m/');
+    })();
+    </script>
+</head>
+<body>
+
+<div class="splash" id="splash">
+    <div class="splash-inner">
+        <div class="splash-greeting" id="splashGreeting"></div>
+        <div class="splash-bar"><span></span></div>
+    </div>
+</div>
+
+<div class="dashboard" id="dashboard" style="display:none">
+    <button class="logout-float" onclick="showLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Sair</span>
+    </button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="avatar" id="userInitial"></div>
+            <div class="sidebar-info">
+                <div class="sidebar-name" id="userName"></div>
+                <div class="sidebar-sector" id="userSector"></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav" id="sidebarModules"></nav>
+    </aside>
+
+    <main class="main-content">
+        <div id="iframesContainer"></div>
+    </main>
+</div>
+
+<div class="modal-overlay" id="logoutModal">
+    <div class="modal-content">
+        <button class="close-modal" onclick="closeLogout()">✕</button>
+        <div class="modal-message">Deseja realmente sair?</div>
+        <div class="modal-actions">
+            <button class="danger" onclick="confirmLogout()">Sim</button>
+            <button class="secondary" onclick="closeLogout()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/portal/script.js"></script>
+</body>
+</html>
