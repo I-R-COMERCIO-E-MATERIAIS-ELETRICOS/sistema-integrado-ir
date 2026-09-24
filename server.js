@@ -17,6 +17,10 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
     console.error('❌ Variáveis de ambiente do Supabase não configuradas');
     process.exit(1);
 }
+if (!process.env.SESSION_SECRET) {
+    console.error('❌ SESSION_SECRET não configurado');
+    process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -52,8 +56,8 @@ app.get('/health', async (req, res) => {
 // ─── MÓDULOS ─────────────────────────────────────────────────
 const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
 
-app.use('/api/auth',   require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
-app.use('/api/portal', require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+app.use('/api/auth',     require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal',   require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
 app.use('/api/usuarios', require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
@@ -83,11 +87,13 @@ app.use((error, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
     console.log(`✅ Supabase conectado`);
-    console.log(`✅ Autenticação: Supabase Auth (username + senha)\n`);
-    console.log('📡 Rotas disponíveis:');
-    console.log('  GET  /                          → Tela de login');
+    console.log(`✅ Autenticação: username + senha\n`);
+    console.log('📡 Rotas:');
+    console.log('  GET  /                          → Login');
     console.log('  GET  /portal                    → Dashboard');
+    console.log('  GET  /usuarios                  → Módulo Usuários');
     console.log('  GET  /health                    → Health check');
-    console.log('  POST /api/auth/login            → Login (username + senha)');
-    console.log('  GET  /api/portal/modules        → Módulos autorizados\n');
+    console.log('  POST /api/auth/login            → Login');
+    console.log('  GET  /api/portal/modules        → Módulos autorizados');
+    console.log('  GET  /api/usuarios              → Lista de usuários (admin)');
 });
