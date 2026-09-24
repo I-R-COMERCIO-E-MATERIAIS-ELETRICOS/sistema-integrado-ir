@@ -48,9 +48,7 @@ module.exports = function (supabase, supabaseAdmin) {
             .eq('id', payload.uid)
             .single();
 
-        if (!profile || !profile.is_active) {
-            return res.status(401).json({ error: 'Sessão inválida' });
-        }
+        if (!profile || !profile.is_active) return res.status(401).json({ error: 'Sessão inválida' });
         req.user = profile;
         next();
     }
