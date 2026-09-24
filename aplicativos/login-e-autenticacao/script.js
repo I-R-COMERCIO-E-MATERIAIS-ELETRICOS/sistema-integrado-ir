@@ -1,6 +1,5 @@
 // ============================================================
-// I.R. Comércio — Login (via backend)
-// O front só conhece /api/auth/login. Nada de credenciais.
+// Login · I.R. Comércio — via backend
 // ============================================================
 
 const loginForm     = document.getElementById('loginForm');
@@ -10,7 +9,6 @@ const loginBtn      = document.getElementById('loginBtn');
 const messageBox    = document.getElementById('messageBox');
 const toggleBtn     = document.getElementById('togglePassword');
 
-// ─── Helpers ─────────────────────────────────────────────────
 function showMessage(text) {
     messageBox.textContent = text;
     messageBox.className = 'message error show';
@@ -23,7 +21,6 @@ function markInvalid(input) {
     input.focus();
 }
 
-// ─── Toggle senha ────────────────────────────────────────────
 toggleBtn.addEventListener('click', () => {
     const isPwd = passwordInput.type === 'password';
     passwordInput.type = isPwd ? 'text' : 'password';
@@ -31,7 +28,6 @@ toggleBtn.addEventListener('click', () => {
     passwordInput.focus();
 });
 
-// ─── Submit ──────────────────────────────────────────────────
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -41,7 +37,6 @@ loginForm.addEventListener('submit', async (e) => {
     if (!username) { markInvalid(usernameInput); return; }
     if (!password) { markInvalid(passwordInput); return; }
 
-    // Bloqueia e-mail no campo — login é só por username
     if (username.includes('@')) {
         showMessage('Use seu nome de usuário, não o e-mail.');
         return;
@@ -69,7 +64,6 @@ loginForm.addEventListener('submit', async (e) => {
         sessionStorage.setItem('irUser', JSON.stringify(data.user));
 
         window.location.href = '/portal';
-
     } catch {
         showMessage('Erro ao realizar login. Tente novamente.');
     } finally {
@@ -78,9 +72,7 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// ─── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Se já tem token, tenta o portal direto
     if (sessionStorage.getItem('irToken')) {
         window.location.href = '/portal';
     }
