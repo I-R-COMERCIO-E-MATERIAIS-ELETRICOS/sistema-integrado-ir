@@ -9,16 +9,15 @@ let state = {
 };
 let accessToken = null;
 
-// ─── TOKEN ────────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
     if (fromUrl) {
-        sessionStorage.setItem('irAccessToken', fromUrl);
+        sessionStorage.setItem('irToken', fromUrl);
         window.history.replaceState({}, '', window.location.pathname);
         return fromUrl;
     }
-    return sessionStorage.getItem('irAccessToken');
+    return sessionStorage.getItem('irToken');
 }
 
 function showDenied(msg) {
@@ -38,7 +37,6 @@ function getHeaders() {
     };
 }
 
-// ─── INIT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -52,9 +50,7 @@ async function carregarModulos() {
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         state.modulesCatalog = await res.json();
-    } catch (err) {
-        console.error('Erro ao carregar módulos:', err);
-    }
+    } catch (err) { console.error('Erro ao carregar módulos:', err); }
 }
 
 async function carregarUsuarios() {
@@ -70,7 +66,6 @@ async function carregarUsuarios() {
     }
 }
 
-// ─── FILTROS ──────────────────────────────────────────────────
 window.filterUsers = function() {
     state.searchTerm = document.getElementById('search').value.trim().toLowerCase();
     aplicarFiltros();
@@ -93,7 +88,6 @@ function aplicarFiltros() {
     renderUsers();
 }
 
-// ─── RENDER ───────────────────────────────────────────────────
 function renderUsers() {
     const root = document.getElementById('usersList');
     if (!state.filtered.length) {
@@ -113,9 +107,8 @@ function renderUsers() {
             <div class="m-card-body">
                 <div class="m-row"><span>Setor</span><strong>${escHtml(u.sector || '—')}</strong></div>
                 ${u.contact_email ? `<div class="m-row"><span>E-mail</span><strong>${escHtml(u.contact_email)}</strong></div>` : ''}
-                <div class="m-modules-row">
-                    ${renderModulesChips(u)}
-                </div>
+                ${u.contact_phone ? `<div class="m-row"><span>Telefone</span><strong>${escHtml(u.contact_phone)}</strong></div>` : ''}
+                <div class="m-modules-row">${renderModulesChips(u)}</div>
             </div>
             <div class="m-card-actions">
                 <button class="m-btn edit" onclick="event.stopPropagation();editUser('${u.id}')">Editar</button>
@@ -181,6 +174,9 @@ function showFormModal(editId) {
                     <label>E-mail de contato (opcional)</label>
                     <input type="email" id="modalContactEmail" value="${u ? escHtml(u.contact_email || '') : ''}">
 
+                    <label>Telefone (opcional)</label>
+                    <input type="tel" id="modalContactPhone" value="${u ? escHtml(u.contact_phone || '') : ''}">
+
                     <div class="m-toggle-row">
                         <div class="m-switch ${u?.is_active !== false ? 'active' : ''}" id="mActiveSwitch"></div>
                         <span>Usuário ativo</span>
@@ -214,7 +210,6 @@ function showFormModal(editId) {
         </div>
     `);
 
-    // Switch ativo/inativo
     const sw = document.getElementById('mActiveSwitch');
     const cb = document.getElementById('modalActive');
     sw.addEventListener('click', () => {
@@ -230,9 +225,7 @@ window.onSectorChange = function () {
     const isAdmin = sector === 'Administrador';
 
     picker.classList.toggle('disabled', isAdmin);
-    picker.querySelectorAll('input[type="checkbox"]').forEach(i => {
-        i.disabled = isAdmin;
-    });
+    picker.querySelectorAll('input[type="checkbox"]').forEach(i => { i.disabled = isAdmin; });
     hint.textContent = isAdmin
         ? 'Administrador tem acesso automático a todos os módulos.'
         : 'Selecione os módulos que este usuário poderá acessar.';
@@ -252,6 +245,7 @@ window.handleSubmit = async function(e) {
     const password = document.getElementById('modalPassword').value;
     const is_active = document.getElementById('modalActive').checked;
     const contact_email = document.getElementById('modalContactEmail').value.trim();
+    const contact_phone = document.getElementById('modalContactPhone').value.trim();
 
     if (!name || !sector) { showToast('Preencha os campos obrigatórios', 'error'); return; }
     if (!editId && (!username || !password)) { showToast('Usuário e senha obrigatórios', 'error'); return; }
@@ -259,13 +253,13 @@ window.handleSubmit = async function(e) {
     const isAdmin = sector === 'Administrador';
     const apps = isAdmin
         ? []
-        : Array.from(document.querySelectorAll('#modulesPicker input[type="checkbox"]:checked'))
-              .map(i => i.value);
+        : Array.from(document.querySelectorAll('#modulesPicker input[type="checkbox"]:checked')).map(i => i.value);
 
     const body = { name, sector, is_active, apps };
     if (!editId) body.username = username;
     if (password) body.password = password;
     if (contact_email !== '') body.contact_email = contact_email;
+    if (contact_phone !== '') body.contact_phone = contact_phone;
 
     const btn = document.querySelector('#mUserForm button[type="submit"]');
     btn.disabled = true;
@@ -274,17 +268,12 @@ window.handleSubmit = async function(e) {
     try {
         const url = editId ? `${API_URL}/${editId}` : API_URL;
         const method = editId ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-            method,
-            headers: getHeaders(),
-            body: JSON.stringify(body)
-        });
+        const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
 
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
         if (res.status === 409) {
             showToast('Usuário já existe', 'error');
-            btn.disabled = false;
-            btn.textContent = editId ? 'Atualizar' : 'Salvar';
+            btn.disabled = false; btn.textContent = editId ? 'Atualizar' : 'Salvar';
             return;
         }
         if (!res.ok) {
@@ -297,8 +286,7 @@ window.handleSubmit = async function(e) {
         await carregarUsuarios();
     } catch (err) {
         showToast('Erro: ' + err.message, 'error');
-        btn.disabled = false;
-        btn.textContent = editId ? 'Atualizar' : 'Salvar';
+        btn.disabled = false; btn.textContent = editId ? 'Atualizar' : 'Salvar';
     }
 };
 
