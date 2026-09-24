@@ -26,11 +26,11 @@ function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
     if (fromUrl) {
-        sessionStorage.setItem('irAccessToken', fromUrl);
+        sessionStorage.setItem('irToken', fromUrl);
         window.history.replaceState({}, '', window.location.pathname);
         return fromUrl;
     }
-    return sessionStorage.getItem('irAccessToken');
+    return sessionStorage.getItem('irToken');
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         if (res.status === 401 || res.status === 403) {
-            sessionStorage.removeItem('irAccessToken');
+            sessionStorage.removeItem('irToken');
             window.location.href = '/';
             return;
         }
@@ -113,7 +113,7 @@ function renderModules() {
 window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
 window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
 window.confirmLogout = () => {
-    sessionStorage.removeItem('irAccessToken');
+    sessionStorage.removeItem('irToken');
     sessionStorage.removeItem('irUser');
     window.location.href = '/';
 };
