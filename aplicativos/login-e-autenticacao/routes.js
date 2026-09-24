@@ -26,12 +26,6 @@ module.exports = function (supabase, supabaseAdmin) {
     const router = express.Router();
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
-    if (!SESSION_SECRET) {
-        console.error('❌ SESSION_SECRET não configurado');
-        process.exit(1);
-    }
-
-    // ─── LOGIN ──────────────────────────────────────────────────
     router.post('/login', async (req, res) => {
         const { username, password } = req.body || {};
 
@@ -52,11 +46,7 @@ module.exports = function (supabase, supabaseAdmin) {
                 .eq('username', cleanUsername)
                 .maybeSingle();
 
-            if (pErr || !profile || !profile.auth_email) {
-                return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
-            }
-
-            if (!profile.is_active) {
+            if (pErr || !profile || !profile.auth_email || !profile.is_active) {
                 return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
             }
 
@@ -71,11 +61,7 @@ module.exports = function (supabase, supabaseAdmin) {
             }
 
             const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
-            const token = signToken({
-                uid: profile.id,
-                username: profile.username,
-                exp
-            }, SESSION_SECRET);
+            const token = signToken({ uid: profile.id, username: profile.username, exp }, SESSION_SECRET);
 
             res.json({
                 success: true,
@@ -116,9 +102,7 @@ module.exports = function (supabase, supabaseAdmin) {
             .eq('id', payload.uid)
             .single();
 
-        if (!profile || !profile.is_active) {
-            return res.status(401).json({ error: 'Sessão inválida' });
-        }
+        if (!profile || !profile.is_active) return res.status(401).json({ error: 'Sessão inválida' });
         res.json(profile);
     });
 
