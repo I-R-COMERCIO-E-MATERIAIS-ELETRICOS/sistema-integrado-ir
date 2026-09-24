@@ -1,7 +1,7 @@
 {
-  "name": "ir-comercio-monorepo",
+  "name": "sistema-integrado-ir",
   "version": "1.0.0",
-  "description": "Sistema Central I.R. Comércio - Monorepo",
+  "description": "Sistema integrado da empresa I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
