@@ -52,9 +52,8 @@ app.get('/health', async (req, res) => {
 // ─── MÓDULOS ─────────────────────────────────────────────────
 const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
 
-// Rotas de API
-app.use('/api/auth',    require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
-app.use('/api/portal',  require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+app.use('/api/auth',   require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal', require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
 MODULES.forEach(name => {
@@ -90,5 +89,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  GET  /health                    → Health check');
     console.log('  GET  /api/auth/config           → Config pública do Supabase');
     console.log('  GET  /api/auth/profile          → Perfil do usuário logado');
-    console.log('  GET  /api/portal/modules        → Módulos autorizados p/ o usuário\n');
+    console.log('  GET  /api/portal/modules        → Módulos autorizados\n');
 });
