@@ -55,4 +55,102 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const data = await res.json();
         userInfo = data.user;
-        modules = data.modules
+        modules = data.modules || [];
+
+        bootUI();
+    } catch (err) {
+        console.error(err);
+        window.location.href = '/';
+    }
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────
+function bootUI() {
+    // Usuário
+    document.getElementById('userInitial').textContent =
+        (userInfo.name || userInfo.username || '?').charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = userInfo.name || userInfo.username;
+    document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
+
+    // Sidebar
+    renderSidebar();
+
+    // Splash
+    const greeting = getGreeting();
+    document.getElementById('splashGreeting').textContent = `${greeting}, ${userInfo.name || userInfo.username}!`;
+    setTimeout(() => {
+        const s = document.getElementById('splash');
+        s.classList.add('fade-out');
+        setTimeout(() => {
+            s.style.display = 'none';
+            document.getElementById('dashboard').style.display = 'flex';
+            // Abre o primeiro módulo automaticamente
+            if (modules.length > 0) openModule(modules[0]);
+        }, 400);
+    }, 1500);
+}
+
+function getGreeting() {
+    const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────
+function renderSidebar() {
+    const nav = document.getElementById('sidebarModules');
+    nav.innerHTML = '';
+
+    if (!modules.length) {
+        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo liberado.<br>Contate o administrador.</div>';
+        return;
+    }
+
+    modules.forEach(m => {
+        const el = document.createElement('div');
+        el.className = 'module-item';
+        el.dataset.moduleId = m.id;
+        el.innerHTML = `
+            <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
+            <span class="module-label">${m.name}</span>
+        `;
+        el.addEventListener('click', () => openModule(m));
+        nav.appendChild(el);
+    });
+}
+
+// ─── IFRAMES ──────────────────────────────────────────────────
+function openModule(mod) {
+    // Marca ativo na sidebar
+    document.querySelectorAll('.module-item').forEach(i => i.classList.remove('active'));
+    const sidebarItem = document.querySelector(`.module-item[data-module-id="${mod.id}"]`);
+    if (sidebarItem) sidebarItem.classList.add('active');
+
+    let container = document.getElementById(`iframe-${mod.id}`);
+
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'iframe-container';
+        container.id = `iframe-${mod.id}`;
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
+        iframe.title = mod.name;
+        container.appendChild(iframe);
+
+        document.getElementById('iframesContainer').appendChild(container);
+    }
+
+    document.querySelectorAll('.iframe-container').forEach(c => c.classList.remove('active'));
+    requestAnimationFrame(() => container.classList.add('active'));
+}
+
+// ─── LOGOUT ───────────────────────────────────────────────────
+window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
+window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
+window.confirmLogout = () => {
+    sessionStorage.removeItem('irAccessToken');
+    sessionStorage.removeItem('irUser');
+    window.location.href = '/';
+};
