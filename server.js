@@ -1,93 +1,129 @@
-require('dotenv').config();
+// aplicativos/login-e-autenticacao/routes.js
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// ─── SUPABASE ────────────────────────────────────────────────
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
-    console.error('❌ Variáveis de ambiente do Supabase não configuradas');
-    process.exit(1);
+function signToken(payload, secret) {
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig  = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    return `${body}.${sig}`;
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-});
-
-// ─── MIDDLEWARES ─────────────────────────────────────────────
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ─── IMAGENS GLOBAIS ─────────────────────────────────────────
-app.use('/imagens', express.static(path.join(__dirname, 'aplicativos', 'imagens')));
-
-// ─── HEALTH ──────────────────────────────────────────────────
-app.get('/health', async (req, res) => {
+function verifyToken(token, secret) {
+    if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+    const [body, sig] = token.split('.');
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
     try {
-        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
-    } catch {
-        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
+        const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+        return payload;
+    } catch { return null; }
+}
+
+module.exports = function (supabase, supabaseAdmin) {
+    const router = express.Router();
+    const SESSION_SECRET = process.env.SESSION_SECRET;
+
+    if (!SESSION_SECRET) {
+        console.error('❌ SESSION_SECRET não configurado');
+        process.exit(1);
     }
-});
 
-// ─── MÓDULOS ─────────────────────────────────────────────────
-const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
+    // ─── LOGIN ──────────────────────────────────────────────────
+    router.post('/login', async (req, res) => {
+        const { username, password } = req.body || {};
 
-app.use('/api/auth',   require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
-app.use('/api/portal', require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
+        }
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
-MODULES.forEach(name => {
-    const dir = path.join(__dirname, 'aplicativos', name);
-    if (!fs.existsSync(dir)) return;
-    app.get(`/${name}`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
-    app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
-    app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
-});
+        const cleanUsername = String(username).trim().toLowerCase();
 
-// ─── RAIZ → LOGIN ────────────────────────────────────────────
-app.get('/', (req, res) =>
-    res.sendFile(path.join(__dirname, 'aplicativos', 'login-e-autenticacao', 'index.html'))
-);
+        if (cleanUsername.includes('@')) {
+            return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+        }
 
-// ─── 404 ─────────────────────────────────────────────────────
-app.use((req, res) => res.status(404).json({ error: '404 - Rota não encontrada' }));
+        try {
+            const { data: profile, error: pErr } = await supabaseAdmin
+                .from('profiles')
+                .select('id, username, auth_email, name, sector, is_admin, is_active')
+                .eq('username', cleanUsername)
+                .maybeSingle();
 
-// ─── ERROS ───────────────────────────────────────────────────
-app.use((error, req, res, next) => {
-    console.error('Erro interno:', error.message);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-});
+            if (pErr || !profile || !profile.auth_email) {
+                return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+            }
 
-// ─── START ───────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
-    console.log(`✅ Supabase conectado`);
-    console.log(`✅ Autenticação: Supabase Auth (username + senha)\n`);
-    console.log('📡 Rotas disponíveis:');
-    console.log('  GET  /                          → Tela de login');
-    console.log('  GET  /portal                    → Dashboard');
-    console.log('  GET  /health                    → Health check');
-    console.log('  GET  /api/auth/config           → Config pública do Supabase');
-    console.log('  GET  /api/auth/profile          → Perfil do usuário logado');
-    console.log('  GET  /api/portal/modules        → Módulos autorizados\n');
-});
+            if (!profile.is_active) {
+                return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+            }
+
+            const { data: auth, error: aErr } = await supabaseAdmin.auth.signInWithPassword({
+                email: profile.auth_email,
+                password
+            });
+
+            if (aErr || !auth?.session) {
+                console.log('Falha no Auth para', cleanUsername, '→', aErr?.message);
+                return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+            }
+
+            const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
+            const token = signToken({
+                uid: profile.id,
+                username: profile.username,
+                exp
+            }, SESSION_SECRET);
+
+            res.json({
+                success: true,
+                token,
+                expiresIn: 12 * 60 * 60,
+                user: {
+                    id: profile.id,
+                    username: profile.username,
+                    name: profile.name,
+                    sector: profile.sector,
+                    is_admin: profile.is_admin
+                }
+            });
+        } catch (err) {
+            console.error('Erro no login:', err.message);
+            res.status(500).json({ error: 'Erro interno' });
+        }
+    });
+
+    // ─── LOGOUT ─────────────────────────────────────────────────
+    router.post('/logout', (req, res) => res.json({ success: true }));
+
+    // ─── CONFIG (não é mais usado pelo front, mas mantém por compat) ─
+    router.get('/config', (req, res) => {
+        res.json({
+            url: process.env.SUPABASE_URL,
+            anonKey: process.env.SUPABASE_ANON_KEY
+        });
+    });
+
+    // ─── PERFIL ─────────────────────────────────────────────────
+    router.get('/profile', async (req, res) => {
+        const auth = req.headers['authorization'];
+        const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+        const payload = verifyToken(token, SESSION_SECRET);
+        if (!payload) return res.status(401).json({ error: 'Sessão inválida' });
+
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps')
+            .eq('id', payload.uid)
+            .single();
+
+        if (!profile || !profile.is_active) {
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+        res.json(profile);
+    });
+
+    return router;
+};
