@@ -1,12 +1,6 @@
 const API_URL = window.location.origin + '/api/usuarios';
 
-let state = {
-    users: [],
-    filtered: [],
-    searchTerm: '',
-    sector: 'TODOS',
-    modulesCatalog: []
-};
+let state = { users: [], filtered: [], searchTerm: '', sector: 'TODOS', modulesCatalog: [] };
 let accessToken = null;
 
 function resolveToken() {
@@ -132,7 +126,6 @@ function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ─── MODAL ────────────────────────────────────────────────────
 window.toggleForm = function() { showFormModal(null); };
 
 function showFormModal(editId) {
@@ -153,36 +146,27 @@ function showFormModal(editId) {
                 </div>
                 <form id="mUserForm" onsubmit="handleSubmit(event)" class="m-form">
                     <input type="hidden" id="modalEditId" value="${editId || ''}">
-
                     <label>Nome do funcionário *</label>
                     <input type="text" id="modalName" value="${u ? escHtml(u.name) : ''}" required>
-
                     <label>Nome de usuário *</label>
-                    <input type="text" id="modalUsername" value="${u ? escHtml(u.username || '') : ''}"
-                           ${isEditing ? 'disabled' : ''} required>
-
+                    <input type="text" id="modalUsername" value="${u ? escHtml(u.username || '') : ''}" ${isEditing ? 'disabled' : ''} required>
                     <label>Setor *</label>
                     <select id="modalSector" required onchange="onSectorChange()">
                         ${['Administrador','Vendas','Almoxarifado','Financeiro'].map(s =>
                             `<option value="${s}" ${u?.sector === s ? 'selected' : ''}>${s}</option>`
                         ).join('')}
                     </select>
-
                     <label>Senha ${isEditing ? '(deixe em branco para manter)' : '*'}</label>
                     <input type="password" id="modalPassword" ${isEditing ? '' : 'required'}>
-
                     <label>E-mail de contato (opcional)</label>
                     <input type="email" id="modalContactEmail" value="${u ? escHtml(u.contact_email || '') : ''}">
-
                     <label>Telefone (opcional)</label>
                     <input type="tel" id="modalContactPhone" value="${u ? escHtml(u.contact_phone || '') : ''}">
-
                     <div class="m-toggle-row">
                         <div class="m-switch ${u?.is_active !== false ? 'active' : ''}" id="mActiveSwitch"></div>
                         <span>Usuário ativo</span>
                         <input type="checkbox" id="modalActive" ${u?.is_active !== false ? 'checked' : ''} style="display:none;">
                     </div>
-
                     <label>Módulos liberados</label>
                     <div class="m-modules-picker ${isAdmin ? 'disabled' : ''}" id="modulesPicker">
                         ${state.modulesCatalog.map(m => `
@@ -196,11 +180,9 @@ function showFormModal(editId) {
                         `).join('')}
                     </div>
                     <div class="m-hint" id="modulesHint">
-                        ${isAdmin
-                            ? 'Administrador tem acesso automático a todos os módulos.'
-                            : 'Selecione os módulos que este usuário poderá acessar.'}
+                        ${isAdmin ? 'Administrador tem acesso automático a todos os módulos.'
+                                  : 'Selecione os módulos que este usuário poderá acessar.'}
                     </div>
-
                     <div class="m-form-actions">
                         <button type="button" class="m-btn secondary" onclick="closeFormModal()">Cancelar</button>
                         <button type="submit" class="m-btn primary">${isEditing ? 'Atualizar' : 'Salvar'}</button>
@@ -223,7 +205,6 @@ window.onSectorChange = function () {
     const picker = document.getElementById('modulesPicker');
     const hint = document.getElementById('modulesHint');
     const isAdmin = sector === 'Administrador';
-
     picker.classList.toggle('disabled', isAdmin);
     picker.querySelectorAll('input[type="checkbox"]').forEach(i => { i.disabled = isAdmin; });
     hint.textContent = isAdmin
