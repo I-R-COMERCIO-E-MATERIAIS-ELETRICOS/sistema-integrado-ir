@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0A">
+    <title>Usuários</title>
+    <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/usuarios/m/styles.css">
+</head>
+<body>
+
+<header class="m-header">
+    <h1>Usuários</h1>
+    <button class="m-add-btn" onclick="toggleForm()" aria-label="Novo usuário">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+    </button>
+</header>
+
+<main class="m-content">
+    <div class="m-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search" placeholder="Buscar usuário..." oninput="filterUsers()">
+    </div>
+
+    <div class="m-filters">
+        <select id="sectorSelect" onchange="filterBySector(this.value)">
+            <option value="TODOS">Todos os setores</option>
+            <option value="Administrador">Administrador</option>
+            <option value="Vendas">Vendas</option>
+            <option value="Almoxarifado">Almoxarifado</option>
+            <option value="Financeiro">Financeiro</option>
+        </select>
+    </div>
+
+    <div id="usersList" class="m-list"></div>
+</main>
+
+<script src="/usuarios/m/script.js"></script>
+</body>
+</html>
