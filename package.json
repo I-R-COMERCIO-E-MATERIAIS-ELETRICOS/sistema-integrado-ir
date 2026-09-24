@@ -1,7 +1,7 @@
 {
-  "name": "sistema-integrado-ir",
+  "name": "ir-comercio-monorepo",
   "version": "1.0.0",
-  "description": "Sistema Central",
+  "description": "Sistema Central I.R. Comércio",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
