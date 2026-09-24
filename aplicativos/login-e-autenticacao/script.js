@@ -1,10 +1,7 @@
 // ============================================================
-// Login · I.R. Comércio — Supabase Auth (username + senha)
+// I.R. Comércio — Login (via backend)
+// O front só conhece /api/auth/login. Nada de credenciais.
 // ============================================================
-
-const EMAIL_DOMAIN = 'ir.local';
-
-let supabaseClient = null;
 
 const loginForm     = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
@@ -12,20 +9,6 @@ const passwordInput = document.getElementById('password');
 const loginBtn      = document.getElementById('loginBtn');
 const messageBox    = document.getElementById('messageBox');
 const toggleBtn     = document.getElementById('togglePassword');
-
-// ─── Supabase ────────────────────────────────────────────────
-async function initSupabase() {
-    try {
-        const res = await fetch('/api/auth/config');
-        if (!res.ok) throw new Error('config');
-        const cfg = await res.json();
-        supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
-            auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
-        });
-    } catch {
-        showMessage('Falha ao carregar configuração. Recarregue a página.');
-    }
-}
 
 // ─── Helpers ─────────────────────────────────────────────────
 function showMessage(text) {
@@ -41,14 +24,12 @@ function markInvalid(input) {
 }
 
 // ─── Toggle senha ────────────────────────────────────────────
-if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-        const isPassword = passwordInput.type === 'password';
-        passwordInput.type = isPassword ? 'text' : 'password';
-        toggleBtn.textContent = isPassword ? 'Ocultar' : 'Mostrar';
-        passwordInput.focus();
-    });
-}
+toggleBtn.addEventListener('click', () => {
+    const isPwd = passwordInput.type === 'password';
+    passwordInput.type = isPwd ? 'text' : 'password';
+    toggleBtn.textContent = isPwd ? 'Ocultar' : 'Mostrar';
+    passwordInput.focus();
+});
 
 // ─── Submit ──────────────────────────────────────────────────
 loginForm.addEventListener('submit', async (e) => {
@@ -60,8 +41,9 @@ loginForm.addEventListener('submit', async (e) => {
     if (!username) { markInvalid(usernameInput); return; }
     if (!password) { markInvalid(passwordInput); return; }
 
-    if (!supabaseClient) {
-        showMessage('Sistema não configurado. Recarregue a página.');
+    // Bloqueia e-mail no campo — login é só por username
+    if (username.includes('@')) {
+        showMessage('Use seu nome de usuário, não o e-mail.');
         return;
     }
 
@@ -70,33 +52,21 @@ loginForm.addEventListener('submit', async (e) => {
     messageBox.classList.remove('show');
 
     try {
-        // Supabase Auth precisa de email. Usamos username@ir.local internamente.
-        const email = `${username}@${EMAIL_DOMAIN}`;
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
 
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        const data = await res.json().catch(() => ({}));
 
-        if (error) {
-            showMessage(
-                error.message === 'Invalid login credentials'
-                    ? 'Usuário ou senha incorretos.'
-                    : (error.message || 'Não foi possível entrar.')
-            );
+        if (!res.ok || !data.token) {
+            showMessage(data.error || 'Usuário ou senha incorretos.');
             return;
         }
 
-        if (!data.session) {
-            showMessage('Sessão não pôde ser criada. Tente novamente.');
-            return;
-        }
-
-        // Guarda o token para o Portal consumir
-        sessionStorage.setItem('irAccessToken', data.session.access_token);
-        sessionStorage.setItem('irUser', JSON.stringify({
-            id: data.user.id,
-            username,
-            name: data.user.user_metadata?.name || username,
-            sector: data.user.user_metadata?.sector || null
-        }));
+        sessionStorage.setItem('irToken', data.token);
+        sessionStorage.setItem('irUser', JSON.stringify(data.user));
 
         window.location.href = '/portal';
 
@@ -109,14 +79,9 @@ loginForm.addEventListener('submit', async (e) => {
 });
 
 // ─── Init ────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-    await initSupabase();
-
-    if (supabaseClient) {
-        const { data } = await supabaseClient.auth.getSession();
-        if (data?.session) {
-            sessionStorage.setItem('irAccessToken', data.session.access_token);
-            window.location.href = '/portal';
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    // Se já tem token, tenta o portal direto
+    if (sessionStorage.getItem('irToken')) {
+        window.location.href = '/portal';
     }
 });
