@@ -1,4 +1,4 @@
-// apps/login-e-autenticacao/routes.js
+// aplicativos/login-e-autenticacao/routes.js
 const express = require('express');
 
 module.exports = function(supabase, supabaseAdmin) {
