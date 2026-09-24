@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -18,7 +19,6 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
@@ -32,7 +32,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ─── IMAGENS GLOBAIS (compartilhadas entre módulos) ──────────
+// ─── IMAGENS GLOBAIS ─────────────────────────────────────────
 app.use('/imagens', express.static(path.join(__dirname, 'aplicativos', 'imagens')));
 
 // ─── HEALTH ──────────────────────────────────────────────────
@@ -49,19 +49,26 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// ─── MÓDULO LOGIN ────────────────────────────────────────────
-const loginRoutes = require('./aplicativos/login-e-autenticacao/routes');
-app.use('/api/auth', loginRoutes(supabase, supabaseAdmin));
+// ─── MÓDULOS ─────────────────────────────────────────────────
+const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
 
-// ─── ARQUIVOS ESTÁTICOS DO MÓDULO LOGIN ──────────────────────
-const loginPath = path.join(__dirname, 'aplicativos', 'login-e-autenticacao');
+// Rotas de API
+app.use('/api/auth',    require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal',  require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
 
-app.get('/login-e-autenticacao', (req, res) => res.sendFile(path.join(loginPath, 'index.html')));
-app.get('/login-e-autenticacao/', (req, res) => res.sendFile(path.join(loginPath, 'index.html')));
-app.use('/login-e-autenticacao', express.static(loginPath, { index: false, dotfiles: 'deny' }));
+// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
+MODULES.forEach(name => {
+    const dir = path.join(__dirname, 'aplicativos', name);
+    if (!fs.existsSync(dir)) return;
+    app.get(`/${name}`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
+    app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
+    app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
+});
 
 // ─── RAIZ → LOGIN ────────────────────────────────────────────
-app.get('/', (req, res) => res.sendFile(path.join(loginPath, 'index.html')));
+app.get('/', (req, res) =>
+    res.sendFile(path.join(__dirname, 'aplicativos', 'login-e-autenticacao', 'index.html'))
+);
 
 // ─── 404 ─────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: '404 - Rota não encontrada' }));
@@ -72,17 +79,16 @@ app.use((error, req, res, next) => {
     res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// ─── INICIAR ─────────────────────────────────────────────────
+// ─── START ───────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
     console.log(`✅ Supabase conectado`);
-    console.log(`✅ Autenticação: Supabase Auth`);
-    console.log(`\n📡 Rotas disponíveis:`);
-    console.log(`  GET  /                          → Tela de login`);
-    console.log(`  GET  /login-e-autenticacao      → Tela de login`);
-    console.log(`  GET  /health                    → Health check`);
-    console.log(`  GET  /api/auth/config           → Config pública do Supabase`);
-    console.log(`  GET  /api/auth/profile          → Perfil do usuário logado`);
-    console.log(`  POST /api/auth/users            → Criar usuário (admin)`);
-    console.log(`  POST /api/auth/setup-admin      → Criar primeiro admin\n`);
+    console.log(`✅ Autenticação: Supabase Auth (username + senha)\n`);
+    console.log('📡 Rotas disponíveis:');
+    console.log('  GET  /                          → Tela de login');
+    console.log('  GET  /portal                    → Dashboard');
+    console.log('  GET  /health                    → Health check');
+    console.log('  GET  /api/auth/config           → Config pública do Supabase');
+    console.log('  GET  /api/auth/profile          → Perfil do usuário logado');
+    console.log('  GET  /api/portal/modules        → Módulos autorizados p/ o usuário\n');
 });
