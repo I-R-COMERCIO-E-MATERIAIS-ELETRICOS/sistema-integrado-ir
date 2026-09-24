@@ -1,11 +1,13 @@
 // ============================================================
-// I.R. Comércio — Login (Supabase Auth)
+// Login · I.R. Comércio — Supabase Auth (username + senha)
 // ============================================================
+
+const EMAIL_DOMAIN = 'ir.local';
 
 let supabaseClient = null;
 
 const loginForm     = document.getElementById('loginForm');
-const emailInput    = document.getElementById('email');
+const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const loginBtn      = document.getElementById('loginBtn');
 const messageBox    = document.getElementById('messageBox');
@@ -38,22 +40,24 @@ function markInvalid(input) {
     input.focus();
 }
 
-// ─── Mostrar/ocultar senha ───────────────────────────────────
-toggleBtn.addEventListener('click', () => {
-    const isPassword = passwordInput.type === 'password';
-    passwordInput.type = isPassword ? 'text' : 'password';
-    toggleBtn.textContent = isPassword ? 'Ocultar' : 'Mostrar';
-    passwordInput.focus();
-});
+// ─── Toggle senha ────────────────────────────────────────────
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleBtn.textContent = isPassword ? 'Ocultar' : 'Mostrar';
+        passwordInput.focus();
+    });
+}
 
 // ─── Submit ──────────────────────────────────────────────────
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const email = emailInput.value.trim().toLowerCase();
+    const username = usernameInput.value.trim().toLowerCase();
     const password = passwordInput.value;
 
-    if (!email)    { markInvalid(emailInput);    return; }
+    if (!username) { markInvalid(usernameInput); return; }
     if (!password) { markInvalid(passwordInput); return; }
 
     if (!supabaseClient) {
@@ -66,12 +70,15 @@ loginForm.addEventListener('submit', async (e) => {
     messageBox.classList.remove('show');
 
     try {
+        // Supabase Auth precisa de email. Usamos username@ir.local internamente.
+        const email = `${username}@${EMAIL_DOMAIN}`;
+
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
             showMessage(
                 error.message === 'Invalid login credentials'
-                    ? 'E-mail ou senha incorretos.'
+                    ? 'Usuário ou senha incorretos.'
                     : (error.message || 'Não foi possível entrar.')
             );
             return;
@@ -82,7 +89,16 @@ loginForm.addEventListener('submit', async (e) => {
             return;
         }
 
-        window.location.href = `/vendas#access_token=${data.session.access_token}`;
+        // Guarda o token para o Portal consumir
+        sessionStorage.setItem('irAccessToken', data.session.access_token);
+        sessionStorage.setItem('irUser', JSON.stringify({
+            id: data.user.id,
+            username,
+            name: data.user.user_metadata?.name || username,
+            sector: data.user.user_metadata?.sector || null
+        }));
+
+        window.location.href = '/portal';
 
     } catch {
         showMessage('Erro ao realizar login. Tente novamente.');
@@ -99,7 +115,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (supabaseClient) {
         const { data } = await supabaseClient.auth.getSession();
         if (data?.session) {
-            window.location.href = `/vendas#access_token=${data.session.access_token}`;
+            sessionStorage.setItem('irAccessToken', data.session.access_token);
+            window.location.href = '/portal';
         }
     }
 });
