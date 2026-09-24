@@ -9,7 +9,6 @@ let state = {
 };
 let accessToken = null;
 
-// ─── TOKEN ────────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -38,7 +37,6 @@ function getHeaders() {
     };
 }
 
-// ─── INIT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -52,9 +50,7 @@ async function carregarModulos() {
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         state.modulesCatalog = await res.json();
-    } catch (err) {
-        console.error('Erro ao carregar módulos:', err);
-    }
+    } catch (err) { console.error('Erro ao carregar módulos:', err); }
 }
 
 async function carregarUsuarios() {
@@ -70,7 +66,6 @@ async function carregarUsuarios() {
     }
 }
 
-// ─── FILTROS ──────────────────────────────────────────────────
 window.filterUsers = function() {
     state.searchTerm = document.getElementById('search').value.trim().toLowerCase();
     aplicarFiltros();
@@ -93,7 +88,6 @@ function aplicarFiltros() {
     renderUsers();
 }
 
-// ─── RENDER ───────────────────────────────────────────────────
 function renderUsers() {
     const tbody = document.getElementById('usersTableBody');
     if (!state.filtered.length) {
@@ -135,7 +129,6 @@ function formatDate(iso) {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-// ─── MODAL ────────────────────────────────────────────────────
 window.toggleForm = function() { showFormModal(null); };
 
 function showFormModal(editId) {
