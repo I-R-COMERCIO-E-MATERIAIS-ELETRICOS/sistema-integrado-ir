@@ -1,5 +1,5 @@
 // ============================================================
-// Portal · I.R. Comércio
+// Portal Mobile · I.R. Comércio
 // ============================================================
 
 const MODULE_ICONS = {
@@ -22,7 +22,6 @@ let accessToken = null;
 let userInfo = null;
 let modules = [];
 
-// ─── TOKEN ────────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -34,7 +33,6 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
-// ─── INIT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
@@ -43,7 +41,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/portal/modules', {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-
         if (res.status === 401 || res.status === 403) {
             sessionStorage.removeItem('irToken');
             window.location.href = '/';
@@ -61,24 +58,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ─── BOOT ─────────────────────────────────────────────────────
 function bootUI() {
     document.getElementById('userInitial').textContent =
         (userInfo.name || userInfo.username || '?').charAt(0).toUpperCase();
     document.getElementById('userName').textContent = userInfo.name || userInfo.username;
     document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
 
-    renderSidebar();
+    renderModules();
 
     const greeting = getGreeting();
     document.getElementById('splashGreeting').textContent = `${greeting}, ${userInfo.name || userInfo.username}!`;
+
     setTimeout(() => {
         const s = document.getElementById('splash');
         s.classList.add('fade-out');
         setTimeout(() => {
             s.style.display = 'none';
-            document.getElementById('dashboard').style.display = 'flex';
-            if (modules.length > 0) openModule(modules[0]);
+            document.getElementById('header').style.display = 'flex';
+            document.getElementById('content').style.display = 'block';
         }, 400);
     }, 1500);
 }
@@ -90,55 +87,29 @@ function getGreeting() {
     return 'Boa noite';
 }
 
-// ─── SIDEBAR ──────────────────────────────────────────────────
-function renderSidebar() {
-    const nav = document.getElementById('sidebarModules');
-    nav.innerHTML = '';
+function renderModules() {
+    const grid = document.getElementById('modulesGrid');
+    grid.innerHTML = '';
 
     if (!modules.length) {
-        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo liberado.<br>Contate o administrador.</div>';
+        grid.innerHTML = '<div class="m-empty">Nenhum módulo liberado.<br>Contate o administrador.</div>';
         return;
     }
 
     modules.forEach(m => {
-        const el = document.createElement('div');
-        el.className = 'module-item';
-        el.dataset.moduleId = m.id;
-        el.innerHTML = `
-            <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
-            <span class="module-label">${m.name}</span>
+        const card = document.createElement('button');
+        card.className = 'm-module-card';
+        card.innerHTML = `
+            <div class="m-module-icon">${MODULE_ICONS[m.id] || ''}</div>
+            <div class="m-module-name">${m.name}</div>
         `;
-        el.addEventListener('click', () => openModule(m));
-        nav.appendChild(el);
+        card.addEventListener('click', () => {
+            window.location.href = `${m.url}?access_token=${encodeURIComponent(accessToken)}`;
+        });
+        grid.appendChild(card);
     });
 }
 
-// ─── IFRAMES ──────────────────────────────────────────────────
-function openModule(mod) {
-    document.querySelectorAll('.module-item').forEach(i => i.classList.remove('active'));
-    const sidebarItem = document.querySelector(`.module-item[data-module-id="${mod.id}"]`);
-    if (sidebarItem) sidebarItem.classList.add('active');
-
-    let container = document.getElementById(`iframe-${mod.id}`);
-
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'iframe-container';
-        container.id = `iframe-${mod.id}`;
-
-        const iframe = document.createElement('iframe');
-        iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
-        iframe.title = mod.name;
-        container.appendChild(iframe);
-
-        document.getElementById('iframesContainer').appendChild(container);
-    }
-
-    document.querySelectorAll('.iframe-container').forEach(c => c.classList.remove('active'));
-    requestAnimationFrame(() => container.classList.add('active'));
-}
-
-// ─── LOGOUT ───────────────────────────────────────────────────
 window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
 window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
 window.confirmLogout = () => {
