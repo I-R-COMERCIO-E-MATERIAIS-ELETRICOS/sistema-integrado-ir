@@ -1,32 +1,22 @@
-/* ============================================================
-   Portal · I.R. Comércio
-   Tema claro fixo · preto, laranja, branco, cinza
-   ============================================================ */
 :root {
     --primary: #FF521D;
     --primary-hover: #E8451A;
     --primary-soft: rgba(255, 82, 29, 0.12);
-
     --bg: #F4F5F7;
     --card: #FFFFFF;
     --sidebar-bg: #0A0A0A;
-
     --text: #111111;
     --text-2: #5B6470;
     --text-3: #9CA3AF;
     --text-inverse: #FFFFFF;
-
     --border: #E1E4E8;
     --danger: #EF4444;
-
     color-scheme: light only;
 }
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* ─── SPLASH ───────────────────────────────────────────────── */
 .splash {
     position: fixed; inset: 0;
     background: var(--bg);
@@ -36,46 +26,31 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
 .splash-inner { text-align: center; }
-.splash-greeting {
-    font-size: 1.6rem;
-    font-weight: 600;
-    margin-bottom: 1.75rem;
-    letter-spacing: -0.02em;
-}
+.splash-greeting { font-size: 1.6rem; font-weight: 600; margin-bottom: 1.75rem; letter-spacing: -0.02em; }
 .splash-bar {
     width: 220px; height: 2px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-    margin: 0 auto;
+    background: var(--border); border-radius: 2px;
+    overflow: hidden; margin: 0 auto;
 }
 .splash-bar span {
     display: block; height: 100%; width: 40%;
     background: var(--primary);
     animation: progress 1.4s ease-in-out infinite;
 }
-@keyframes progress {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(300%); }
-}
+@keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 
-/* ─── LAYOUT ───────────────────────────────────────────────── */
 .dashboard { display: flex; height: 100vh; overflow: hidden; }
 
-/* ─── SIDEBAR ──────────────────────────────────────────────── */
 .sidebar {
     background: var(--sidebar-bg);
     width: 260px;
     flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
+    display: flex; flex-direction: column;
     color: var(--text-inverse);
     overflow: hidden;
 }
 .sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
+    display: flex; align-items: center; gap: 0.85rem;
     padding: 1.5rem 1.25rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -85,66 +60,30 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     background: var(--primary);
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 1.1rem;
-    color: #fff;
-    flex-shrink: 0;
+    color: #fff; flex-shrink: 0;
 }
 .sidebar-info { min-width: 0; flex: 1; }
-.sidebar-name {
-    font-weight: 700;
-    font-size: 0.98rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    color: #fff;
-}
-.sidebar-sector {
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.5);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.sidebar-name { font-weight: 700; font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+.sidebar-sector { font-size: 0.78rem; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.sidebar-nav {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.75rem 0;
-    scrollbar-width: thin;
-}
-.sidebar-nav::-webkit-scrollbar { width: 6px; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 0.75rem 0; }
 .module-item {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
+    display: flex; align-items: center; gap: 0.85rem;
     padding: 0.8rem 1.25rem;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: background 0.15s ease, color 0.15s ease;
+    font-size: 0.9rem; font-weight: 500;
     border-left: 3px solid transparent;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 .module-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-.module-item.active {
-    background: var(--primary-soft);
-    color: var(--primary);
-    border-left-color: var(--primary);
-}
-.module-icon {
-    width: 20px; height: 20px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-}
+.module-item.active { background: var(--primary-soft); color: var(--primary); border-left-color: var(--primary); }
+.module-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .module-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .module-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ─── MAIN ─────────────────────────────────────────────────── */
-.main-content {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    background: var(--bg);
-}
+.main-content { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
 #iframesContainer { width: 100%; height: 100%; position: relative; }
-
 .iframe-container {
     position: absolute; inset: 0;
     opacity: 0; visibility: hidden;
@@ -153,11 +92,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .iframe-container.active { opacity: 1; visibility: visible; }
 .iframe-container iframe { width: 100%; height: 100%; border: none; display: block; }
 
-/* ─── LOGOUT ───────────────────────────────────────────────── */
 .logout-float {
-    position: fixed;
-    top: 1.25rem; right: 1.25rem;
-    z-index: 100;
+    position: fixed; top: 1.25rem; right: 1.25rem; z-index: 100;
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.55rem 1rem;
     background: var(--card);
@@ -167,17 +103,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     font-weight: 600; font-size: 0.85rem;
     transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.logout-float:hover {
-    background: rgba(239, 68, 68, 0.06);
-    border-color: var(--danger);
-    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15);
-}
+.logout-float:hover { background: rgba(239, 68, 68, 0.06); border-color: var(--danger); box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15); }
 .logout-float svg { width: 18px; height: 18px; }
 
-/* ─── MODAL LOGOUT ─────────────────────────────────────────── */
 .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
+    display: none; position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
     align-items: center; justify-content: center;
@@ -185,13 +115,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .modal-overlay.show { display: flex; }
 .modal-content {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 2rem;
-    max-width: 420px;
-    width: 92%;
-    text-align: center;
-    position: relative;
+    background: var(--card); border-radius: 16px; padding: 2rem;
+    max-width: 420px; width: 92%;
+    text-align: center; position: relative;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     animation: scaleIn 0.2s ease;
 }
@@ -204,21 +130,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border-radius: 8px;
 }
 .close-modal:hover { background: var(--bg); color: var(--text); }
-.modal-message {
-    font-size: 1.15rem;
-    font-weight: 500;
-    margin: 2rem 0;
-    color: var(--text);
-}
+.modal-message { font-size: 1.15rem; font-weight: 500; margin: 2rem 0; color: var(--text); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: center; }
-.modal-actions button {
-    min-width: 120px;
-    padding: 12px 24px;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: #fff;
-}
+.modal-actions button { min-width: 120px; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; color: #fff; }
 .modal-actions .danger { background: var(--danger); }
 .modal-actions .danger:hover { background: #DC2626; }
 .modal-actions .secondary { background: #6B7280; }
