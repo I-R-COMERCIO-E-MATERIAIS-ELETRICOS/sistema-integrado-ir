@@ -238,3 +238,25 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .modal-actions .danger:hover { background: #DC2626; }
 .modal-actions .secondary { background: #6B7280; }
 .modal-actions .secondary:hover { background: #4B5563; }
+
+/* Aviso de fim de expediente */
+.aviso-expediente {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #EF4444;
+    color: #fff;
+    padding: 16px 22px;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    max-width: 420px;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+    z-index: 99999;
+    line-height: 1.45;
+    animation: slideInBottom 0.3s ease;
+}
+@keyframes slideInBottom {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
