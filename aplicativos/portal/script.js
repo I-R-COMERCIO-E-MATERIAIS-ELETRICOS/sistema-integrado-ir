@@ -1,5 +1,5 @@
 // ============================================================
-// Portal · I.R. Comércio
+// Portal · I.R. Comércio (desktop)
 // ============================================================
 
 const MODULE_ICONS = {
@@ -61,6 +61,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
         bootUI();
+
+        if (!userInfo.is_admin) agendarAvisoExpediente();
     } catch (err) {
         console.error('[PORTAL]', err);
         window.location.href = '/';
@@ -89,6 +91,36 @@ function bootUI() {
         document.getElementById('dashboard').style.display = 'flex';
         if (modules.length > 0) openModule(modules[0]);
     }, 2200);
+}
+
+// ─── Aviso de fim de expediente (admin não recebe) ───────────
+function agendarAvisoExpediente() {
+    const tick = () => {
+        const now = new Date();
+        const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const dow = br.getDay(); // 0=dom, 6=sáb
+        if (dow === 0 || dow === 6) return;
+
+        const mins = br.getHours() * 60 + br.getMinutes();
+        const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;  // sex 16:45 / resto 17:15
+        const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;  // sex 17:00 / resto 17:30
+
+        if (mins >= limite && mins < fim && !document.getElementById('avisoExpediente')) {
+            const el = document.createElement('div');
+            el.id = 'avisoExpediente';
+            el.className = 'aviso-expediente';
+            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades antes do encerramento da sessão.';
+            document.body.appendChild(el);
+        }
+
+        if (mins >= fim) {
+            sessionStorage.removeItem('irToken');
+            sessionStorage.removeItem('irUser');
+            window.location.href = '/';
+        }
+    };
+    tick();
+    setInterval(tick, 30000); // checa a cada 30s
 }
 
 function renderSidebar() {
