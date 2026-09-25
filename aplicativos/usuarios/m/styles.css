@@ -2,20 +2,15 @@
     --primary: #FF521D;
     --primary-hover: #E8451A;
     --primary-soft: rgba(255, 82, 29, 0.10);
-
     --bg: #F4F5F7;
     --card: #FFFFFF;
-    --dark: #0A0A0A;
-
     --text: #111111;
     --text-2: #5B6470;
     --text-3: #9CA3AF;
-
     --border: #E1E4E8;
     --input-bg: #F7F8FA;
     --success: #22C55E;
     --danger: #EF4444;
-
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     color-scheme: light only;
@@ -31,7 +26,6 @@ html, body {
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* HEADER */
 .m-header {
     position: sticky; top: 0; z-index: 50;
     background: var(--card);
@@ -40,12 +34,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border-bottom: 1px solid var(--border);
 }
 .m-header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
-
 .m-add-btn {
-    width: 42px; height: 42px;
-    border-radius: 12px;
-    background: var(--primary);
-    color: #fff;
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--primary); color: #fff;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 4px 12px rgba(255, 82, 29, 0.3);
     transition: transform 0.1s ease;
@@ -53,10 +44,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-add-btn:active { transform: scale(0.94); }
 .m-add-btn svg { width: 22px; height: 22px; }
 
-/* CONTENT */
 .m-content { padding: 1rem 1rem calc(3rem + var(--safe-bottom)); }
 
-/* SEARCH */
 .m-search {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.75rem 1rem;
@@ -72,7 +61,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-search input::placeholder { color: var(--text-3); }
 
-/* FILTERS */
 .m-filters { margin-bottom: 1rem; }
 .m-filters select {
     width: 100%;
@@ -86,7 +74,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     outline: none;
 }
 
-/* LIST */
 .m-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
 .m-card {
@@ -105,11 +92,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-avatar {
     width: 42px; height: 42px; border-radius: 12px;
-    background: var(--primary-soft);
-    color: var(--primary);
+    background: var(--primary-soft); color: var(--primary);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 1.1rem;
-    flex-shrink: 0;
+    font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
 }
 .m-card-title { flex: 1; min-width: 0; }
 .m-name { font-weight: 700; font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -128,10 +113,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-row span { color: var(--text-2); }
 .m-row strong { color: var(--text); font-weight: 600; }
 
-.m-modules-row {
-    display: flex; flex-wrap: wrap; gap: 4px;
-    margin-top: 0.25rem;
-}
+.m-modules-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.25rem; }
 .m-chip {
     font-size: 0.7rem; padding: 3px 8px; border-radius: 4px;
     background: var(--primary-soft); color: var(--primary-hover);
@@ -156,12 +138,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-btn.primary { background: var(--primary); color: #fff; }
 .m-btn.secondary { background: var(--input-bg); color: var(--text-2); }
 
-.m-empty {
-    text-align: center; padding: 3rem 1rem;
-    color: var(--text-3); font-size: 0.9rem;
-}
+.m-empty { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 0.9rem; }
 
-/* MODAL */
 .m-modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -172,8 +150,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-modal {
     background: var(--card);
-    width: 100%;
-    max-height: 92vh;
+    width: 100%; max-height: 92vh;
     overflow-y: auto;
     border-radius: 20px 20px 0 0;
     padding: 1.5rem 1.25rem calc(1.5rem + var(--safe-bottom));
@@ -211,19 +188,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     outline: none;
     transition: border-color 0.15s ease;
 }
-.m-form input:focus, .m-form select:focus {
-    border-color: var(--primary);
-    background: #fff;
-}
-.m-form input:disabled {
-    background: #E5E7EB; color: #6B7280; cursor: not-allowed;
-}
+.m-form input:focus, .m-form select:focus { border-color: var(--primary); background: #fff; }
+.m-form input:disabled { background: #E5E7EB; color: #6B7280; cursor: not-allowed; }
 
 .m-toggle-row {
     display: flex; align-items: center; gap: 0.75rem;
-    padding: 0.75rem 0;
-    font-size: 0.9rem;
-    font-weight: 500;
+    padding: 0.75rem 0; font-size: 0.9rem; font-weight: 500;
 }
 .m-switch {
     width: 44px; height: 26px; border-radius: 999px;
@@ -239,7 +209,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-switch.active { background: var(--success); }
 .m-switch.active::after { transform: translateX(18px); }
 
-/* Picker de módulos */
 .m-modules-picker {
     display: flex; flex-direction: column; gap: 0.45rem;
     padding: 0.75rem;
@@ -247,10 +216,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid var(--border);
     border-radius: 12px;
 }
-.m-modules-picker.disabled {
-    opacity: 0.45;
-    pointer-events: none;
-}
+.m-modules-picker.disabled { opacity: 0.45; pointer-events: none; }
 .m-module-check {
     display: flex; align-items: center; gap: 0.65rem;
     padding: 0.65rem 0.85rem;
@@ -262,44 +228,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transition: all 0.15s ease;
 }
 .m-module-check:active { transform: scale(0.99); }
-.m-module-check input {
-    width: 18px; height: 18px;
-    accent-color: var(--primary);
-    margin: 0;
-}
-.m-module-check.checked {
-    border-color: var(--primary);
-    background: rgba(255, 82, 29, 0.06);
-}
-.m-hint {
-    font-size: 0.78rem;
-    color: var(--text-2);
-    padding: 0 0.25rem;
-}
+.m-module-check input { width: 18px; height: 18px; accent-color: var(--primary); margin: 0; }
+.m-module-check.checked { border-color: var(--primary); background: rgba(255, 82, 29, 0.06); }
+.m-hint { font-size: 0.78rem; color: var(--text-2); padding: 0 0.25rem; }
 
-.m-form-actions {
-    display: flex; gap: 0.6rem; margin-top: 1rem;
-}
+.m-form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
 .m-form-actions .m-btn { padding: 0.9rem; }
 
-/* Toast */
 .m-toast {
-    position: fixed;
-    bottom: calc(1rem + var(--safe-bottom));
-    left: 1rem; right: 1rem;
-    padding: 0.9rem 1.1rem;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #fff;
-    z-index: 2000;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    position: fixed; bottom: calc(1rem + var(--safe-bottom)); left: 1rem; right: 1rem;
+    padding: 0.9rem 1.1rem; border-radius: 12px;
+    font-size: 0.9rem; font-weight: 600; color: #fff;
+    z-index: 2000; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     animation: slideUp 0.3s ease;
 }
 .m-toast.success { background: #10B981; }
 .m-toast.error   { background: #EF4444; }
 
-/* Acesso negado */
 .m-denied {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
