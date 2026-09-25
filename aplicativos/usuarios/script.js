@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
     await carregarModulos();
+    await carregarEmployees();
     await carregarUsuarios();
 });
 
@@ -60,14 +61,22 @@ async function carregarModulos() {
     } catch (err) { console.error('Erro ao carregar módulos:', err); }
 }
 
+async function carregarEmployees() {
+    try {
+        const res = await fetch(`${API_URL}/employees`, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        state.employeesCatalog = await res.json();
+        popularEmployees();
+    } catch (err) { console.error('Erro ao carregar funcionários:', err); }
+}
+
 async function carregarUsuarios() {
     try {
         const res = await fetch(API_URL, { headers: getHeaders() });
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         state.users = await res.json();
-        state.employeesCatalog = state.users;
-        popularEmployees();
         aplicarFiltros();
     } catch (err) {
         console.error(err);
@@ -77,15 +86,17 @@ async function carregarUsuarios() {
 
 function popularEmployees() {
     const sel = document.getElementById('employeeSelect');
-    const atual = sel.value;
+    if (!sel) return;
+    const atual = sel.value || 'TODOS';
+
     sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
     state.employeesCatalog.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.id;
-        opt.textContent = `#${u.code ?? '—'} — ${u.name}`;
+        opt.textContent = u.name;
         sel.appendChild(opt);
     });
-    sel.value = atual || 'TODOS';
+    sel.value = atual;
 }
 
 window.filterUsers = function() {
@@ -100,7 +111,7 @@ function aplicarFiltros() {
         if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
         if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
         if (state.searchTerm) {
-            const hay = `${u.name} ${u.username} ${u.code || ''}`.toLowerCase();
+            const hay = `${u.code || ''} ${u.name} ${u.username || ''}`.toLowerCase();
             if (!hay.includes(state.searchTerm)) return false;
         }
         return true;
@@ -116,7 +127,7 @@ function renderUsers() {
     }
     tbody.innerHTML = state.filtered.map(u => `
         <tr>
-            <td><strong class="code-cell">#${u.code ?? '—'}</strong></td>
+            <td><strong class="code-cell">${u.code != null ? u.code : '—'}</strong></td>
             <td><strong>${escHtml(u.name)}</strong></td>
             <td>${escHtml(u.username || '—')}</td>
             <td>${escHtml(u.sector || '—')}</td>
@@ -292,6 +303,7 @@ window.handleSubmit = async function(e) {
 
         document.getElementById('userModal').classList.remove('show');
         showToast(state.editingId ? 'Usuário atualizado' : 'Usuário criado', 'success');
+        await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
         showToast('Erro: ' + err.message, 'error');
@@ -324,13 +336,13 @@ window.confirmarExclusao = async function() {
         }
         if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
         showToast('Usuário excluído', 'success');
+        await carregarEmployees();
         await carregarUsuarios();
     } catch {
         showToast('Erro ao excluir', 'error');
     }
 };
 
-// ─── RELATÓRIO PDF ─────────────────────────────────────────
 window.abrirModalRelatorio = function() {
     if (state.employeeId === 'TODOS') {
         showToast('Selecione um funcionário específico em "Todos os Funcionários"', 'error');
@@ -517,6 +529,7 @@ window.sincronizarDados = async function() {
     btn.disabled = true;
     try {
         await carregarModulos();
+        await carregarEmployees();
         await carregarUsuarios();
         showToast('Sincronização concluída', 'success');
     } catch {
