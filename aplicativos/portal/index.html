@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal · I.R. Comércio</title>
+    <title>Portal</title>
     <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,6 +17,8 @@
     </script>
 </head>
 <body>
+
+<!-- SPLASH -->
 <div class="splash" id="splash">
     <div class="splash-inner">
         <div class="splash-greeting" id="splashGreeting"></div>
@@ -24,7 +26,9 @@
     </div>
 </div>
 
+<!-- DASHBOARD -->
 <div class="dashboard" id="dashboard" style="display:none">
+
     <button class="logout-float" onclick="showLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -50,6 +54,7 @@
     </main>
 </div>
 
+<!-- MODAL LOGOUT -->
 <div class="modal-overlay" id="logoutModal">
     <div class="modal-content">
         <button class="close-modal" onclick="closeLogout()">✕</button>
