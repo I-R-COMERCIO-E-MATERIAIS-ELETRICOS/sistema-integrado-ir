@@ -8,7 +8,7 @@ const toggleBtn     = document.getElementById('togglePassword');
 function showMessage(text) {
     messageBox.textContent = text;
     messageBox.className = 'message error show';
-    setTimeout(() => messageBox.classList.remove('show'), 5000);
+    setTimeout(() => messageBox.classList.remove('show'), 7000);
 }
 
 function markInvalid(input) {
