@@ -149,7 +149,6 @@ function formatDate(iso) {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-// ─── MODAL CADASTRO/EDIÇÃO ────────────────────────────────
 window.toggleForm = function() { abrirModalUsuario(null); };
 
 function abrirModalUsuario(editId) {
@@ -408,9 +407,7 @@ async function gerarPDF(data, type) {
 
     doc.setFontSize(15);
     doc.setFont(undefined, 'bold');
-    const titulo = type === 'logins' ? 'Relatório de Logins'
-                  : type === 'atividades' ? 'Relatório de Atividades'
-                  : 'Relatório de Logins + Atividades';
+    const titulo = type === 'logins' ? 'Relatório de Logins' : 'Relatório de Atividades';
     doc.text(titulo, 15, 22);
 
     doc.setFontSize(10);
@@ -427,7 +424,6 @@ async function gerarPDF(data, type) {
     function novaPaginaSePreciso(altura) {
         if (y + altura > 280) { doc.addPage(); y = 20; }
     }
-
     function escreveLinhas(linhas, opts = {}) {
         doc.setFontSize(opts.size || 10);
         doc.setFont(undefined, opts.bold ? 'bold' : 'normal');
@@ -437,7 +433,6 @@ async function gerarPDF(data, type) {
             y += 5.5;
         });
     }
-
     function escreveLinhaAtividade(hora, moduloLabel, frase) {
         novaPaginaSePreciso(5.5);
         doc.setFontSize(9.5);
@@ -456,30 +451,24 @@ async function gerarPDF(data, type) {
         doc.setFont(undefined, 'normal');
         doc.setTextColor(17, 17, 17);
         doc.text(frase, 15 + largHora + largMod, y);
-
         y += 5.5;
     }
-
     function dataPorExtenso(date) {
-        return date.toLocaleDateString('pt-BR', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        }).toUpperCase();
+        return date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
     }
-
     function horaCurta(date) {
         return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }
 
-    if (type !== 'atividades' && data.logins.length) {
+    if (type === 'logins' && data.logins.length) {
         y += 4;
         escreveLinhas(['LOGINS'], { bold: true, size: 12 });
         y += 2;
-
         data.logins.forEach(l => {
             const dt = new Date(l.created_at);
             escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
             const hora = horaCurta(dt);
-            const resultado = l.success ? 'Login realizado com sucesso' : 'Tentativa de login falhou';
+            const resultado = l.success ? 'Login realizado com sucesso' : `Tentativa de login falhou${l.failure_reason ? ' (' + l.failure_reason + ')' : ''}`;
             const ip = l.ip_address ? ` (IP ${l.ip_address})` : '';
             novaPaginaSePreciso(5.5);
             doc.setFontSize(9.5);
@@ -491,11 +480,10 @@ async function gerarPDF(data, type) {
         });
     }
 
-    if (type !== 'logins' && data.atividades.length) {
-        y += 6;
+    if (type === 'atividades' && data.atividades.length) {
+        y += 4;
         escreveLinhas(['ATIVIDADES'], { bold: true, size: 12 });
         y += 2;
-
         data.atividades.forEach(a => {
             const dt = new Date(a.created_at);
             escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
@@ -505,8 +493,11 @@ async function gerarPDF(data, type) {
         });
     }
 
-    if ((type !== 'atividades' && !data.logins.length) && (type !== 'logins' && !data.atividades.length)) {
-        escreveLinhas(['Nenhum registro encontrado para o período.'], { size: 10 });
+    if (type === 'logins' && !data.logins.length) {
+        escreveLinhas(['Nenhum login registrado para o período.'], { size: 10 });
+    }
+    if (type === 'atividades' && !data.atividades.length) {
+        escreveLinhas(['Nenhuma atividade registrada para o período.'], { size: 10 });
     }
 
     doc.save(`relatorio_${type}_${data.funcionario.username}.pdf`);
