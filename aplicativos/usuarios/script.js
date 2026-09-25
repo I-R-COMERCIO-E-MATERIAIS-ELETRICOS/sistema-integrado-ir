@@ -45,7 +45,6 @@ function showDenied(msg) {
         </div>`;
 }
 
-// ─── INIT ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -79,6 +78,7 @@ async function carregarUsuarios() {
 
 function popularEmployees() {
     const sel = document.getElementById('employeeSelect');
+    const atual = sel.value;
     sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
     state.employeesCatalog.forEach(u => {
         const opt = document.createElement('option');
@@ -86,9 +86,9 @@ function popularEmployees() {
         opt.textContent = u.name;
         sel.appendChild(opt);
     });
+    sel.value = atual || 'TODOS';
 }
 
-// ─── FILTROS ───────────────────────────────────────────────
 window.filterUsers = function() {
     state.searchTerm = document.getElementById('search').value.trim().toLowerCase();
     aplicarFiltros();
@@ -109,7 +109,6 @@ function aplicarFiltros() {
     renderUsers();
 }
 
-// ─── TABELA ────────────────────────────────────────────────
 function renderUsers() {
     const tbody = document.getElementById('usersTableBody');
     if (!state.filtered.length) {
@@ -134,13 +133,12 @@ function renderUsers() {
 function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
 function formatDate(iso) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-// ─── MODAL CADASTRO/EDIÇÃO ────────────────────────────────
+// ─── MODAL CADASTRO ────────────────────────────────────────
 window.toggleForm = function() { abrirModalUsuario(null); };
 
 function abrirModalUsuario(editId) {
@@ -185,7 +183,6 @@ window.mostrarTab = function(tab) {
     });
 };
 
-// ─── STATUS CARD ───────────────────────────────────────────
 window.toggleStatusUsuario = function() {
     if (state.adminMode) return;
     state.userActive = !state.userActive;
@@ -195,6 +192,7 @@ window.toggleStatusUsuario = function() {
 function atualizarCardStatus() {
     const card = document.getElementById('statusCard');
     const text = document.getElementById('statusCardText');
+    if (!card) return;
     if (state.userActive) {
         card.classList.remove('inactive');
         card.classList.add('active');
@@ -204,14 +202,9 @@ function atualizarCardStatus() {
         card.classList.add('inactive');
         text.textContent = 'Selecione para ativar';
     }
-    if (state.adminMode) {
-        card.classList.add('disabled');
-    } else {
-        card.classList.remove('disabled');
-    }
+    card.classList.toggle('disabled', state.adminMode);
 }
 
-// ─── MÓDULOS DASHBOARD ─────────────────────────────────────
 function renderModulosDashboard() {
     const wrap = document.getElementById('modulesDashboard');
     wrap.innerHTML = '';
@@ -249,7 +242,6 @@ function atualizarModoAdmin() {
 
     if (state.adminMode) {
         hint.classList.remove('hidden');
-        wrap.classList.add('admin-mode');
         state.selectedModules = state.modulesCatalog.map(m => m.id);
         renderModulosDashboard();
         wrap.classList.add('admin-mode');
@@ -261,7 +253,6 @@ function atualizarModoAdmin() {
     atualizarCardStatus();
 }
 
-// ─── SUBMIT ────────────────────────────────────────────────
 window.handleSubmit = async function(e) {
     e.preventDefault();
 
@@ -297,10 +288,7 @@ window.handleSubmit = async function(e) {
         const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
 
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
-        if (res.status === 409) {
-            showToast('Usuário já existe', 'error');
-            return;
-        }
+        if (res.status === 409) { showToast('Usuário já existe', 'error'); return; }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || 'Erro ' + res.status);
@@ -334,7 +322,6 @@ window.confirmarExclusao = async function() {
     if (!deleteTargetId) return;
     const id = deleteTargetId;
     fecharModalExclusao();
-
     try {
         const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getHeaders() });
         if (res.status === 400) {
@@ -365,13 +352,12 @@ window.fecharModalRelatorio = function() {
 
 window.emitirRelatorio = async function(type) {
     fecharModalRelatorio();
-
     try {
         const res = await fetch(`${API_URL}/report/${state.employeeId}?type=${type}`, { headers: getHeaders() });
         if (!res.ok) throw new Error('Erro ' + res.status);
         const data = await res.json();
         gerarPDF(data, type);
-    } catch (err) {
+    } catch {
         showToast('Erro ao emitir relatório', 'error');
     }
 };
@@ -380,7 +366,6 @@ async function gerarPDF(data, type) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    // Header com logo translúcida
     try {
         const logoImg = await carregarImagem('/imagens/logo-documento.png');
         doc.setGState(new doc.GState({ opacity: 0.08 }));
@@ -388,7 +373,6 @@ async function gerarPDF(data, type) {
         doc.setGState(new doc.GState({ opacity: 1 }));
     } catch {}
 
-    // Cabeçalho
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     const titulo = type === 'logins' ? 'Relatório de Logins'
@@ -452,7 +436,23 @@ function carregarImagem(url) {
 
 // ─── SINCRONIZAR ───────────────────────────────────────────
 window.sincronizarDados = async function() {
-    await carregarUsuarios();
+    const btn = document.getElementById('syncBtn');
+    if (!btn) return;
+
+    btn.classList.add('spinning');
+    btn.disabled = true;
+
+    try {
+        await carregarUsuarios();
+        showToast('Sincronização concluída', 'success');
+    } catch {
+        showToast('Erro na sincronização', 'error');
+    } finally {
+        setTimeout(() => {
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+        }, 600);
+    }
 };
 
 // ─── TOAST ─────────────────────────────────────────────────
