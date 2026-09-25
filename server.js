@@ -65,18 +65,15 @@ MODULES.forEach(name => {
     const dir = path.join(__dirname, 'aplicativos', name);
     if (!fs.existsSync(dir)) return;
 
-    // Rota principal (desktop)
     app.get(`/${name}`,  (req, res) => res.sendFile(path.join(dir, 'index.html')));
     app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
 
-    // Rota mobile (subpasta m/)
     const mDir = path.join(dir, 'm');
     if (fs.existsSync(mDir)) {
         app.get(`/${name}/m`,  (req, res) => res.sendFile(path.join(mDir, 'index.html')));
         app.get(`/${name}/m/`, (req, res) => res.sendFile(path.join(mDir, 'index.html')));
     }
 
-    // Estáticos (CSS, JS, imagens)
     app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
 });
 
