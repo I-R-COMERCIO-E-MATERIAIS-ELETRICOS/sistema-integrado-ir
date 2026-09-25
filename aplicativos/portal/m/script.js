@@ -86,7 +86,9 @@ function bootUI() {
             setTimeout(() => { s.style.display = 'none'; }, 400);
         }
         document.getElementById('app').style.display = 'flex';
-        if (modules.length > 0) openModule(modules[0]);
+
+        const primeiroPermitido = modules.find(m => m.allowed);
+        if (primeiroPermitido) openModule(primeiroPermitido);
     }, 2200);
 }
 
@@ -124,20 +126,24 @@ function renderTabs() {
     bar.innerHTML = '';
 
     if (!modules.length) {
-        bar.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,0.5);font-size:0.85rem;">Nenhum módulo liberado.</div>';
+        bar.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,0.5);font-size:0.85rem;">Nenhum módulo disponível.</div>';
         return;
     }
 
     modules.forEach(m => {
         const tab = document.createElement('button');
         tab.type = 'button';
-        tab.className = 'm-tab';
+        tab.className = 'm-tab' + (m.allowed ? '' : ' disabled');
         tab.dataset.moduleId = m.id;
         tab.innerHTML = `
             <span class="m-tab-icon">${MODULE_ICONS[m.id] || ''}</span>
             <span>${m.name}</span>
         `;
-        tab.addEventListener('click', () => openModule(m));
+        if (m.allowed) {
+            tab.addEventListener('click', () => openModule(m));
+        } else {
+            tab.disabled = true;
+        }
         bar.appendChild(tab);
     });
 
