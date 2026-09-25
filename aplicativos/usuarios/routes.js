@@ -5,8 +5,7 @@ function verifyToken(token, secret) {
     if (!token || typeof token !== 'string' || !token.includes('.')) return null;
     const [body, sig] = token.split('.');
     const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-    const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
+    const a = Buffer.from(sig), b = Buffer.from(expected);
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
     try {
         const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
@@ -22,7 +21,7 @@ module.exports = function (supabase, supabaseAdmin) {
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
     const VALID_MODULES = [
-        'vendas', 'precos', 'compra', 'transportadoras', 'cotacoes',
+        'precos', 'compra', 'transportadoras', 'cotacoes',
         'faturamento', 'frete', 'estoque', 'receber', 'pagar', 'lucro', 'licitacoes'
     ];
 
@@ -34,20 +33,26 @@ module.exports = function (supabase, supabaseAdmin) {
 
         const { data: profile } = await supabaseAdmin
             .from('profiles')
-            .select('is_admin, is_active')
+            .select('is_admin, is_active, username')
             .eq('id', payload.uid)
             .single();
 
         if (!profile?.is_admin || !profile?.is_active) {
             return res.status(403).json({ error: 'Acesso negado' });
         }
-        req.adminUser = { id: payload.uid, username: payload.username };
+        req.adminUser = { id: payload.uid, username: profile.username };
         next();
     }
 
+    function logActivity({ user_id, username, action, module, target_id, details }) {
+        supabaseAdmin.from('activity_logs').insert([{
+            user_id, username, action, module, target_id, details
+        }]).then(() => {});
+    }
+
+    // ─── MÓDULOS DISPONÍVEIS ─────────────────────────────────
     router.get('/meta/modules', requireAdmin, (req, res) => {
         res.json([
-            { id: 'vendas',          name: 'Painel' },
             { id: 'precos',          name: 'Tabela de Preços' },
             { id: 'compra',          name: 'Ordens de Compra' },
             { id: 'transportadoras', name: 'Transportadoras' },
@@ -60,6 +65,17 @@ module.exports = function (supabase, supabaseAdmin) {
         ]);
     });
 
+    // ─── LISTA DE FUNCIONÁRIOS (para filtro) ─────────────────
+    router.get('/employees', requireAdmin, async (req, res) => {
+        const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, username, sector')
+            .order('name');
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(data || []);
+    });
+
+    // ─── LISTAR ──────────────────────────────────────────────
     router.get('/', requireAdmin, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
@@ -69,66 +85,45 @@ module.exports = function (supabase, supabaseAdmin) {
             if (error) throw error;
             res.json(data || []);
         } catch (err) {
-            console.error('Erro ao listar usuários:', err.message);
             res.status(500).json({ error: 'Erro ao listar usuários' });
         }
     });
 
+    // ─── CRIAR ───────────────────────────────────────────────
     router.post('/', requireAdmin, async (req, res) => {
         const { username, name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
-
         if (!username || !name || !sector || !password) {
             return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
         }
 
         const cleanUsername = String(username).trim().toLowerCase();
-        if (cleanUsername.includes('@')) {
-            return res.status(400).json({ error: 'Nome de usuário não pode conter @' });
-        }
+        if (cleanUsername.includes('@')) return res.status(400).json({ error: 'Nome de usuário não pode conter @' });
 
         const cleanContactEmail = (contact_email || '').trim().toLowerCase();
         const authEmail = cleanContactEmail || `${cleanUsername}@${FALLBACK_DOMAIN}`;
         const cleanApps = Array.isArray(apps) ? apps.filter(a => VALID_MODULES.includes(a)) : [];
 
         try {
-            const { data: dup } = await supabaseAdmin
-                .from('profiles').select('id').eq('username', cleanUsername).maybeSingle();
+            const { data: dup } = await supabaseAdmin.from('profiles').select('id').eq('username', cleanUsername).maybeSingle();
             if (dup) return res.status(409).json({ error: 'Usuário já existe' });
 
-            if (cleanContactEmail) {
-                const { data: dupEmail } = await supabaseAdmin
-                    .from('profiles').select('id').eq('auth_email', authEmail).maybeSingle();
-                if (dupEmail) return res.status(409).json({ error: 'Já existe um usuário com este e-mail' });
-            }
-
             const { data: created, error: authError } = await supabaseAdmin.auth.admin.createUser({
-                email: authEmail,
-                password,
-                email_confirm: true,
+                email: authEmail, password, email_confirm: true,
                 user_metadata: { name, sector, username: cleanUsername }
             });
-
             if (authError) {
-                if (authError.message.includes('already')) {
-                    return res.status(409).json({ error: 'E-mail já cadastrado no sistema' });
-                }
+                if (authError.message.includes('already')) return res.status(409).json({ error: 'E-mail já cadastrado' });
                 throw authError;
             }
 
             const isAdmin = sector === 'Administrador';
-
             const { data: profile, error: profileError } = await supabaseAdmin
                 .from('profiles')
                 .upsert({
-                    id: created.user.id,
-                    auth_email: authEmail,
-                    username: cleanUsername,
-                    name,
+                    id: created.user.id, auth_email: authEmail, username: cleanUsername, name,
                     contact_email: cleanContactEmail || null,
                     contact_phone: (contact_phone || '').trim() || null,
-                    sector,
-                    is_admin: isAdmin,
-                    is_active: is_active !== false,
+                    sector, is_admin: isAdmin, is_active: is_active !== false,
                     apps: isAdmin ? [] : cleanApps
                 }, { onConflict: 'id' })
                 .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
@@ -139,13 +134,19 @@ module.exports = function (supabase, supabaseAdmin) {
                 throw profileError;
             }
 
+            logActivity({
+                user_id: req.adminUser.id, username: req.adminUser.username,
+                action: 'create', module: 'usuarios', target_id: profile.id,
+                details: { nome: name, username: cleanUsername, sector }
+            });
+
             res.status(201).json(profile);
         } catch (err) {
-            console.error('Erro ao criar usuário:', err.message);
             res.status(500).json({ error: 'Erro ao criar usuário: ' + err.message });
         }
     });
 
+    // ─── ATUALIZAR ───────────────────────────────────────────
     router.put('/:id', requireAdmin, async (req, res) => {
         const { name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         const { id } = req.params;
@@ -170,39 +171,92 @@ module.exports = function (supabase, supabaseAdmin) {
                 .from('profiles').update(updates).eq('id', id)
                 .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
                 .single();
-
             if (error) throw error;
 
             if (password) {
                 const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(id, { password });
                 if (pwErr) throw pwErr;
             }
-
             if (is_active !== undefined) {
                 await supabaseAdmin.auth.admin.updateUserById(id, {
                     ban_duration: is_active ? 'none' : '876000h'
                 });
             }
 
+            logActivity({
+                user_id: req.adminUser.id, username: req.adminUser.username,
+                action: 'update', module: 'usuarios', target_id: id,
+                details: { nome: name, sector, is_active, senha_alterada: !!password }
+            });
+
             res.json(profile);
         } catch (err) {
-            console.error('Erro ao atualizar usuário:', err.message);
             res.status(500).json({ error: 'Erro ao atualizar: ' + err.message });
         }
     });
 
+    // ─── EXCLUIR ─────────────────────────────────────────────
     router.delete('/:id', requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
             if (req.adminUser.id === id) {
                 return res.status(400).json({ error: 'Você não pode excluir a si mesmo' });
             }
+            const { data: alvo } = await supabaseAdmin.from('profiles').select('name, username').eq('id', id).single();
             await supabaseAdmin.from('profiles').delete().eq('id', id);
             await supabaseAdmin.auth.admin.deleteUser(id);
+
+            logActivity({
+                user_id: req.adminUser.id, username: req.adminUser.username,
+                action: 'delete', module: 'usuarios', target_id: id,
+                details: { nome: alvo?.name, username: alvo?.username }
+            });
+
             res.status(204).end();
         } catch (err) {
-            console.error('Erro ao excluir usuário:', err.message);
             res.status(500).json({ error: 'Erro ao excluir: ' + err.message });
+        }
+    });
+
+    // ─── RELATÓRIO (logins + atividades) ─────────────────────
+    router.get('/report/:userId', requireAdmin, async (req, res) => {
+        const { userId } = req.params;
+        const { type } = req.query; // 'logins' | 'atividades' | 'ambos'
+
+        try {
+            const { data: funcionario } = await supabaseAdmin
+                .from('profiles')
+                .select('id, name, username, sector')
+                .eq('id', userId)
+                .single();
+
+            if (!funcionario) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+            let logins = [];
+            let atividades = [];
+
+            if (type !== 'atividades') {
+                const { data } = await supabaseAdmin
+                    .from('login_logs')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(500);
+                logins = data || [];
+            }
+            if (type !== 'logins') {
+                const { data } = await supabaseAdmin
+                    .from('activity_logs')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(500);
+                atividades = data || [];
+            }
+
+            res.json({ funcionario, logins, atividades });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
         }
     });
 
