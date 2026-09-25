@@ -18,7 +18,6 @@
 html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* ─── SPLASH ─────────────────────────────────────────────── */
 .splash {
     position: fixed; inset: 0;
     background: var(--bg);
@@ -41,10 +40,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 
-/* ─── LAYOUT ─────────────────────────────────────────────── */
 .dashboard { display: flex; height: 100vh; overflow: hidden; }
 
-/* ─── SIDEBAR COLAPSÁVEL ─────────────────────────────────── */
 .sidebar {
     background: var(--sidebar-bg);
     width: 62px;
@@ -125,6 +122,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     background: var(--primary-soft);
     color: var(--primary);
 }
+.module-item.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(0.6);
+}
+.module-item.disabled:hover {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.4);
+}
 
 .module-icon {
     width: 20px; height: 20px; min-width: 20px;
@@ -185,7 +192,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     to   { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 
-/* ─── MAIN ───────────────────────────────────────────────── */
 .main-content { flex: 1; position: relative; overflow: hidden; background: var(--bg); min-width: 0; }
 #iframesContainer { width: 100%; height: 100%; position: relative; }
 .iframe-container {
@@ -196,7 +202,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .iframe-container.active { opacity: 1; visibility: visible; }
 .iframe-container iframe { width: 100%; height: 100%; border: none; display: block; }
 
-/* ─── MODAL LOGOUT ───────────────────────────────────────── */
 .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.55);
@@ -232,7 +237,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .modal-actions .secondary { background: #6B7280; }
 .modal-actions .secondary:hover { background: #4B5563; }
 
-/* Aviso de fim de expediente */
 .aviso-expediente {
     position: fixed;
     bottom: 24px;
@@ -254,7 +258,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── RESPONSIVO (notebooks e desktops menores) ─────────── */
 @media (max-width: 1366px) {
     .sidebar { width: 58px; }
     .sidebar:hover { width: 220px; }
@@ -276,15 +279,4 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @media (max-height: 700px) {
     .sidebar-header { min-height: 60px; padding: 1rem 0.75rem; }
     .module-item { min-height: 38px; padding: 0.6rem 0.75rem; font-size: 0.82rem; }
-}
-
-.module-item.disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    pointer-events: none;
-    filter: grayscale(0.6);
-}
-.module-item.disabled:hover {
-    background: transparent;
-    color: rgba(255, 255, 255, 0.4);
 }
