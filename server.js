@@ -64,8 +64,19 @@ app.use('/api/usuarios', require('./aplicativos/usuarios/routes')(supabase, supa
 MODULES.forEach(name => {
     const dir = path.join(__dirname, 'aplicativos', name);
     if (!fs.existsSync(dir)) return;
-    app.get(`/${name}`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
+
+    // Rota principal do módulo (desktop)
+    app.get(`/${name}`,  (req, res) => res.sendFile(path.join(dir, 'index.html')));
     app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
+
+    // Rota mobile (subpasta m/)
+    const mDir = path.join(dir, 'm');
+    if (fs.existsSync(mDir)) {
+        app.get(`/${name}/m`,  (req, res) => res.sendFile(path.join(mDir, 'index.html')));
+        app.get(`/${name}/m/`, (req, res) => res.sendFile(path.join(mDir, 'index.html')));
+    }
+
+    // Estáticos (CSS, JS, imagens, etc.)
     app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
 });
 
@@ -90,8 +101,10 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Autenticação: username + senha\n`);
     console.log('📡 Rotas:');
     console.log('  GET  /                          → Login');
-    console.log('  GET  /portal                    → Dashboard');
-    console.log('  GET  /usuarios                  → Módulo Usuários');
+    console.log('  GET  /portal                    → Dashboard (desktop)');
+    console.log('  GET  /portal/m/                 → Dashboard (mobile)');
+    console.log('  GET  /usuarios                  → Módulo Usuários (desktop)');
+    console.log('  GET  /usuarios/m/               → Módulo Usuários (mobile)');
     console.log('  GET  /health                    → Health check');
     console.log('  POST /api/auth/login            → Login');
     console.log('  GET  /api/portal/modules        → Módulos autorizados');
