@@ -89,21 +89,22 @@ function bootUI() {
             setTimeout(() => { s.style.display = 'none'; }, 400);
         }
         document.getElementById('dashboard').style.display = 'flex';
-        if (modules.length > 0) openModule(modules[0]);
+
+        const primeiroPermitido = modules.find(m => m.allowed);
+        if (primeiroPermitido) openModule(primeiroPermitido);
     }, 2200);
 }
 
-// ─── Aviso de fim de expediente (admin não recebe) ───────────
 function agendarAvisoExpediente() {
     const tick = () => {
         const now = new Date();
         const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-        const dow = br.getDay(); // 0=dom, 6=sáb
+        const dow = br.getDay();
         if (dow === 0 || dow === 6) return;
 
         const mins = br.getHours() * 60 + br.getMinutes();
-        const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;  // sex 16:45 / resto 17:15
-        const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;  // sex 17:00 / resto 17:30
+        const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;
+        const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;
 
         if (mins >= limite && mins < fim && !document.getElementById('avisoExpediente')) {
             const el = document.createElement('div');
@@ -120,7 +121,7 @@ function agendarAvisoExpediente() {
         }
     };
     tick();
-    setInterval(tick, 30000); // checa a cada 30s
+    setInterval(tick, 30000);
 }
 
 function renderSidebar() {
@@ -128,21 +129,25 @@ function renderSidebar() {
     nav.innerHTML = '';
 
     if (!modules.length) {
-        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo liberado.</div>';
+        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo disponível.</div>';
         return;
     }
 
     modules.forEach(m => {
         const el = document.createElement('button');
         el.type = 'button';
-        el.className = 'module-item';
+        el.className = 'module-item' + (m.allowed ? '' : ' disabled');
         el.dataset.moduleId = m.id;
-        el.dataset.tooltip = m.name;
+        el.dataset.tooltip = m.allowed ? m.name : `${m.name} (sem acesso)`;
         el.innerHTML = `
             <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
             <span class="module-label">${m.name}</span>
         `;
-        el.addEventListener('click', () => openModule(m));
+        if (m.allowed) {
+            el.addEventListener('click', () => openModule(m));
+        } else {
+            el.disabled = true;
+        }
         nav.appendChild(el);
     });
 }
