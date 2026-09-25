@@ -53,19 +53,19 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// ─── MÓDULOS ─────────────────────────────────────────────────
-const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
-
+// ─── APIs DOS MÓDULOS ────────────────────────────────────────
 app.use('/api/auth',     require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
 app.use('/api/portal',   require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
 app.use('/api/usuarios', require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
+const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
+
 MODULES.forEach(name => {
     const dir = path.join(__dirname, 'aplicativos', name);
     if (!fs.existsSync(dir)) return;
 
-    // Rota principal do módulo (desktop)
+    // Rota principal (desktop)
     app.get(`/${name}`,  (req, res) => res.sendFile(path.join(dir, 'index.html')));
     app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
 
@@ -76,7 +76,7 @@ MODULES.forEach(name => {
         app.get(`/${name}/m/`, (req, res) => res.sendFile(path.join(mDir, 'index.html')));
     }
 
-    // Estáticos (CSS, JS, imagens, etc.)
+    // Estáticos (CSS, JS, imagens)
     app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
 });
 
@@ -99,14 +99,4 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
     console.log(`✅ Supabase conectado`);
     console.log(`✅ Autenticação: username + senha\n`);
-    console.log('📡 Rotas:');
-    console.log('  GET  /                          → Login');
-    console.log('  GET  /portal                    → Dashboard (desktop)');
-    console.log('  GET  /portal/m/                 → Dashboard (mobile)');
-    console.log('  GET  /usuarios                  → Módulo Usuários (desktop)');
-    console.log('  GET  /usuarios/m/               → Módulo Usuários (mobile)');
-    console.log('  GET  /health                    → Health check');
-    console.log('  POST /api/auth/login            → Login');
-    console.log('  GET  /api/portal/modules        → Módulos autorizados');
-    console.log('  GET  /api/usuarios              → Lista de usuários (admin)');
 });
