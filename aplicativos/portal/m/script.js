@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
         bootUI();
+
+        if (!userInfo.is_admin) agendarAvisoExpediente();
     } catch (err) {
         console.error('[PORTAL m]', err);
         window.location.href = '/';
@@ -84,10 +86,37 @@ function bootUI() {
             setTimeout(() => { s.style.display = 'none'; }, 400);
         }
         document.getElementById('app').style.display = 'flex';
-
-        // Abre o primeiro módulo automaticamente
         if (modules.length > 0) openModule(modules[0]);
     }, 2200);
+}
+
+function agendarAvisoExpediente() {
+    const tick = () => {
+        const now = new Date();
+        const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const dow = br.getDay();
+        if (dow === 0 || dow === 6) return;
+
+        const mins = br.getHours() * 60 + br.getMinutes();
+        const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;
+        const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;
+
+        if (mins >= limite && mins < fim && !document.getElementById('avisoExpediente')) {
+            const el = document.createElement('div');
+            el.id = 'avisoExpediente';
+            el.className = 'm-aviso-expediente';
+            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades antes do encerramento da sessão.';
+            document.body.appendChild(el);
+        }
+
+        if (mins >= fim) {
+            sessionStorage.removeItem('irToken');
+            sessionStorage.removeItem('irUser');
+            window.location.href = '/';
+        }
+    };
+    tick();
+    setInterval(tick, 30000);
 }
 
 function renderTabs() {
@@ -112,7 +141,6 @@ function renderTabs() {
         bar.appendChild(tab);
     });
 
-    // Sair como último item
     const logoutTab = document.createElement('button');
     logoutTab.type = 'button';
     logoutTab.className = 'm-tab logout';
@@ -126,8 +154,6 @@ function renderTabs() {
 
 function openModule(mod) {
     activeModuleId = mod.id;
-
-    // Atualiza tabs
     document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
     const tab = document.querySelector(`.m-tab[data-module-id="${mod.id}"]`);
     if (tab) {
@@ -135,7 +161,6 @@ function openModule(mod) {
         tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
 
-    // Iframe
     const area = document.getElementById('iframeArea');
     let container = document.getElementById(`m-iframe-${mod.id}`);
     if (!container) {
