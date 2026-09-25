@@ -1,7 +1,3 @@
-// ============================================================
-// Portal Mobile · I.R. Comércio
-// ============================================================
-
 const MODULE_ICONS = {
     vendas:           '<svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
     usuarios:         '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -33,6 +29,15 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
@@ -59,32 +64,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function bootUI() {
-    document.getElementById('userInitial').textContent =
-        (userInfo.name || userInfo.username || '?').charAt(0).toUpperCase();
-    document.getElementById('userName').textContent = userInfo.name || userInfo.username;
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+
+    document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = name;
     document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
+
+    const greetingEl = document.getElementById('splashGreeting');
+    if (greetingEl) {
+        greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
+    }
 
     renderModules();
 
-    const greeting = getGreeting();
-    document.getElementById('splashGreeting').textContent = `${greeting}, ${userInfo.name || userInfo.username}!`;
-
     setTimeout(() => {
         const s = document.getElementById('splash');
-        s.classList.add('fade-out');
-        setTimeout(() => {
-            s.style.display = 'none';
-            document.getElementById('header').style.display = 'flex';
-            document.getElementById('content').style.display = 'block';
-        }, 400);
-    }, 1500);
-}
-
-function getGreeting() {
-    const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).getHours();
-    if (h < 12) return 'Bom dia';
-    if (h < 18) return 'Boa tarde';
-    return 'Boa noite';
+        if (s) {
+            s.classList.add('fade-out');
+            setTimeout(() => { s.style.display = 'none'; }, 400);
+        }
+        document.getElementById('header').style.display = 'flex';
+        document.getElementById('content').style.display = 'block';
+    }, 2200);
 }
 
 function renderModules() {
