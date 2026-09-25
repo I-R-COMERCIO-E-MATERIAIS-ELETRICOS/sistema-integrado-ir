@@ -47,7 +47,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* ─── SIDEBAR COLAPSÁVEL ─────────────────────────────────── */
 .sidebar {
     background: var(--sidebar-bg);
-    width: 70px;
+    width: 62px;
     flex-shrink: 0;
     display: flex; flex-direction: column;
     color: var(--text-inverse);
@@ -57,24 +57,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     z-index: 10;
 }
 .sidebar:hover {
-    width: 260px;
+    width: 240px;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
 }
 
-/* Header */
 .sidebar-header {
-    display: flex; align-items: center; gap: 0.85rem;
-    padding: 1.5rem 1rem;
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 1.25rem 0.75rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
-    min-height: 76px;
+    min-height: 68px;
 }
 .avatar {
-    width: 42px; height: 42px; min-width: 42px; min-height: 42px;
+    width: 38px; height: 38px; min-width: 38px; min-height: 38px;
     border-radius: 50%;
-    background: var(--primary);
+    background: #6B7280;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 1.1rem;
+    font-weight: 700; font-size: 1rem;
     color: #fff;
     flex-shrink: 0;
 }
@@ -86,42 +85,40 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .sidebar:hover .sidebar-info { opacity: 1; pointer-events: auto; }
 .sidebar-name {
-    font-weight: 700; font-size: 0.98rem;
+    font-weight: 700; font-size: 0.92rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     color: #fff;
 }
 .sidebar-sector {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: rgba(255, 255, 255, 0.5);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Nav */
 .sidebar-nav {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.75rem 0;
+    padding: 0.6rem 0;
     scrollbar-width: thin;
 }
-.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar { width: 5px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-/* Item de módulo / Sair */
 .module-item {
-    display: flex; align-items: center; gap: 0.85rem;
-    padding: 0.8rem 1rem;
-    margin: 0 0.5rem;
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    margin: 0 0.4rem;
     border-radius: 8px;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem; font-weight: 500;
+    font-size: 0.86rem; font-weight: 500;
     transition: background 0.15s ease, color 0.15s ease;
     white-space: nowrap;
     overflow: hidden;
-    width: calc(100% - 1rem);
+    width: calc(100% - 0.8rem);
     text-align: left;
-    min-height: 44px;
+    min-height: 40px;
 }
 .module-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
 .module-item.active {
@@ -130,7 +127,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .module-icon {
-    width: 22px; height: 22px; min-width: 22px;
+    width: 20px; height: 20px; min-width: 20px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
@@ -148,10 +145,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .sidebar:hover .module-label { opacity: 1; pointer-events: auto; }
 
-/* Rodapé com Sair */
 .sidebar-footer {
     flex-shrink: 0;
-    padding: 0.75rem 0;
+    padding: 0.6rem 0;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     margin-top: auto;
 }
@@ -164,10 +160,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     color: #ff6b6b !important;
 }
 
-/* Tooltip quando colapsado */
-.sidebar:not(:hover) .module-item {
-    position: relative;
-}
+.sidebar:not(:hover) .module-item { position: relative; }
 .sidebar:not(:hover) .module-item:hover::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -176,9 +169,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transform: translateY(-50%);
     background: #1F1F23;
     color: #fff;
-    padding: 0.45rem 0.75rem;
+    padding: 0.4rem 0.7rem;
     border-radius: 6px;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 500;
     white-space: nowrap;
     box-shadow: 0 4px 14px rgba(0,0,0,0.3);
@@ -193,7 +186,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* ─── MAIN ───────────────────────────────────────────────── */
-.main-content { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+.main-content { flex: 1; position: relative; overflow: hidden; background: var(--bg); min-width: 0; }
 #iframesContainer { width: 100%; height: 100%; position: relative; }
 .iframe-container {
     position: absolute; inset: 0;
@@ -228,11 +221,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border-radius: 8px;
 }
 .close-modal:hover { background: var(--bg); color: var(--text); }
-.modal-message { font-size: 1.15rem; font-weight: 500; margin: 2rem 0; color: var(--text); }
+.modal-message { font-size: 1.1rem; font-weight: 500; margin: 1.75rem 0; color: var(--text); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: center; }
 .modal-actions button {
-    min-width: 120px; padding: 12px 24px;
-    border-radius: 10px; font-weight: 600; font-size: 0.95rem; color: #fff;
+    min-width: 110px; padding: 11px 22px;
+    border-radius: 10px; font-weight: 600; font-size: 0.92rem; color: #fff;
 }
 .modal-actions .danger { background: var(--danger); }
 .modal-actions .danger:hover { background: #DC2626; }
@@ -259,4 +252,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @keyframes slideInBottom {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── RESPONSIVO (notebooks e desktops menores) ─────────── */
+@media (max-width: 1366px) {
+    .sidebar { width: 58px; }
+    .sidebar:hover { width: 220px; }
+    .module-item { font-size: 0.82rem; padding: 0.65rem 0.75rem; }
+    .avatar { width: 36px; height: 36px; min-width: 36px; min-height: 36px; font-size: 0.95rem; }
+    .sidebar-name { font-size: 0.88rem; }
+    .sidebar-sector { font-size: 0.7rem; }
+}
+
+@media (max-width: 1024px) {
+    .sidebar { width: 54px; }
+    .sidebar:hover { width: 200px; }
+    .module-item { font-size: 0.78rem; padding: 0.6rem 0.7rem; }
+    .avatar { width: 34px; height: 34px; min-width: 34px; min-height: 34px; font-size: 0.9rem; }
+    .sidebar-name { font-size: 0.84rem; }
+    .sidebar-sector { font-size: 0.68rem; }
+}
+
+@media (max-height: 700px) {
+    .sidebar-header { min-height: 60px; padding: 1rem 0.75rem; }
+    .module-item { min-height: 38px; padding: 0.6rem 0.75rem; font-size: 0.82rem; }
 }
