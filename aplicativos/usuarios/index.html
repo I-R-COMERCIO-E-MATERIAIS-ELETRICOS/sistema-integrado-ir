@@ -54,7 +54,7 @@
                     <option value="TODOS">Todos os Funcionários</option>
                 </select>
 
-                <button class="icon-btn" onclick="sincronizarDados()" title="Sincronizar">
+                <button class="icon-btn" id="syncBtn" onclick="sincronizarDados()" title="Sincronizar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M23 4v6h-6"/>
                         <path d="M1 20v-6h6"/>
@@ -127,15 +127,9 @@
                     <label for="modalContactEmail">E-mail</label>
                     <input type="email" id="modalContactEmail">
                 </div>
-                <div class="form-group">
+                <div class="form-group full">
                     <label for="modalContactPhone">Telefone</label>
                     <input type="tel" id="modalContactPhone">
-                </div>
-                <div class="form-group full">
-                    <label>Status do usuário</label>
-                    <div class="dashboard-card status-card active" id="statusCard" onclick="toggleStatusUsuario()">
-                        <span id="statusCardText">Selecione para desativar</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -149,14 +143,20 @@
 
         <!-- Aba: Credenciais -->
         <div class="tab-content" data-pane="credentials">
-            <div class="form-grid">
-                <div class="form-group full">
+            <div class="form-grid two-cols">
+                <div class="form-group">
                     <label for="modalUsername">Nome de usuário *</label>
                     <input type="text" id="modalUsername" required autocomplete="off">
                 </div>
-                <div class="form-group full">
+                <div class="form-group">
                     <label for="modalPassword">Senha <span id="passwordHint"></span></label>
                     <input type="password" id="modalPassword" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="form-group full" style="margin-top: 1.2rem;">
+                <label>Status do usuário</label>
+                <div class="dashboard-card status-card active" id="statusCard" onclick="toggleStatusUsuario()">
+                    <span id="statusCardText">Selecione para desativar</span>
                 </div>
             </div>
         </div>
@@ -172,7 +172,7 @@
 <div class="modal-overlay" id="deleteModal">
     <div class="modal-content small">
         <div class="modal-message-delete">Tem certeza que deseja excluir este usuário?</div>
-        <div class="modal-actions">
+        <div class="modal-actions centered">
             <button type="button" class="success" onclick="confirmarExclusao()">Sim</button>
             <button type="button" class="danger" onclick="fecharModalExclusao()">Não</button>
         </div>
