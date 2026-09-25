@@ -82,7 +82,7 @@ function popularEmployees() {
     state.employeesCatalog.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.id;
-        opt.textContent = u.name;
+        opt.textContent = `#${u.code ?? '—'} — ${u.name}`;
         sel.appendChild(opt);
     });
     sel.value = atual || 'TODOS';
@@ -100,7 +100,7 @@ function aplicarFiltros() {
         if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
         if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
         if (state.searchTerm) {
-            const hay = `${u.name} ${u.username}`.toLowerCase();
+            const hay = `${u.name} ${u.username} ${u.code || ''}`.toLowerCase();
             if (!hay.includes(state.searchTerm)) return false;
         }
         return true;
@@ -111,11 +111,12 @@ function aplicarFiltros() {
 function renderUsers() {
     const tbody = document.getElementById('usersTableBody');
     if (!state.filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">Nenhum usuário encontrado</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum usuário encontrado</td></tr>';
         return;
     }
     tbody.innerHTML = state.filtered.map(u => `
         <tr>
+            <td><strong class="code-cell">#${u.code ?? '—'}</strong></td>
             <td><strong>${escHtml(u.name)}</strong></td>
             <td>${escHtml(u.username || '—')}</td>
             <td>${escHtml(u.sector || '—')}</td>
@@ -352,7 +353,6 @@ window.emitirRelatorio = async function(type) {
     }
 };
 
-// ─── MAPA DE MÓDULOS ───────────────────────────────────────
 const MODULE_LABELS = {
     usuarios: 'Usuários',
     precos: 'Tabela de Preços',
@@ -368,12 +368,9 @@ const MODULE_LABELS = {
     licitacoes: 'Licitações'
 };
 
-// ─── DESCRIÇÃO CURTA DA ATIVIDADE ─────────────────────────
-// Retorna { texto, moduloLabel } para o PDF
 function descreverAtividade(log) {
     const moduloLabel = MODULE_LABELS[log.module] || log.module;
     const idCode = log.target_code != null ? log.target_code : '—';
-
     let frase;
     switch (log.action) {
         case 'create':  frase = `realizou um novo registro de id ${idCode}`; break;
@@ -386,12 +383,10 @@ function descreverAtividade(log) {
     return { texto: frase, moduloLabel };
 }
 
-// ─── GERAR PDF ─────────────────────────────────────────────
 async function gerarPDF(data, type) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    // Logo translúcida
     try {
         const logoImg = await carregarImagem('/imagens/logo-documento.png');
         doc.setGState(new doc.GState({ opacity: 0.08 }));
@@ -431,12 +426,8 @@ async function gerarPDF(data, type) {
         });
     }
 
-    // ─── Escreve uma linha "HH:MM — Módulo — frase"
-    // com o módulo em cinza + negrito
     function escreveLinhaAtividade(hora, moduloLabel, frase) {
         novaPaginaSePreciso(5.5);
-
-        // Hora
         doc.setFontSize(9.5);
         doc.setFont(undefined, 'normal');
         doc.setTextColor(17, 17, 17);
@@ -444,14 +435,12 @@ async function gerarPDF(data, type) {
         doc.text(horaTxt, 15, y);
         const largHora = doc.getTextWidth(horaTxt);
 
-        // Módulo em cinza + negrito
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(107, 114, 128); // cinza médio
+        doc.setTextColor(107, 114, 128);
         const modTxt = `${moduloLabel} — `;
         doc.text(modTxt, 15 + largHora, y);
         const largMod = doc.getTextWidth(modTxt);
 
-        // Resto em preto normal
         doc.setFont(undefined, 'normal');
         doc.setTextColor(17, 17, 17);
         doc.text(frase, 15 + largHora + largMod, y);
@@ -477,12 +466,9 @@ async function gerarPDF(data, type) {
         data.logins.forEach(l => {
             const dt = new Date(l.created_at);
             escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
-
             const hora = horaCurta(dt);
             const resultado = l.success ? 'Login realizado com sucesso' : 'Tentativa de login falhou';
             const ip = l.ip_address ? ` (IP ${l.ip_address})` : '';
-
-            // Formato de login fica por conta própria (não tem módulo)
             novaPaginaSePreciso(5.5);
             doc.setFontSize(9.5);
             doc.setFont(undefined, 'normal');
@@ -501,10 +487,8 @@ async function gerarPDF(data, type) {
         data.atividades.forEach(a => {
             const dt = new Date(a.created_at);
             escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
-
             const { texto, moduloLabel } = descreverAtividade(a);
             escreveLinhaAtividade(horaCurta(dt), moduloLabel, texto);
-
             y += 3;
         });
     }
