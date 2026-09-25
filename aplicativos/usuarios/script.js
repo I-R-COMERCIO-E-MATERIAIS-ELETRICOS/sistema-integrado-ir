@@ -16,7 +16,6 @@ let state = {
 let accessToken = null;
 let deleteTargetId = null;
 
-// ─── TOKEN ─────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -208,7 +207,6 @@ function atualizarCardStatus() {
 function renderModulosDashboard() {
     const wrap = document.getElementById('modulesDashboard');
     wrap.innerHTML = '';
-
     state.modulesCatalog.forEach(m => {
         const selected = state.selectedModules.includes(m.id);
         const el = document.createElement('div');
@@ -239,7 +237,6 @@ window.onSectorChange = function() {
 function atualizarModoAdmin() {
     const hint = document.getElementById('modulesHint');
     const wrap = document.getElementById('modulesDashboard');
-
     if (state.adminMode) {
         hint.classList.remove('hidden');
         state.selectedModules = state.modulesCatalog.map(m => m.id);
@@ -255,7 +252,6 @@ function atualizarModoAdmin() {
 
 window.handleSubmit = async function(e) {
     e.preventDefault();
-
     const name = document.getElementById('modalName').value.trim();
     const sector = document.getElementById('modalSector').value;
     const contact_email = document.getElementById('modalContactEmail').value.trim();
@@ -271,7 +267,6 @@ window.handleSubmit = async function(e) {
 
     const isAdmin = sector === 'Administrador';
     const apps = isAdmin ? [] : state.selectedModules.slice();
-
     const body = { name, sector, is_active: state.userActive, apps };
     if (!state.editingId) body.username = username;
     if (password) body.password = password;
@@ -307,17 +302,14 @@ window.handleSubmit = async function(e) {
 
 window.editUser = function(id) { abrirModalUsuario(id); };
 
-// ─── EXCLUSÃO ──────────────────────────────────────────────
 window.abrirModalExclusao = function(id) {
     deleteTargetId = id;
     document.getElementById('deleteModal').classList.add('show');
 };
-
 window.fecharModalExclusao = function() {
     deleteTargetId = null;
     document.getElementById('deleteModal').classList.remove('show');
 };
-
 window.confirmarExclusao = async function() {
     if (!deleteTargetId) return;
     const id = deleteTargetId;
@@ -345,11 +337,9 @@ window.abrirModalRelatorio = function() {
     }
     document.getElementById('reportModal').classList.add('show');
 };
-
 window.fecharModalRelatorio = function() {
     document.getElementById('reportModal').classList.remove('show');
 };
-
 window.emitirRelatorio = async function(type) {
     fecharModalRelatorio();
     try {
@@ -362,7 +352,7 @@ window.emitirRelatorio = async function(type) {
     }
 };
 
-// ─── CONVERSÃO DE ATIVIDADES EM FRASES DESCRITIVAS ────────
+// ─── MAPA DE MÓDULOS ───────────────────────────────────────
 const MODULE_LABELS = {
     usuarios: 'Usuários',
     precos: 'Tabela de Preços',
@@ -378,32 +368,22 @@ const MODULE_LABELS = {
     licitacoes: 'Licitações'
 };
 
+// ─── DESCRIÇÃO CURTA DA ATIVIDADE ─────────────────────────
+// Retorna { texto, moduloLabel } para o PDF
 function descreverAtividade(log) {
-    const mod = MODULE_LABELS[log.module] || log.module;
-    const d = log.details || {};
+    const moduloLabel = MODULE_LABELS[log.module] || log.module;
+    const idCode = log.target_code != null ? log.target_code : '—';
 
-    if (log.module === 'usuarios') {
-        if (log.action === 'create') {
-            return `${mod}: registrou um novo usuário "${d.nome || ''}" (usuário: ${d.username || '—'}, setor: ${d.sector || '—'}).`;
-        }
-        if (log.action === 'update') {
-            const partes = [];
-            if (d.nome) partes.push(`nome: ${d.nome}`);
-            if (d.sector) partes.push(`setor: ${d.sector}`);
-            if (d.is_active !== undefined) partes.push(`status: ${d.is_active ? 'ativo' : 'inativo'}`);
-            if (d.senha_alterada) partes.push('senha alterada');
-            return `${mod}: atualizou um usuário${partes.length ? ' (' + partes.join(', ') + ')' : ''}.`;
-        }
-        if (log.action === 'delete') {
-            return `${mod}: excluiu o usuário "${d.nome || ''}" (usuário: ${d.username || '—'}).`;
-        }
+    let frase;
+    switch (log.action) {
+        case 'create':  frase = `realizou um novo registro de id ${idCode}`; break;
+        case 'update':  frase = `realizou uma atualização do registro de id ${idCode}`; break;
+        case 'delete':  frase = `realizou uma exclusão do registro de id ${idCode}`; break;
+        case 'check':   frase = `realizou uma marcação para registro de id ${idCode}`; break;
+        case 'uncheck': frase = `realizou uma desmarcação para registro de id ${idCode}`; break;
+        default:        frase = `realizou ${log.action} no registro de id ${idCode}`;
     }
-
-    // Genérico para outros módulos
-    if (log.action === 'create') return `${mod}: registrou um novo item.`;
-    if (log.action === 'update') return `${mod}: atualizou um item.`;
-    if (log.action === 'delete') return `${mod}: excluiu um item.`;
-    return `${mod}: ${log.action}.`;
+    return { texto: frase, moduloLabel };
 }
 
 // ─── GERAR PDF ─────────────────────────────────────────────
@@ -411,7 +391,7 @@ async function gerarPDF(data, type) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    // Logo translúcida no cabeçalho
+    // Logo translúcida
     try {
         const logoImg = await carregarImagem('/imagens/logo-documento.png');
         doc.setGState(new doc.GState({ opacity: 0.08 }));
@@ -419,7 +399,6 @@ async function gerarPDF(data, type) {
         doc.setGState(new doc.GState({ opacity: 1 }));
     } catch {}
 
-    // Cabeçalho
     doc.setFontSize(15);
     doc.setFont(undefined, 'bold');
     const titulo = type === 'logins' ? 'Relatório de Logins'
@@ -438,66 +417,100 @@ async function gerarPDF(data, type) {
 
     let y = 56;
 
-    function novaPaginaSePreciso(alturaNecessaria) {
-        if (y + alturaNecessaria > 280) {
-            doc.addPage();
-            y = 20;
-        }
+    function novaPaginaSePreciso(altura) {
+        if (y + altura > 280) { doc.addPage(); y = 20; }
     }
 
-    function escreveParagrafo(txt, opts = {}) {
-        const tamanho = opts.size || 10;
-        const bold = opts.bold || false;
-        const indent = opts.indent || 0;
-        const lineHeight = opts.lineHeight || 5.5;
-
-        doc.setFontSize(tamanho);
-        doc.setFont(undefined, bold ? 'bold' : 'normal');
-
-        const linhas = doc.splitTextToSize(txt, 180 - indent);
+    function escreveLinhas(linhas, opts = {}) {
+        doc.setFontSize(opts.size || 10);
+        doc.setFont(undefined, opts.bold ? 'bold' : 'normal');
         linhas.forEach(l => {
-            novaPaginaSePreciso(lineHeight);
-            doc.text(l, 15 + indent, y);
-            y += lineHeight;
+            novaPaginaSePreciso(5.5);
+            doc.text(l, 15, y);
+            y += 5.5;
         });
+    }
+
+    // ─── Escreve uma linha "HH:MM — Módulo — frase"
+    // com o módulo em cinza + negrito
+    function escreveLinhaAtividade(hora, moduloLabel, frase) {
+        novaPaginaSePreciso(5.5);
+
+        // Hora
+        doc.setFontSize(9.5);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(17, 17, 17);
+        const horaTxt = `${hora} — `;
+        doc.text(horaTxt, 15, y);
+        const largHora = doc.getTextWidth(horaTxt);
+
+        // Módulo em cinza + negrito
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(107, 114, 128); // cinza médio
+        const modTxt = `${moduloLabel} — `;
+        doc.text(modTxt, 15 + largHora, y);
+        const largMod = doc.getTextWidth(modTxt);
+
+        // Resto em preto normal
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(17, 17, 17);
+        doc.text(frase, 15 + largHora + largMod, y);
+
+        y += 5.5;
+    }
+
+    function dataPorExtenso(date) {
+        return date.toLocaleDateString('pt-BR', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        }).toUpperCase();
+    }
+
+    function horaCurta(date) {
+        return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }
 
     if (type !== 'atividades' && data.logins.length) {
         y += 4;
-        escreveParagrafo('LOGINS', { bold: true, size: 12 });
+        escreveLinhas(['LOGINS'], { bold: true, size: 12 });
         y += 2;
 
         data.logins.forEach(l => {
             const dt = new Date(l.created_at);
-            const dataStr = dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
 
-            escreveParagrafo(dataStr.toUpperCase(), { bold: true, size: 10 });
-            const resultado = l.success ? 'Login realizado com sucesso' : `Tentativa de login falhou${l.failure_reason ? ' (' + l.failure_reason + ')' : ''}`;
-            const ip = l.ip_address ? ` — IP: ${l.ip_address}` : '';
-            escreveParagrafo(`"${horaStr}" - ${resultado}${ip}`, { size: 9.5, indent: 4 });
+            const hora = horaCurta(dt);
+            const resultado = l.success ? 'Login realizado com sucesso' : 'Tentativa de login falhou';
+            const ip = l.ip_address ? ` (IP ${l.ip_address})` : '';
+
+            // Formato de login fica por conta própria (não tem módulo)
+            novaPaginaSePreciso(5.5);
+            doc.setFontSize(9.5);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(17, 17, 17);
+            doc.text(`${hora} — ${resultado}${ip}`, 15, y);
+            y += 3;
             y += 3;
         });
     }
 
     if (type !== 'logins' && data.atividades.length) {
         y += 6;
-        escreveParagrafo('ATIVIDADES', { bold: true, size: 12 });
+        escreveLinhas(['ATIVIDADES'], { bold: true, size: 12 });
         y += 2;
 
         data.atividades.forEach(a => {
             const dt = new Date(a.created_at);
-            const dataStr = dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
 
-            escreveParagrafo(dataStr.toUpperCase(), { bold: true, size: 10 });
-            escreveParagrafo(`"${horaStr}" - ${descreverAtividade(a)}`, { size: 9.5, indent: 4 });
+            const { texto, moduloLabel } = descreverAtividade(a);
+            escreveLinhaAtividade(horaCurta(dt), moduloLabel, texto);
+
             y += 3;
         });
     }
 
     if ((type !== 'atividades' && !data.logins.length) && (type !== 'logins' && !data.atividades.length)) {
-        escreveParagrafo('Nenhum registro encontrado para o período.', { size: 10 });
+        escreveLinhas(['Nenhum registro encontrado para o período.'], { size: 10 });
     }
 
     doc.save(`relatorio_${type}_${data.funcionario.username}.pdf`);
@@ -513,14 +526,11 @@ function carregarImagem(url) {
     });
 }
 
-// ─── SINCRONIZAR ───────────────────────────────────────────
 window.sincronizarDados = async function() {
     const btn = document.getElementById('syncBtn');
     if (!btn) return;
-
     btn.classList.add('spinning');
     btn.disabled = true;
-
     try {
         await carregarModulos();
         await carregarUsuarios();
@@ -535,7 +545,6 @@ window.sincronizarDados = async function() {
     }
 };
 
-// ─── TOAST ─────────────────────────────────────────────────
 function showToast(msg, type) {
     document.querySelectorAll('.floating-message').forEach(m => m.remove());
     const el = document.createElement('div');
