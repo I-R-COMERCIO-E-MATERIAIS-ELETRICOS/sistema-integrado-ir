@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
-    <title>I.R. Comércio · Login</title>
+    <title>Login · Portal</title>
     <link rel="icon" type="image/png" href="/imagens/logo-navegador.png" sizes="32x32"/>
     <link rel="shortcut icon" type="image/png" href="/imagens/logo-navegador.png"/>
     <link rel="apple-touch-icon" href="/imagens/logo-navegador.png"/>
@@ -14,48 +14,46 @@
     <link rel="stylesheet" href="/login-e-autenticacao/styles.css">
 </head>
 <body>
-    <main class="login-screen">
-        <aside class="login-aside" aria-hidden="true">
-            <span class="line line-h"></span>
-            <span class="line line-h"></span>
-            <span class="line line-h"></span>
-            <span class="line line-h"></span>
-            <span class="line line-v"></span>
-            <span class="line line-v"></span>
-            <span class="line line-v"></span>
-            <span class="line line-v"></span>
-        </aside>
+<main class="login-screen">
+    <aside class="login-aside" aria-hidden="true">
+        <span class="line line-h"></span>
+        <span class="line line-h"></span>
+        <span class="line line-h"></span>
+        <span class="line line-h"></span>
+        <span class="line line-v"></span>
+        <span class="line line-v"></span>
+        <span class="line line-v"></span>
+        <span class="line line-v"></span>
+    </aside>
 
-        <section class="login-form-side">
-            <div class="login-form-wrapper">
-                <div class="logo-box">
-                    <img src="/imagens/logo-login.png" alt="I.R. Comércio e Materiais Elétricos">
+    <section class="login-form-side">
+        <div class="login-form-wrapper">
+            <div class="logo-box">
+                <img src="/imagens/logo-login.png" alt="I.R. Comércio e Materiais Elétricos">
+            </div>
+
+            <form id="loginForm" novalidate>
+                <div class="field">
+                    <label for="username">Usuário</label>
+                    <input type="text" id="username" placeholder="Digite seu usuário" required autocomplete="username" autofocus>
                 </div>
 
-                <form id="loginForm" novalidate>
-                    <div class="field">
-                        <label for="username">Usuário</label>
-                        <input type="text" id="username" placeholder="Digite seu usuário"
-                               required autocomplete="username" autofocus>
+                <div class="field">
+                    <label for="password">Senha</label>
+                    <div class="password-wrap">
+                        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" class="toggle-password" id="togglePassword">Mostrar</button>
                     </div>
+                </div>
 
-                    <div class="field">
-                        <label for="password">Senha</label>
-                        <div class="password-wrap">
-                            <input type="password" id="password" placeholder="••••••••"
-                                   required autocomplete="current-password">
-                            <button type="button" class="toggle-password" id="togglePassword">Mostrar</button>
-                        </div>
-                    </div>
+                <div id="messageBox" class="message" role="alert"></div>
 
-                    <div id="messageBox" class="message" role="alert"></div>
+                <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
+            </form>
+        </div>
+    </section>
+</main>
 
-                    <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
-                </form>
-            </div>
-        </section>
-    </main>
-
-    <script src="/login-e-autenticacao/script.js"></script>
+<script src="/login-e-autenticacao/script.js"></script>
 </body>
 </html>
