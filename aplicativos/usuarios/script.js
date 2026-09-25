@@ -138,6 +138,7 @@ function showFormModal(editId) {
     const isEditing = !!editId;
     const u = isEditing ? state.users.find(x => x.id === editId) : null;
     const userApps = Array.isArray(u?.apps) ? u.apps : [];
+    const isAdmin = u?.is_admin === true;
 
     document.body.insertAdjacentHTML('beforeend', `
         <div class="modal-overlay show" id="formModal">
@@ -187,21 +188,20 @@ function showFormModal(editId) {
                         </div>
                         <div class="form-group full">
                             <label>Módulos liberados</label>
-                            <div class="modules-picker ${u?.is_admin ? 'disabled' : ''}" id="modulesPicker">
+                            <div class="modules-picker ${isAdmin ? 'disabled' : ''}" id="modulesPicker">
                                 ${state.modulesCatalog.map(m => `
                                     <label class="module-check ${userApps.includes(m.id) ? 'checked' : ''}">
                                         <input type="checkbox" value="${m.id}"
                                             ${userApps.includes(m.id) ? 'checked' : ''}
-                                            ${u?.is_admin ? 'disabled' : ''}
+                                            ${isAdmin ? 'disabled' : ''}
                                             onchange="this.parentElement.classList.toggle('checked', this.checked)">
                                         <span>${escHtml(m.name)}</span>
                                     </label>
                                 `).join('')}
                             </div>
                             <div class="hint" id="modulesHint">
-                                ${u?.is_admin
-                                    ? 'Administrador tem acesso automático a todos os módulos.'
-                                    : 'Selecione os módulos que este usuário poderá acessar.'}
+                                ${isAdmin ? 'Administrador tem acesso automático a todos os módulos.'
+                                          : 'Selecione os módulos que este usuário poderá acessar.'}
                             </div>
                         </div>
                     </div>
