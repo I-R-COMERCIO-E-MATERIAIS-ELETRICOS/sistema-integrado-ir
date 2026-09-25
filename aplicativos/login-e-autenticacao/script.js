@@ -1,7 +1,3 @@
-// ============================================================
-// Login · I.R. Comércio — via backend
-// ============================================================
-
 const loginForm     = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
