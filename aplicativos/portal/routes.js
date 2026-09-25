@@ -38,14 +38,24 @@ module.exports = function (supabase, supabaseAdmin) {
     async function requireAuth(req, res, next) {
         const auth = req.headers['authorization'];
         const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
-        const payload = verifyToken(token, SESSION_SECRET);
-        if (!payload) return res.status(401).json({ error: 'Sessão inválida' });
+        console.log('[PORTAL] token recebido (primeiros 40):', token ? token.slice(0, 40) : 'null');
 
-        const { data: profile } = await supabaseAdmin
+        const payload = verifyToken(token, SESSION_SECRET);
+        if (!payload) {
+            console.log('[PORTAL] verifyToken retornou null → token inválido');
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+        console.log('[PORTAL] payload ok. uid:', payload.uid);
+
+        const { data: profile, error } = await supabaseAdmin
             .from('profiles')
             .select('id, username, name, sector, is_admin, is_active, apps')
             .eq('id', payload.uid)
             .single();
+
+        if (error) console.log('[PORTAL] erro profiles:', error.message);
+        if (!profile) console.log('[PORTAL] profile não encontrado para uid', payload.uid);
+        if (!profile?.is_active) console.log('[PORTAL] profile inativo');
 
         if (!profile || !profile.is_active) return res.status(401).json({ error: 'Sessão inválida' });
         req.user = profile;
@@ -63,6 +73,8 @@ module.exports = function (supabase, supabaseAdmin) {
             .filter(m => m.available)
             .filter(m => allowedIds.includes(m.id))
             .map(m => ({ id: m.id, name: m.name, url: m.url }));
+
+        console.log('[PORTAL] retornando módulos:', modules.map(m => m.id).join(','));
 
         res.json({
             user: {
