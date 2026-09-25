@@ -3,7 +3,6 @@
 // ============================================================
 
 const MODULE_ICONS = {
-    vendas:           '<svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
     usuarios:         '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     precos:           '<svg viewBox="0 0 24 24"><path d="M11 13H7"/><path d="M19 9h-4"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="15" y="5" width="4" height="12" rx="1"/><rect x="7" y="8" width="4" height="9" rx="1"/></svg>',
     compra:           '<svg viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
@@ -22,9 +21,7 @@ let accessToken = null;
 let userInfo = null;
 let modules = [];
 
-// ─── TOKEN ───────────────────────────────────────────────────
 function resolveToken() {
-    // 1. Tenta da query string
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
     if (fromUrl) {
@@ -32,11 +29,9 @@ function resolveToken() {
         window.history.replaceState({}, '', window.location.pathname);
         return fromUrl;
     }
-    // 2. Tenta do sessionStorage
     return sessionStorage.getItem('irToken');
 }
 
-// ─── GREETING ────────────────────────────────────────────────
 function getGreeting() {
     const now = new Date();
     const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -46,14 +41,9 @@ function getGreeting() {
     return 'Boa noite';
 }
 
-// ─── INIT ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
-
-    if (!accessToken) {
-        window.location.href = '/';
-        return;
-    }
+    if (!accessToken) { window.location.href = '/'; return; }
 
     try {
         const res = await fetch('/api/portal/modules', {
@@ -61,29 +51,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (res.status === 401 || res.status === 403) {
-            const body = await res.json().catch(() => ({}));
-            console.error('[PORTAL] /modules rejeitou token:', res.status, body);
             sessionStorage.removeItem('irToken');
             window.location.href = '/';
             return;
         }
-
-        if (!res.ok) {
-            console.error('[PORTAL] /modules erro', res.status);
-            throw new Error('Erro ' + res.status);
-        }
+        if (!res.ok) throw new Error('Erro ' + res.status);
 
         const data = await res.json();
         userInfo = data.user;
         modules = data.modules || [];
         bootUI();
     } catch (err) {
-        console.error('[PORTAL] falha ao carregar módulos:', err);
+        console.error('[PORTAL]', err);
         window.location.href = '/';
     }
 });
 
-// ─── BOOT ────────────────────────────────────────────────────
 function bootUI() {
     const name = userInfo.name || userInfo.username || 'Usuário';
     const firstName = name.split(' ')[0];
@@ -93,9 +76,7 @@ function bootUI() {
     document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
 
     const greetingEl = document.getElementById('splashGreeting');
-    if (greetingEl) {
-        greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
-    }
+    if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
 
     renderSidebar();
 
@@ -110,20 +91,21 @@ function bootUI() {
     }, 2200);
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────
 function renderSidebar() {
     const nav = document.getElementById('sidebarModules');
     nav.innerHTML = '';
 
     if (!modules.length) {
-        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo liberado.<br>Contate o administrador.</div>';
+        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo liberado.</div>';
         return;
     }
 
     modules.forEach(m => {
-        const el = document.createElement('div');
+        const el = document.createElement('button');
+        el.type = 'button';
         el.className = 'module-item';
         el.dataset.moduleId = m.id;
+        el.dataset.tooltip = m.name;
         el.innerHTML = `
             <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
             <span class="module-label">${m.name}</span>
@@ -133,7 +115,6 @@ function renderSidebar() {
     });
 }
 
-// ─── ABRIR MÓDULO (iframe) ───────────────────────────────────
 function openModule(mod) {
     document.querySelectorAll('.module-item').forEach(i => i.classList.remove('active'));
     const sidebarItem = document.querySelector(`.module-item[data-module-id="${mod.id}"]`);
@@ -156,7 +137,6 @@ function openModule(mod) {
     requestAnimationFrame(() => container.classList.add('active'));
 }
 
-// ─── LOGOUT ──────────────────────────────────────────────────
 window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
 window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
 window.confirmLogout = () => {
