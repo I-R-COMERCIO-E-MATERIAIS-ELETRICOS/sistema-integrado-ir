@@ -15,60 +15,59 @@
     </script>
 </head>
 <body>
-    <div class="app-content">
-        <div class="container">
-            <div class="header">
-                <div class="header-left">
-                    <h1>Usuários</h1>
-                    <div id="connectionStatus" class="connection-status"></div>
-                </div>
-                <button onclick="toggleForm()" class="btn-new-order-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Novo Usuário
-                </button>
+<div class="app-content">
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>Usuários</h1>
             </div>
+            <button onclick="toggleForm()" class="btn-new-order-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Novo Usuário
+            </button>
+        </div>
 
-            <div class="search-bar-wrapper">
-                <div class="search-bar">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input type="text" id="search" placeholder="Buscar por nome, usuário ou setor..." oninput="filterUsers()">
-                    <select id="sectorSelect" class="search-select" onchange="filterBySector(this.value)">
-                        <option value="TODOS">Todos os setores</option>
-                        <option value="Administrador">Administrador</option>
-                        <option value="Vendas">Vendas</option>
-                        <option value="Almoxarifado">Almoxarifado</option>
-                        <option value="Financeiro">Financeiro</option>
-                    </select>
-                    <button class="sync-btn" onclick="sincronizarDados()" title="Sincronizar">⟳</button>
-                </div>
+        <div class="search-bar-wrapper">
+            <div class="search-bar">
+                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="search" placeholder="Buscar por nome, usuário ou setor..." oninput="filterUsers()">
+                <select id="sectorSelect" class="search-select" onchange="filterBySector(this.value)">
+                    <option value="TODOS">Todos os setores</option>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Vendas">Vendas</option>
+                    <option value="Almoxarifado">Almoxarifado</option>
+                    <option value="Financeiro">Financeiro</option>
+                </select>
+                <button class="sync-btn" onclick="sincronizarDados()" title="Sincronizar">⟳</button>
             </div>
+        </div>
 
-            <div class="card table-card">
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Usuário</th>
-                                <th>Setor</th>
-                                <th>Módulos</th>
-                                <th>Status</th>
-                                <th>Criado em</th>
-                                <th style="text-align: center;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody"></tbody>
-                    </table>
-                </div>
+        <div class="card table-card">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Usuário</th>
+                            <th>Setor</th>
+                            <th>Módulos</th>
+                            <th>Status</th>
+                            <th>Criado em</th>
+                            <th style="text-align: center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
             </div>
         </div>
     </div>
-    <script src="/usuarios/script.js"></script>
+</div>
+<script src="/usuarios/script.js"></script>
 </body>
 </html>
