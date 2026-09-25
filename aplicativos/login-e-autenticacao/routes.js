@@ -25,16 +25,20 @@ module.exports = function (supabase, supabaseAdmin) {
     const router = express.Router();
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
+    // ─── LOGIN ─────────────────────────────────────────────────
     router.post('/login', async (req, res) => {
+        console.log('[LOGIN] body recebido:', JSON.stringify(req.body));
+
         const { username, password } = req.body || {};
 
         if (!username || !password) {
+            console.log('[LOGIN] faltou username ou password');
             return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
         }
 
         const cleanUsername = String(username).trim().toLowerCase();
-
         if (cleanUsername.includes('@')) {
+            console.log('[LOGIN] username tem @:', cleanUsername);
             return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
         }
 
@@ -45,19 +49,31 @@ module.exports = function (supabase, supabaseAdmin) {
                 .eq('username', cleanUsername)
                 .maybeSingle();
 
+            console.log('[LOGIN] profile encontrado:', JSON.stringify(profile));
+            if (pErr) console.log('[LOGIN] erro profiles:', pErr.message);
+
             if (pErr || !profile || !profile.auth_email || !profile.is_active) {
                 return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
             }
+
+            console.log('[LOGIN] tentando Auth com email:', profile.auth_email);
 
             const { data: auth, error: aErr } = await supabaseAdmin.auth.signInWithPassword({
                 email: profile.auth_email,
                 password
             });
 
-            if (aErr || !auth?.session) {
-                console.log('Falha no Auth para', cleanUsername, '→', aErr?.message);
+            if (aErr) {
+                console.log('[LOGIN] ERRO DO AUTH:', aErr.message, '| status:', aErr.status);
                 return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
             }
+
+            if (!auth?.session) {
+                console.log('[LOGIN] sem session retornada pelo Auth');
+                return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+            }
+
+            console.log('[LOGIN] sucesso. uid:', profile.id);
 
             const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
             const token = signToken({ uid: profile.id, username: profile.username, exp }, SESSION_SECRET);
@@ -75,7 +91,7 @@ module.exports = function (supabase, supabaseAdmin) {
                 }
             });
         } catch (err) {
-            console.error('Erro no login:', err.message);
+            console.log('[LOGIN] EXCEÇÃO:', err.message);
             res.status(500).json({ error: 'Erro interno' });
         }
     });
