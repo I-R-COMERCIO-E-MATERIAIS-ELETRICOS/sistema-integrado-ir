@@ -138,7 +138,7 @@ function formatDate(iso) {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-// ─── MODAL CADASTRO ────────────────────────────────────────
+// ─── MODAL CADASTRO/EDIÇÃO ────────────────────────────────
 window.toggleForm = function() { abrirModalUsuario(null); };
 
 function abrirModalUsuario(editId) {
@@ -362,63 +362,142 @@ window.emitirRelatorio = async function(type) {
     }
 };
 
+// ─── CONVERSÃO DE ATIVIDADES EM FRASES DESCRITIVAS ────────
+const MODULE_LABELS = {
+    usuarios: 'Usuários',
+    precos: 'Tabela de Preços',
+    compra: 'Ordens de Compra',
+    transportadoras: 'Transportadoras',
+    cotacoes: 'Cotações de Frete',
+    faturamento: 'Pedidos de Faturamento',
+    frete: 'Controle de Frete',
+    estoque: 'Estoque',
+    receber: 'Contas a Receber',
+    pagar: 'Contas a Pagar',
+    lucro: 'Lucro Real',
+    licitacoes: 'Licitações'
+};
+
+function descreverAtividade(log) {
+    const mod = MODULE_LABELS[log.module] || log.module;
+    const d = log.details || {};
+
+    if (log.module === 'usuarios') {
+        if (log.action === 'create') {
+            return `${mod}: registrou um novo usuário "${d.nome || ''}" (usuário: ${d.username || '—'}, setor: ${d.sector || '—'}).`;
+        }
+        if (log.action === 'update') {
+            const partes = [];
+            if (d.nome) partes.push(`nome: ${d.nome}`);
+            if (d.sector) partes.push(`setor: ${d.sector}`);
+            if (d.is_active !== undefined) partes.push(`status: ${d.is_active ? 'ativo' : 'inativo'}`);
+            if (d.senha_alterada) partes.push('senha alterada');
+            return `${mod}: atualizou um usuário${partes.length ? ' (' + partes.join(', ') + ')' : ''}.`;
+        }
+        if (log.action === 'delete') {
+            return `${mod}: excluiu o usuário "${d.nome || ''}" (usuário: ${d.username || '—'}).`;
+        }
+    }
+
+    // Genérico para outros módulos
+    if (log.action === 'create') return `${mod}: registrou um novo item.`;
+    if (log.action === 'update') return `${mod}: atualizou um item.`;
+    if (log.action === 'delete') return `${mod}: excluiu um item.`;
+    return `${mod}: ${log.action}.`;
+}
+
+// ─── GERAR PDF ─────────────────────────────────────────────
 async function gerarPDF(data, type) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
+    // Logo translúcida no cabeçalho
     try {
         const logoImg = await carregarImagem('/imagens/logo-documento.png');
         doc.setGState(new doc.GState({ opacity: 0.08 }));
-        doc.addImage(logoImg, 'PNG', 130, 8, 60, 30);
+        doc.addImage(logoImg, 'PNG', 125, 6, 70, 35);
         doc.setGState(new doc.GState({ opacity: 1 }));
     } catch {}
 
-    doc.setFontSize(14);
+    // Cabeçalho
+    doc.setFontSize(15);
     doc.setFont(undefined, 'bold');
     const titulo = type === 'logins' ? 'Relatório de Logins'
                   : type === 'atividades' ? 'Relatório de Atividades'
                   : 'Relatório de Logins + Atividades';
-    doc.text(titulo, 15, 20);
+    doc.text(titulo, 15, 22);
 
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(`Funcionário: ${data.funcionario.name} (${data.funcionario.username})`, 15, 28);
-    doc.text(`Setor: ${data.funcionario.sector || '—'}`, 15, 34);
-    doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 15, 40);
+    doc.text(`Funcionário: ${data.funcionario.name} (${data.funcionario.username})`, 15, 30);
+    doc.text(`Setor: ${data.funcionario.sector || '—'}`, 15, 36);
+    doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 15, 42);
 
-    let y = 52;
-    doc.setDrawColor(200);
-    doc.line(15, 48, 195, 48);
+    doc.setDrawColor(180);
+    doc.line(15, 47, 195, 47);
 
-    function escreveLinha(txt) {
-        const linhas = doc.splitTextToSize(txt, 180);
+    let y = 56;
+
+    function novaPaginaSePreciso(alturaNecessaria) {
+        if (y + alturaNecessaria > 280) {
+            doc.addPage();
+            y = 20;
+        }
+    }
+
+    function escreveParagrafo(txt, opts = {}) {
+        const tamanho = opts.size || 10;
+        const bold = opts.bold || false;
+        const indent = opts.indent || 0;
+        const lineHeight = opts.lineHeight || 5.5;
+
+        doc.setFontSize(tamanho);
+        doc.setFont(undefined, bold ? 'bold' : 'normal');
+
+        const linhas = doc.splitTextToSize(txt, 180 - indent);
         linhas.forEach(l => {
-            if (y > 275) { doc.addPage(); y = 20; }
-            doc.text(l, 15, y);
-            y += 5;
+            novaPaginaSePreciso(lineHeight);
+            doc.text(l, 15 + indent, y);
+            y += lineHeight;
         });
     }
 
     if (type !== 'atividades' && data.logins.length) {
         y += 4;
-        doc.setFont(undefined, 'bold');
-        escreveLinha('LOGINS');
-        doc.setFont(undefined, 'normal');
+        escreveParagrafo('LOGINS', { bold: true, size: 12 });
+        y += 2;
+
         data.logins.forEach(l => {
-            const dt = new Date(l.created_at).toLocaleString('pt-BR');
-            escreveLinha(`${dt} | ${l.success ? 'OK' : 'FALHA'} | IP: ${l.ip_address || '—'}`);
+            const dt = new Date(l.created_at);
+            const dataStr = dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            escreveParagrafo(dataStr.toUpperCase(), { bold: true, size: 10 });
+            const resultado = l.success ? 'Login realizado com sucesso' : `Tentativa de login falhou${l.failure_reason ? ' (' + l.failure_reason + ')' : ''}`;
+            const ip = l.ip_address ? ` — IP: ${l.ip_address}` : '';
+            escreveParagrafo(`"${horaStr}" - ${resultado}${ip}`, { size: 9.5, indent: 4 });
+            y += 3;
         });
     }
 
     if (type !== 'logins' && data.atividades.length) {
         y += 6;
-        doc.setFont(undefined, 'bold');
-        escreveLinha('ATIVIDADES');
-        doc.setFont(undefined, 'normal');
+        escreveParagrafo('ATIVIDADES', { bold: true, size: 12 });
+        y += 2;
+
         data.atividades.forEach(a => {
-            const dt = new Date(a.created_at).toLocaleString('pt-BR');
-            escreveLinha(`${dt} | ${a.action.toUpperCase()} | ${a.module} | ${a.details ? JSON.stringify(a.details) : ''}`);
+            const dt = new Date(a.created_at);
+            const dataStr = dt.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            escreveParagrafo(dataStr.toUpperCase(), { bold: true, size: 10 });
+            escreveParagrafo(`"${horaStr}" - ${descreverAtividade(a)}`, { size: 9.5, indent: 4 });
+            y += 3;
         });
+    }
+
+    if ((type !== 'atividades' && !data.logins.length) && (type !== 'logins' && !data.atividades.length)) {
+        escreveParagrafo('Nenhum registro encontrado para o período.', { size: 10 });
     }
 
     doc.save(`relatorio_${type}_${data.funcionario.username}.pdf`);
@@ -443,6 +522,7 @@ window.sincronizarDados = async function() {
     btn.disabled = true;
 
     try {
+        await carregarModulos();
         await carregarUsuarios();
         showToast('Sincronização concluída', 'success');
     } catch {
