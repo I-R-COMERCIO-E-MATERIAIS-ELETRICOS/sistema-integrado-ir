@@ -78,7 +78,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 80px;">Código</th>
+                            <th style="width: 60px;">Cód.</th>
                             <th>Nome</th>
                             <th>Usuário</th>
                             <th>Setor</th>
@@ -108,7 +108,6 @@
             <button class="tab-btn" data-tab="credentials" onclick="mostrarTab('credentials')">Credenciais</button>
         </div>
 
-        <!-- Aba Informações -->
         <div class="tab-content active" data-pane="info">
             <div class="form-grid">
                 <div class="form-group full">
@@ -135,14 +134,12 @@
             </div>
         </div>
 
-        <!-- Aba Módulos -->
         <div class="tab-content" data-pane="modules">
             <p class="tab-description">Selecione os módulos que este usuário poderá acessar:</p>
             <div class="modules-dashboard" id="modulesDashboard"></div>
             <p class="tab-hint hidden" id="modulesHint">O administrador tem acesso a todos os módulos.</p>
         </div>
 
-        <!-- Aba Credenciais -->
         <div class="tab-content" data-pane="credentials">
             <div class="form-grid credentials-grid">
                 <div class="form-group">
@@ -169,7 +166,6 @@
     </div>
 </div>
 
-<!-- Modal exclusão -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal-content small">
         <div class="modal-message-delete">Tem certeza que deseja excluir este usuário?</div>
@@ -180,7 +176,6 @@
     </div>
 </div>
 
-<!-- Modal relatório -->
 <div class="modal-overlay" id="reportModal">
     <div class="modal-content small">
         <div class="modal-header">
