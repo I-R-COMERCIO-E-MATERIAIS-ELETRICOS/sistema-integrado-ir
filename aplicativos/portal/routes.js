@@ -5,8 +5,7 @@ function verifyToken(token, secret) {
     if (!token || typeof token !== 'string' || !token.includes('.')) return null;
     const [body, sig] = token.split('.');
     const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-    const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
+    const a = Buffer.from(sig), b = Buffer.from(expected);
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
     try {
         const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
@@ -42,7 +41,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
         const { data: profile } = await supabaseAdmin
             .from('profiles')
-            .select('id, username, name, sector, is_admin, is_active, apps')
+            .select('id, code, username, name, sector, is_admin, is_active, apps')
             .eq('id', payload.uid)
             .single();
 
@@ -53,19 +52,23 @@ module.exports = function (supabase, supabaseAdmin) {
 
     router.get('/modules', requireAuth, (req, res) => {
         const { is_admin, apps } = req.user;
-
         const allowedIds = is_admin
             ? ALL_MODULES.filter(m => m.available).map(m => m.id)
             : (Array.isArray(apps) ? apps : []);
 
         const modules = ALL_MODULES
             .filter(m => m.available)
-            .filter(m => allowedIds.includes(m.id))
-            .map(m => ({ id: m.id, name: m.name, url: m.url }));
+            .map(m => ({
+                id: m.id,
+                name: m.name,
+                url: m.url,
+                allowed: allowedIds.includes(m.id)
+            }));
 
         res.json({
             user: {
                 id: req.user.id,
+                code: req.user.code,
                 username: req.user.username,
                 name: req.user.name,
                 sector: req.user.sector,
