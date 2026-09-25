@@ -277,3 +277,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     .sidebar-header { min-height: 60px; padding: 1rem 0.75rem; }
     .module-item { min-height: 38px; padding: 0.6rem 0.75rem; font-size: 0.82rem; }
 }
+
+.module-item.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(0.6);
+}
+.module-item.disabled:hover {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.4);
+}
