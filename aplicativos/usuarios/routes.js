@@ -44,13 +44,12 @@ module.exports = function (supabase, supabaseAdmin) {
         next();
     }
 
-    function logActivity({ user_id, username, action, module, target_id, details }) {
+    function logActivity({ user_id, username, action, module, target_id, target_code, details }) {
         supabaseAdmin.from('activity_logs').insert([{
-            user_id, username, action, module, target_id, details
+            user_id, username, action, module, target_id, target_code, details
         }]).then(() => {});
     }
 
-    // ─── MÓDULOS DISPONÍVEIS ─────────────────────────────────
     router.get('/meta/modules', requireAdmin, (req, res) => {
         res.json([
             { id: 'precos',          name: 'Tabela de Preços' },
@@ -65,23 +64,21 @@ module.exports = function (supabase, supabaseAdmin) {
         ]);
     });
 
-    // ─── LISTA DE FUNCIONÁRIOS (para filtro) ─────────────────
     router.get('/employees', requireAdmin, async (req, res) => {
         const { data, error } = await supabaseAdmin
             .from('profiles')
-            .select('id, name, username, sector')
+            .select('id, name, username, sector, code')
             .order('name');
         if (error) return res.status(500).json({ error: error.message });
         res.json(data || []);
     });
 
-    // ─── LISTAR ──────────────────────────────────────────────
     router.get('/', requireAdmin, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
                 .from('profiles')
-                .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
-                .order('name');
+                .select('id, code, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
+                .order('code', { ascending: true });
             if (error) throw error;
             res.json(data || []);
         } catch (err) {
@@ -89,7 +86,6 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── CRIAR ───────────────────────────────────────────────
     router.post('/', requireAdmin, async (req, res) => {
         const { username, name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         if (!username || !name || !sector || !password) {
@@ -126,7 +122,7 @@ module.exports = function (supabase, supabaseAdmin) {
                     sector, is_admin: isAdmin, is_active: is_active !== false,
                     apps: isAdmin ? [] : cleanApps
                 }, { onConflict: 'id' })
-                .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
+                .select('id, code, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
                 .single();
 
             if (profileError) {
@@ -136,7 +132,8 @@ module.exports = function (supabase, supabaseAdmin) {
 
             logActivity({
                 user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'create', module: 'usuarios', target_id: profile.id,
+                action: 'create', module: 'usuarios',
+                target_id: profile.id, target_code: profile.code,
                 details: { nome: name, username: cleanUsername, sector }
             });
 
@@ -146,7 +143,6 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR ───────────────────────────────────────────
     router.put('/:id', requireAdmin, async (req, res) => {
         const { name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         const { id } = req.params;
@@ -169,7 +165,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
             const { data: profile, error } = await supabaseAdmin
                 .from('profiles').update(updates).eq('id', id)
-                .select('id, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
+                .select('id, code, username, name, contact_email, contact_phone, sector, is_admin, is_active, apps, created_at')
                 .single();
             if (error) throw error;
 
@@ -185,7 +181,8 @@ module.exports = function (supabase, supabaseAdmin) {
 
             logActivity({
                 user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'update', module: 'usuarios', target_id: id,
+                action: 'update', module: 'usuarios',
+                target_id: id, target_code: profile.code,
                 details: { nome: name, sector, is_active, senha_alterada: !!password }
             });
 
@@ -195,20 +192,21 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── EXCLUIR ─────────────────────────────────────────────
     router.delete('/:id', requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
             if (req.adminUser.id === id) {
                 return res.status(400).json({ error: 'Você não pode excluir a si mesmo' });
             }
-            const { data: alvo } = await supabaseAdmin.from('profiles').select('name, username').eq('id', id).single();
+            const { data: alvo } = await supabaseAdmin
+                .from('profiles').select('name, username, code').eq('id', id).single();
             await supabaseAdmin.from('profiles').delete().eq('id', id);
             await supabaseAdmin.auth.admin.deleteUser(id);
 
             logActivity({
                 user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'delete', module: 'usuarios', target_id: id,
+                action: 'delete', module: 'usuarios',
+                target_id: id, target_code: alvo?.code || null,
                 details: { nome: alvo?.name, username: alvo?.username }
             });
 
@@ -218,15 +216,14 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── RELATÓRIO (logins + atividades) ─────────────────────
     router.get('/report/:userId', requireAdmin, async (req, res) => {
         const { userId } = req.params;
-        const { type } = req.query; // 'logins' | 'atividades' | 'ambos'
+        const { type } = req.query;
 
         try {
             const { data: funcionario } = await supabaseAdmin
                 .from('profiles')
-                .select('id, name, username, sector')
+                .select('id, code, name, username, sector')
                 .eq('id', userId)
                 .single();
 
