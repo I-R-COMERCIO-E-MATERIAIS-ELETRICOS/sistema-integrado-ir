@@ -33,7 +33,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-splash.fade-out { opacity: 0; pointer-events: none; }
 .m-splash-inner { text-align: center; padding: 0 1.5rem; }
-.m-splash-greeting { font-size: 1.35rem; font-weight: 600; margin-bottom: 1.5rem; letter-spacing: -0.02em; }
+.m-splash-greeting {
+    font-size: 1.35rem; font-weight: 600;
+    margin-bottom: 1.5rem; letter-spacing: -0.02em;
+}
 .m-splash-bar {
     width: 180px; height: 2px;
     background: var(--border); border-radius: 2px;
@@ -61,6 +64,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     position: relative;
     overflow: hidden;
     background: var(--bg);
+    min-height: 0;
 }
 .m-iframe-frame {
     position: absolute;
@@ -161,9 +165,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-danger { background: var(--danger); }
 .m-danger:active { background: #DC2626; }
 
+/* Aviso de fim de expediente — acima da barra */
 .m-aviso-expediente {
     position: fixed;
-    bottom: calc(1rem + var(--safe-bottom) + 60px);
+    bottom: calc(var(--safe-bottom) + 62px);
     left: 16px; right: 16px;
     background: #EF4444; color: #fff;
     padding: 14px 18px; border-radius: 12px;
