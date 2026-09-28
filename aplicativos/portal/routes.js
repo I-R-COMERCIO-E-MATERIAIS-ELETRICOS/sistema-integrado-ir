@@ -19,18 +19,19 @@ module.exports = function (supabase, supabaseAdmin) {
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
     const ALL_MODULES = [
-        { id: 'usuarios',        name: 'Usuários',               url: '/usuarios',        available: true, adminOnly: true },
-        { id: 'precos',          name: 'Tabela de Preços',       url: '/precos',          available: true  },
-        { id: 'compra',          name: 'Ordens de Compra',       url: '/compra',          available: true  },
-        { id: 'transportadoras', name: 'Transportadoras',        url: '/transportadoras', available: true  },
-        { id: 'cotacoes',        name: 'Cotações de Frete',      url: '/cotacoes',        available: true  },
-        { id: 'faturamento',     name: 'Pedidos de Faturamento', url: '/faturamento',     available: true  },
-        { id: 'frete',           name: 'Controle de Frete',      url: '/frete',           available: true  },
-        { id: 'estoque',         name: 'Estoque',                url: '/estoque',         available: false },
-        { id: 'receber',         name: 'Contas a Receber',       url: '/receber',         available: true  },
-        { id: 'pagar',           name: 'Contas a Pagar',         url: '/pagar',           available: true  },
-        { id: 'lucro',           name: 'Lucro Real',             url: '/lucro',           available: true  },
-        { id: 'licitacoes',      name: 'Licitações',             url: '/licitacoes',      available: false }
+        { id: 'usuarios',        name: 'Usuários',                url: '/usuarios',        available: true, adminOnly: true },
+        { id: 'licitacoes',      name: 'Licitações',              url: '/licitacoes',      available: true  },
+        { id: 'precos',          name: 'Tabela de Preços',        url: '/precos',          available: true  },
+        { id: 'compra',          name: 'Ordens de Compra',        url: '/compra',          available: true  },
+        { id: 'transportadoras', name: 'Transportadoras',         url: '/transportadoras', available: true  },
+        { id: 'cotacoes',        name: 'Cotações de Frete',       url: '/cotacoes',        available: true  },
+        { id: 'faturamento',     name: 'Pedidos de Faturamento',  url: '/faturamento',     available: true  },
+        { id: 'frete',           name: 'Controle de Frete',       url: '/frete',           available: true  },
+        { id: 'estoque',         name: 'Estoque',                 url: '/estoque',         available: false },
+        { id: 'receber',         name: 'Contas a Receber',        url: '/receber',         available: true  },
+        { id: 'pagar',           name: 'Contas a Pagar',          url: '/pagar',           available: true  },
+        { id: 'lucro',           name: 'Lucro Real',              url: '/lucro',           available: true  },
+        { id: 'tutorial',        name: 'Tutorial',                url: '/tutorial',        available: true  }
     ];
 
     async function requireAuth(req, res, next) {
@@ -55,6 +56,8 @@ module.exports = function (supabase, supabaseAdmin) {
         const allowedIds = is_admin
             ? ALL_MODULES.filter(m => m.available).map(m => m.id)
             : (Array.isArray(apps) ? apps : []);
+
+        if (!allowedIds.includes('tutorial')) allowedIds.push('tutorial');
 
         const modules = ALL_MODULES
             .filter(m => m.available)
