@@ -9,7 +9,6 @@ let state = {
     marcaSelecionada: 'TODAS',
     searchTerm: '',
     marcasDisponiveis: [],
-    vendedoresDisponiveis: [],
     isLoading: false
 };
 let accessToken = null;
@@ -51,10 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function carregarTudo() {
     await loadPrecos(state.currentPage);
-    await Promise.all([atualizarMarcasDisponiveis(), atualizarVendedoresDisponiveis()]);
+    await atualizarMarcasDisponiveis();
 }
 
-// ─── MARCAS ────────────────────────────────────────────────
 async function atualizarMarcasDisponiveis() {
     try {
         const res = await fetch(`${API_URL}/marcas`, { headers: getHeaders() });
@@ -83,33 +81,6 @@ function renderMarcaSelect() {
     });
 }
 
-// ─── VENDEDORES ────────────────────────────────────────────
-async function atualizarVendedoresDisponiveis() {
-    try {
-        const res = await fetch(`${API_URL}/vendedores`, { headers: getHeaders() });
-        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
-        if (res.ok) {
-            const vendedores = await res.json();
-            state.vendedoresDisponiveis = Array.isArray(vendedores) ? vendedores : [];
-        }
-    } catch (err) {
-        console.error('Erro ao carregar vendedores:', err);
-    }
-    renderVendedoresDatalist();
-}
-
-function renderVendedoresDatalist() {
-    const list = document.getElementById('vendedoresList');
-    if (!list) return;
-    list.innerHTML = '';
-    state.vendedoresDisponiveis.forEach(nome => {
-        const opt = document.createElement('option');
-        opt.value = nome;
-        list.appendChild(opt);
-    });
-}
-
-// ─── SELECIONAR MARCA ──────────────────────────────────────
 window.selecionarMarca = function (nome) {
     state.marcaSelecionada = nome || 'TODAS';
     state.searchTerm = '';
@@ -118,7 +89,6 @@ window.selecionarMarca = function (nome) {
     loadPrecos(1);
 };
 
-// ─── LOAD PRECOS ───────────────────────────────────────────
 async function loadPrecos(page) {
     page = page || 1;
     if (state.isLoading) return;
@@ -156,7 +126,7 @@ async function loadPrecos(page) {
         renderPaginacao();
     } catch (err) {
         console.error(err);
-        showToast('Erro ao carregar preços', 'error');
+        showToast('Erro ao carregar preços: ' + err.message, 'error');
     } finally {
         state.isLoading = false;
     }
@@ -175,7 +145,6 @@ function normalizePreco(p) {
     };
 }
 
-// ─── BUSCA ─────────────────────────────────────────────────
 let searchDebounceTimer = null;
 window.filterPrecos = function () {
     const input = document.getElementById('search');
@@ -184,7 +153,6 @@ window.filterPrecos = function () {
     searchDebounceTimer = setTimeout(() => loadPrecos(1), 300);
 };
 
-// ─── TABELA ────────────────────────────────────────────────
 function renderPrecos() {
     const tbody = document.getElementById('precosTableBody');
     if (!tbody) return;
@@ -217,7 +185,6 @@ function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ─── PAGINAÇÃO ─────────────────────────────────────────────
 function renderPaginacao() {
     const existing = document.getElementById('paginacaoContainer');
     if (existing) existing.remove();
@@ -282,7 +249,15 @@ function abrirForm(editId) {
     document.getElementById('modalCodigo').value = p ? p.codigo : '';
     document.getElementById('modalPreco').value = p ? p.preco.toFixed(2) : '';
     document.getElementById('modalDescricao').value = p ? p.descricao : '';
-    document.getElementById('modalVendedor').value = p && p.vendedor ? p.vendedor : '';
+
+    // Responsável: preenchido automaticamente pelo backend.
+    // No front só mostramos (se editando) ou "será registrado no seu nome" (se novo).
+    const vendedorInput = document.getElementById('modalVendedor');
+    if (isEditing) {
+        vendedorInput.value = p && p.vendedor ? p.vendedor : '—';
+    } else {
+        vendedorInput.value = 'Será registrado no seu nome';
+    }
 
     document.getElementById('formModal').classList.add('show');
     setTimeout(() => {
@@ -298,7 +273,6 @@ window.fecharForm = function (cancelado) {
     }
 };
 
-// ─── SUBMIT ────────────────────────────────────────────────
 window.handleSubmit = async function (e) {
     e.preventDefault();
 
@@ -307,7 +281,6 @@ window.handleSubmit = async function (e) {
     const codigo = document.getElementById('modalCodigo').value.trim();
     const preco = parseFloat(document.getElementById('modalPreco').value);
     const descricao = document.getElementById('modalDescricao').value.trim().toUpperCase();
-    const vendedor = document.getElementById('modalVendedor').value.trim();
 
     if (!marca || !codigo || !descricao) {
         showToast('Preencha todos os campos obrigatórios', 'error');
@@ -328,7 +301,7 @@ window.handleSubmit = async function (e) {
         const res = await fetch(url, {
             method,
             headers: getHeaders(),
-            body: JSON.stringify({ marca, codigo, preco, descricao, vendedor })
+            body: JSON.stringify({ marca, codigo, preco, descricao })
         });
 
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
@@ -353,7 +326,6 @@ window.handleSubmit = async function (e) {
     }
 };
 
-// ─── EDIÇÃO / EXCLUSÃO ─────────────────────────────────────
 window.editPreco = function (id) { abrirForm(id); };
 
 window.abrirExclusao = function (id) {
@@ -378,7 +350,6 @@ window.confirmarExclusao = async function () {
     }
 };
 
-// ─── SYNC ──────────────────────────────────────────────────
 window.sincronizarDados = async function () {
     const btn = document.getElementById('syncBtn');
     if (!btn) return;
