@@ -55,6 +55,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     cursor: pointer;
     display: flex; flex-direction: column; gap: 0.5rem;
+    overflow: hidden;
 }
 .tut-module-card:hover {
     transform: translateY(-2px);
@@ -69,16 +70,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .tut-module-card .tut-card-icon {
     width: 40px; height: 40px;
+    min-width: 40px; min-height: 40px;
+    max-width: 40px; max-height: 40px;
     border-radius: 10px;
     background: var(--primary-soft);
     color: var(--primary);
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 0.5rem;
+    flex-shrink: 0;
+    overflow: hidden;
 }
 .tut-module-card .tut-card-icon svg {
     width: 20px; height: 20px;
+    min-width: 20px; min-height: 20px;
+    max-width: 20px; max-height: 20px;
     stroke: currentColor; fill: none;
     stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    display: block;
 }
 
 /* ─── STAGE (simulação) ─────────────────────────────── */
@@ -136,7 +144,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     flex-shrink: 0;
 }
 .tut-chat-avatar {
-    width: 34px; height: 34px; border-radius: 50%;
+    width: 34px; height: 34px;
+    min-width: 34px; min-height: 34px;
+    border-radius: 50%;
     background: var(--primary-soft);
     color: var(--primary);
     display: flex; align-items: center; justify-content: center;
