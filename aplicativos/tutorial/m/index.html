@@ -34,13 +34,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     background: #FFF;
     border: 1px solid #E1E4E8;
     border-radius: 10px;
-    padding: 0.75rem 0.7rem;
+    padding: 0.7rem 0.7rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     text-align: left;
     transition: transform 0.1s, border-color 0.15s;
-    min-height: 48px;
+    min-height: 52px;
+    height: 100%;
 }
 .tut-card:active { transform: scale(0.97); border-color: #9CA3AF; }
 .tut-card .ic {
@@ -60,10 +61,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     display: block;
 }
 .tut-card strong {
-    font-size: 0.78rem; font-weight: 600; color: #111;
-    overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1; min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #111;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .modal {
