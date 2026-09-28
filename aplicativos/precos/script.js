@@ -310,4 +310,85 @@ window.handleSubmit = async function (e) {
         }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || 'Erro ' + res.status
+            throw new Error(err.error || 'Erro ' + res.status);
+        }
+
+        document.getElementById('formModal').classList.remove('show');
+        showToast(editId ? 'Item atualizado' : 'Item cadastrado', 'success');
+        await carregarTudo();
+    } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
+    }
+};
+
+window.editPreco = function (id) { abrirForm(id); };
+
+window.abrirExclusao = function (id) {
+    deleteTargetId = id;
+    document.getElementById('deleteModal').classList.add('show');
+};
+window.fecharExclusao = function () {
+    deleteTargetId = null;
+    document.getElementById('deleteModal').classList.remove('show');
+};
+window.confirmarExclusao = async function () {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    fecharExclusao();
+    try {
+        const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getHeaders() });
+        if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
+        showToast('Preço excluído', 'success');
+        await carregarTudo();
+    } catch {
+        showToast('Erro ao excluir', 'error');
+    }
+};
+
+window.sincronizarDados = async function () {
+    const btn = document.getElementById('syncBtn');
+    if (!btn) return;
+    btn.classList.add('spinning');
+    btn.disabled = true;
+    try {
+        await carregarTudo();
+        showToast('Sincronização concluída', 'success');
+    } catch {
+        showToast('Erro na sincronização', 'error');
+    } finally {
+        setTimeout(() => {
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+        }, 600);
+    }
+};
+
+function getTimeAgo(timestamp) {
+    if (!timestamp) return 'Sem data';
+    const past = new Date(timestamp);
+    if (isNaN(past.getTime())) return 'Data inválida';
+    const diff = Math.floor((Date.now() - past.getTime()) / 1000);
+    if (diff < 0) return 'agora';
+    if (diff < 60) return diff + 's';
+    if (diff < 3600) return Math.floor(diff / 60) + 'min';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd';
+    return past.toLocaleDateString('pt-BR');
+}
+
+function showToast(message, type) {
+    type = type || 'success';
+    document.querySelectorAll('.floating-message').forEach(m => m.remove());
+    const div = document.createElement('div');
+    div.className = 'floating-message ' + type;
+    div.textContent = String(message || '');
+    document.body.appendChild(div);
+    setTimeout(() => {
+        div.style.transition = 'opacity 0.3s';
+        div.style.opacity = '0';
+        setTimeout(() => div.remove(), 300);
+    }, 3000);
+}
