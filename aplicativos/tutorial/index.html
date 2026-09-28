@@ -26,7 +26,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 #grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 0.75rem;
 }
 
@@ -34,14 +34,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     background: #FFF;
     border: 1px solid #E1E4E8;
     border-radius: 10px;
-    padding: 0.9rem 0.75rem;
+    padding: 0.85rem 0.85rem;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
     text-align: left;
     transition: transform 0.15s, border-color 0.15s;
     cursor: pointer;
     min-height: 52px;
+    height: 100%;
 }
 .tut-card:hover {
     transform: translateY(-2px);
@@ -64,10 +65,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     display: block;
 }
 .tut-card strong {
-    font-size: 0.85rem; font-weight: 600; color: #111;
-    overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1; min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #111;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .modal {
@@ -101,7 +107,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 @media (max-width: 768px) {
     #home { padding: 2rem 1rem 4rem; }
-    #grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    #grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 </style>
 </head>
@@ -137,8 +143,6 @@ var ICONS = {
     lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'
 };
 
-// Todos os módulos do sistema. Conforme novos forem implementados,
-// a linha correspondente já está pronta e o card aparece automaticamente.
 var MODULES = [
     { id: 'usuarios',        name: 'Usuários'                },
     { id: 'licitacoes',      name: 'Licitações'              },
