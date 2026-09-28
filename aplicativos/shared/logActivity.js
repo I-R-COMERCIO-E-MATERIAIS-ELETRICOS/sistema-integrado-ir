@@ -1,16 +1,3 @@
-// aplicativos/shared/logActivity.js
-//
-// Helper para registrar atividades no activity_logs.
-// Uso:
-//   const logActivity = require('../shared/logActivity');
-//   logActivity(supabaseAdmin, req, {
-//       action: 'create' | 'update' | 'delete' | 'check' | 'uncheck',
-//       module: 'usuarios' | 'precos' | 'compra' | ...,
-//       target_id: uuid,
-//       target_code: number,
-//       details: { ... }
-//   });
-
 module.exports = function logActivity(supabaseAdmin, req, payload) {
     try {
         const user = req.user || {};
