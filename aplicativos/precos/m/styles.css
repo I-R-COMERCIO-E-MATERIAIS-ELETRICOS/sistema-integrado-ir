@@ -98,14 +98,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     display: flex; align-items: center; gap: 0.6rem;
     margin-bottom: 0.6rem;
 }
-.m-code {
-    font-size: 0.7rem; font-weight: 700;
-    padding: 3px 8px;
-    background: var(--primary-soft);
-    color: var(--primary);
-    border-radius: 6px;
-    flex-shrink: 0;
-}
 .m-marca {
     flex: 1;
     font-weight: 700; font-size: 0.92rem;
@@ -133,7 +125,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-btn.edit { background: rgba(107,114,128,0.1); color: var(--text); }
 .m-btn.del  { background: rgba(239,68,68,0.1); color: var(--danger); }
-.m-btn.primary { background: var(--primary); color: #fff; }
+.m-btn.primary { background: #22C55E; color: #fff; }
 .m-btn.secondary { background: var(--input-bg); color: var(--text-2); }
 
 .m-empty { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 0.9rem; }
@@ -156,7 +148,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-pagination button:disabled { opacity: 0.4; }
 
-/* MODAL */
 .m-modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -207,6 +198,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-form input:focus, .m-form select:focus, .m-form textarea:focus {
     border-color: var(--primary); background: #fff;
+}
+.m-form input:disabled {
+    background: #E5E7EB;
+    color: #6B7280;
+    cursor: not-allowed;
 }
 
 .m-form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
