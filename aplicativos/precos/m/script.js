@@ -360,4 +360,53 @@ window.fecharExclusao = function () {
 
 window.confirmarExclusao = async function () {
     if (!deleteTargetId) return;
-   
+    const id = deleteTargetId;
+    fecharExclusao();
+    try {
+        const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getHeaders() });
+        if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
+        showToast('Preço excluído', 'success');
+        await carregarTudo();
+    } catch {
+        showToast('Erro ao excluir', 'error');
+    }
+};
+
+window.sincronizarDados = async function () {
+    const btn = document.querySelector('.m-sync-btn');
+    if (!btn) return;
+    btn.classList.add('spinning');
+    try {
+        await carregarTudo();
+        showToast('Sincronização concluída', 'success');
+    } catch {
+        showToast('Erro na sincronização', 'error');
+    } finally {
+        setTimeout(() => btn.classList.remove('spinning'), 600);
+    }
+};
+
+function getTimeAgo(timestamp) {
+    if (!timestamp) return 'Sem data';
+    const past = new Date(timestamp);
+    if (isNaN(past.getTime())) return 'Data inválida';
+    const diff = Math.floor((Date.now() - past.getTime()) / 1000);
+    if (diff < 60) return diff + 's';
+    if (diff < 3600) return Math.floor(diff / 60) + 'min';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd';
+    return past.toLocaleDateString('pt-BR');
+}
+
+function showToast(msg, type) {
+    document.querySelectorAll('.m-toast').forEach(t => t.remove());
+    const el = document.createElement('div');
+    el.className = 'm-toast ' + type;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => {
+        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+    }, 3000);
+}
