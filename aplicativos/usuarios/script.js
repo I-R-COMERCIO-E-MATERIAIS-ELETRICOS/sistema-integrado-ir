@@ -40,7 +40,7 @@ function showDenied(msg) {
         <div class="access-denied">
             <h1>${msg || 'ACESSO NEGADO'}</h1>
             <p>Somente administradores podem acessar esta área.</p>
-            <a href="/">Voltar ao Login</a>
+            <a href="/portal">Voltar ao Portal</a>
         </div>`;
 }
 
@@ -88,7 +88,6 @@ function popularEmployees() {
     const sel = document.getElementById('employeeSelect');
     if (!sel) return;
     const atual = sel.value || 'TODOS';
-
     sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
     state.employeesCatalog.forEach(u => {
         const opt = document.createElement('option');
@@ -99,12 +98,12 @@ function popularEmployees() {
     sel.value = atual;
 }
 
-window.filterUsers = function() {
+window.filterUsers = function () {
     state.searchTerm = document.getElementById('search').value.trim().toLowerCase();
     aplicarFiltros();
 };
-window.filterBySector = function(v) { state.sector = v; aplicarFiltros(); };
-window.filterByEmployee = function(v) { state.employeeId = v; aplicarFiltros(); };
+window.filterBySector = function (v) { state.sector = v; aplicarFiltros(); };
+window.filterByEmployee = function (v) { state.employeeId = v; aplicarFiltros(); };
 
 function aplicarFiltros() {
     state.filtered = state.users.filter(u => {
@@ -127,7 +126,7 @@ function renderUsers() {
     }
     tbody.innerHTML = state.filtered.map(u => `
         <tr>
-            <td><strong class="code-cell">${u.code != null ? u.code : '—'}</strong></td>
+            <td><strong>${u.code != null ? u.code : '—'}</strong></td>
             <td><strong>${escHtml(u.name)}</strong></td>
             <td>${escHtml(u.username || '—')}</td>
             <td>${escHtml(u.sector || '—')}</td>
@@ -149,7 +148,7 @@ function formatDate(iso) {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-window.toggleForm = function() { abrirModalUsuario(null); };
+window.toggleForm = function () { abrirModalUsuario(null); };
 
 function abrirModalUsuario(editId) {
     state.editingId = editId || null;
@@ -177,14 +176,14 @@ function abrirModalUsuario(editId) {
     document.getElementById('userModal').classList.add('show');
 }
 
-window.fecharModalUsuario = function(cancelado) {
+window.fecharModalUsuario = function (cancelado) {
     document.getElementById('userModal').classList.remove('show');
     if (cancelado) {
         showToast(state.editingId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
     }
 };
 
-window.mostrarTab = function(tab) {
+window.mostrarTab = function (tab) {
     document.querySelectorAll('#userModal .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
     });
@@ -193,7 +192,7 @@ window.mostrarTab = function(tab) {
     });
 };
 
-window.toggleStatusUsuario = function() {
+window.toggleStatusUsuario = function () {
     if (state.adminMode) return;
     state.userActive = !state.userActive;
     atualizarCardStatus();
@@ -239,7 +238,7 @@ function toggleModulo(id) {
     renderModulosDashboard();
 }
 
-window.onSectorChange = function() {
+window.onSectorChange = function () {
     const sector = document.getElementById('modalSector').value;
     state.adminMode = sector === 'Administrador';
     atualizarModoAdmin();
@@ -261,7 +260,7 @@ function atualizarModoAdmin() {
     atualizarCardStatus();
 }
 
-window.handleSubmit = async function(e) {
+window.handleSubmit = async function (e) {
     e.preventDefault();
     const name = document.getElementById('modalName').value.trim();
     const sector = document.getElementById('modalSector').value;
@@ -312,17 +311,17 @@ window.handleSubmit = async function(e) {
     }
 };
 
-window.editUser = function(id) { abrirModalUsuario(id); };
+window.editUser = function (id) { abrirModalUsuario(id); };
 
-window.abrirModalExclusao = function(id) {
+window.abrirModalExclusao = function (id) {
     deleteTargetId = id;
     document.getElementById('deleteModal').classList.add('show');
 };
-window.fecharModalExclusao = function() {
+window.fecharModalExclusao = function () {
     deleteTargetId = null;
     document.getElementById('deleteModal').classList.remove('show');
 };
-window.confirmarExclusao = async function() {
+window.confirmarExclusao = async function () {
     if (!deleteTargetId) return;
     const id = deleteTargetId;
     fecharModalExclusao();
@@ -342,178 +341,7 @@ window.confirmarExclusao = async function() {
     }
 };
 
-window.abrirModalRelatorio = function() {
-    if (state.employeeId === 'TODOS') {
-        showToast('Selecione um funcionário específico em "Todos os Funcionários"', 'error');
-        return;
-    }
-    document.getElementById('reportModal').classList.add('show');
-};
-window.fecharModalRelatorio = function() {
-    document.getElementById('reportModal').classList.remove('show');
-};
-window.emitirRelatorio = async function(type) {
-    fecharModalRelatorio();
-    try {
-        const res = await fetch(`${API_URL}/report/${state.employeeId}?type=${type}`, { headers: getHeaders() });
-        if (!res.ok) throw new Error('Erro ' + res.status);
-        const data = await res.json();
-        gerarPDF(data, type);
-    } catch {
-        showToast('Erro ao emitir relatório', 'error');
-    }
-};
-
-const MODULE_LABELS = {
-    usuarios: 'Usuários',
-    precos: 'Tabela de Preços',
-    compra: 'Ordens de Compra',
-    transportadoras: 'Transportadoras',
-    cotacoes: 'Cotações de Frete',
-    faturamento: 'Pedidos de Faturamento',
-    frete: 'Controle de Frete',
-    estoque: 'Estoque',
-    receber: 'Contas a Receber',
-    pagar: 'Contas a Pagar',
-    lucro: 'Lucro Real',
-    licitacoes: 'Licitações'
-};
-
-function descreverAtividade(log) {
-    const moduloLabel = MODULE_LABELS[log.module] || log.module;
-    const idCode = log.target_code != null ? log.target_code : '—';
-    let frase;
-    switch (log.action) {
-        case 'create':  frase = `realizou um novo registro de id ${idCode}`; break;
-        case 'update':  frase = `realizou uma atualização do registro de id ${idCode}`; break;
-        case 'delete':  frase = `realizou uma exclusão do registro de id ${idCode}`; break;
-        case 'check':   frase = `realizou uma marcação para registro de id ${idCode}`; break;
-        case 'uncheck': frase = `realizou uma desmarcação para registro de id ${idCode}`; break;
-        default:        frase = `realizou ${log.action} no registro de id ${idCode}`;
-    }
-    return { texto: frase, moduloLabel };
-}
-
-async function gerarPDF(data, type) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-    try {
-        const logoImg = await carregarImagem('/imagens/logo-documento.png');
-        doc.setGState(new doc.GState({ opacity: 0.08 }));
-        doc.addImage(logoImg, 'PNG', 125, 6, 70, 35);
-        doc.setGState(new doc.GState({ opacity: 1 }));
-    } catch {}
-
-    doc.setFontSize(15);
-    doc.setFont(undefined, 'bold');
-    const titulo = type === 'logins' ? 'Relatório de Logins' : 'Relatório de Atividades';
-    doc.text(titulo, 15, 22);
-
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Funcionário: ${data.funcionario.name} (${data.funcionario.username})`, 15, 30);
-    doc.text(`Setor: ${data.funcionario.sector || '—'}`, 15, 36);
-    doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 15, 42);
-
-    doc.setDrawColor(180);
-    doc.line(15, 47, 195, 47);
-
-    let y = 56;
-
-    function novaPaginaSePreciso(altura) {
-        if (y + altura > 280) { doc.addPage(); y = 20; }
-    }
-    function escreveLinhas(linhas, opts = {}) {
-        doc.setFontSize(opts.size || 10);
-        doc.setFont(undefined, opts.bold ? 'bold' : 'normal');
-        linhas.forEach(l => {
-            novaPaginaSePreciso(5.5);
-            doc.text(l, 15, y);
-            y += 5.5;
-        });
-    }
-    function escreveLinhaAtividade(hora, moduloLabel, frase) {
-        novaPaginaSePreciso(5.5);
-        doc.setFontSize(9.5);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(17, 17, 17);
-        const horaTxt = `${hora} — `;
-        doc.text(horaTxt, 15, y);
-        const largHora = doc.getTextWidth(horaTxt);
-
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(107, 114, 128);
-        const modTxt = `${moduloLabel} — `;
-        doc.text(modTxt, 15 + largHora, y);
-        const largMod = doc.getTextWidth(modTxt);
-
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(17, 17, 17);
-        doc.text(frase, 15 + largHora + largMod, y);
-        y += 5.5;
-    }
-    function dataPorExtenso(date) {
-        return date.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
-    }
-    function horaCurta(date) {
-        return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    if (type === 'logins' && data.logins.length) {
-        y += 4;
-        escreveLinhas(['LOGINS'], { bold: true, size: 12 });
-        y += 2;
-        data.logins.forEach(l => {
-            const dt = new Date(l.created_at);
-            escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
-            const hora = horaCurta(dt);
-            const resultado = l.success ? 'Login realizado com sucesso' : `Tentativa de login falhou${l.failure_reason ? ' (' + l.failure_reason + ')' : ''}`;
-            const ip = l.ip_address ? ` (IP ${l.ip_address})` : '';
-            novaPaginaSePreciso(5.5);
-            doc.setFontSize(9.5);
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(17, 17, 17);
-            doc.text(`${hora} — ${resultado}${ip}`, 15, y);
-            y += 3;
-            y += 3;
-        });
-    }
-
-    if (type === 'atividades' && data.atividades.length) {
-        y += 4;
-        escreveLinhas(['ATIVIDADES'], { bold: true, size: 12 });
-        y += 2;
-        data.atividades.forEach(a => {
-            const dt = new Date(a.created_at);
-            escreveLinhas([dataPorExtenso(dt)], { bold: true, size: 10 });
-            const { texto, moduloLabel } = descreverAtividade(a);
-            escreveLinhaAtividade(horaCurta(dt), moduloLabel, texto);
-            y += 3;
-        });
-    }
-
-    if (type === 'logins' && !data.logins.length) {
-        escreveLinhas(['Nenhum login registrado para o período.'], { size: 10 });
-    }
-    if (type === 'atividades' && !data.atividades.length) {
-        escreveLinhas(['Nenhuma atividade registrada para o período.'], { size: 10 });
-    }
-
-    doc.save(`relatorio_${type}_${data.funcionario.username}.pdf`);
-}
-
-function carregarImagem(url) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-    });
-}
-
-window.sincronizarDados = async function() {
+window.sincronizarDados = async function () {
     const btn = document.getElementById('syncBtn');
     if (!btn) return;
     btn.classList.add('spinning');
