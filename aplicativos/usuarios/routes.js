@@ -21,8 +21,9 @@ module.exports = function (supabase, supabaseAdmin) {
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
     const VALID_MODULES = [
+        'licitacoes',
         'precos', 'compra', 'transportadoras', 'cotacoes',
-        'faturamento', 'frete', 'estoque', 'receber', 'pagar', 'lucro', 'licitacoes'
+        'faturamento', 'frete', 'estoque', 'receber', 'pagar', 'lucro'
     ];
 
     async function requireAdmin(req, res, next) {
@@ -44,14 +45,10 @@ module.exports = function (supabase, supabaseAdmin) {
         next();
     }
 
-    function logActivity({ user_id, username, action, module, target_id, target_code, details }) {
-        supabaseAdmin.from('activity_logs').insert([{
-            user_id, username, action, module, target_id, target_code, details
-        }]).then(() => {});
-    }
-
+    // ─── MÓDULOS DISPONÍVEIS ─────────────────────────────────
     router.get('/meta/modules', requireAdmin, (req, res) => {
         res.json([
+            { id: 'licitacoes',      name: 'Licitações' },
             { id: 'precos',          name: 'Tabela de Preços' },
             { id: 'compra',          name: 'Ordens de Compra' },
             { id: 'transportadoras', name: 'Transportadoras' },
@@ -64,15 +61,17 @@ module.exports = function (supabase, supabaseAdmin) {
         ]);
     });
 
+    // ─── LISTA DE FUNCIONÁRIOS ───────────────────────────────
     router.get('/employees', requireAdmin, async (req, res) => {
         const { data, error } = await supabaseAdmin
             .from('profiles')
-            .select('id, name, username, sector, code')
-            .order('name');
+            .select('id, code, name, username, sector')
+            .order('code', { ascending: true });
         if (error) return res.status(500).json({ error: error.message });
         res.json(data || []);
     });
 
+    // ─── LISTAR ──────────────────────────────────────────────
     router.get('/', requireAdmin, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
@@ -86,6 +85,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
+    // ─── CRIAR ───────────────────────────────────────────────
     router.post('/', requireAdmin, async (req, res) => {
         const { username, name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         if (!username || !name || !sector || !password) {
@@ -130,19 +130,13 @@ module.exports = function (supabase, supabaseAdmin) {
                 throw profileError;
             }
 
-            logActivity({
-                user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'create', module: 'usuarios',
-                target_id: profile.id, target_code: profile.code,
-                details: { nome: name, username: cleanUsername, sector }
-            });
-
             res.status(201).json(profile);
         } catch (err) {
             res.status(500).json({ error: 'Erro ao criar usuário: ' + err.message });
         }
     });
 
+    // ─── ATUALIZAR ───────────────────────────────────────────
     router.put('/:id', requireAdmin, async (req, res) => {
         const { name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         const { id } = req.params;
@@ -179,81 +173,24 @@ module.exports = function (supabase, supabaseAdmin) {
                 });
             }
 
-            logActivity({
-                user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'update', module: 'usuarios',
-                target_id: id, target_code: profile.code,
-                details: { nome: name, sector, is_active, senha_alterada: !!password }
-            });
-
             res.json(profile);
         } catch (err) {
             res.status(500).json({ error: 'Erro ao atualizar: ' + err.message });
         }
     });
 
+    // ─── EXCLUIR ─────────────────────────────────────────────
     router.delete('/:id', requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
             if (req.adminUser.id === id) {
                 return res.status(400).json({ error: 'Você não pode excluir a si mesmo' });
             }
-            const { data: alvo } = await supabaseAdmin
-                .from('profiles').select('name, username, code').eq('id', id).single();
             await supabaseAdmin.from('profiles').delete().eq('id', id);
             await supabaseAdmin.auth.admin.deleteUser(id);
-
-            logActivity({
-                user_id: req.adminUser.id, username: req.adminUser.username,
-                action: 'delete', module: 'usuarios',
-                target_id: id, target_code: alvo?.code || null,
-                details: { nome: alvo?.name, username: alvo?.username }
-            });
-
             res.status(204).end();
         } catch (err) {
             res.status(500).json({ error: 'Erro ao excluir: ' + err.message });
-        }
-    });
-
-    router.get('/report/:userId', requireAdmin, async (req, res) => {
-        const { userId } = req.params;
-        const { type } = req.query;
-
-        try {
-            const { data: funcionario } = await supabaseAdmin
-                .from('profiles')
-                .select('id, code, name, username, sector')
-                .eq('id', userId)
-                .single();
-
-            if (!funcionario) return res.status(404).json({ error: 'Usuário não encontrado' });
-
-            let logins = [];
-            let atividades = [];
-
-            if (type !== 'atividades') {
-                const { data } = await supabaseAdmin
-                    .from('login_logs')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false })
-                    .limit(500);
-                logins = data || [];
-            }
-            if (type !== 'logins') {
-                const { data } = await supabaseAdmin
-                    .from('activity_logs')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false })
-                    .limit(500);
-                atividades = data || [];
-            }
-
-            res.json({ funcionario, logins, atividades });
-        } catch (err) {
-            res.status(500).json({ error: err.message });
         }
     });
 
