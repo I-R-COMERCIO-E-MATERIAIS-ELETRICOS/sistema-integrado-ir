@@ -25,13 +25,13 @@ module.exports = function (supabase, supabaseAdmin) {
         const payload = verifyToken(token, SESSION_SECRET);
         if (!payload) return res.status(401).json({ error: 'Não autenticado' });
 
-        const { data: profile } = await supabaseAdmin
+        const { data: profile, error } = await supabaseAdmin
             .from('profiles')
             .select('id, username, name, sector, is_admin, is_active, apps')
             .eq('id', payload.uid)
             .single();
 
-        if (!profile || !profile.is_active) {
+        if (error || !profile || !profile.is_active) {
             return res.status(401).json({ error: 'Sessão inválida' });
         }
 
@@ -48,7 +48,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
     router.head('/', (req, res) => res.status(200).end());
 
-    // ─── LISTA DE MARCAS ────────────────────────────────────
+    // ─── MARCAS ─────────────────────────────────────────────
     router.get('/marcas', requireAuth, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
@@ -72,7 +72,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── LISTAR PREÇOS ──────────────────────────────────────
+    // ─── LISTAR ─────────────────────────────────────────────
     router.get('/', requireAuth, async (req, res) => {
         try {
             const page  = Math.max(1, parseInt(req.query.page)  || 1);
@@ -174,7 +174,6 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(400).json({ error: 'Campos não podem ser vazios após formatação' });
             }
 
-            // Bloqueio de código duplicado (case-insensitive)
             const { data: existing } = await supabaseAdmin
                 .from('precos')
                 .select('id')
@@ -185,8 +184,10 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(409).json({ error: 'Já existe um preço cadastrado com este código' });
             }
 
-            // Responsável = usuário logado (nunca vem do front)
-            const responsavel = req.user.name || req.user.username || null;
+            // Nome do usuário logado
+            const responsavel = (req.user.name || req.user.username || '').trim() || null;
+
+            console.log('[PRECOS POST] usuario:', req.user.username, '| responsavel:', responsavel);
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
@@ -202,7 +203,10 @@ module.exports = function (supabase, supabaseAdmin) {
                 .select('*')
                 .single();
 
-            if (error) return res.status(500).json({ error: 'Erro ao criar preço: ' + error.message });
+            if (error) {
+                console.error('[PRECOS POST] erro:', error);
+                return res.status(500).json({ error: 'Erro ao criar preço: ' + error.message });
+            }
 
             res.status(201).json({
                 ...data,
@@ -214,7 +218,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR (responsável NÃO muda) ───────────────────
+    // ─── ATUALIZAR (vendedor NÃO muda) ──────────────────────
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
