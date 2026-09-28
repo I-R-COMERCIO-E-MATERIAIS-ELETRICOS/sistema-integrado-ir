@@ -27,7 +27,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
         const { data: profile } = await supabaseAdmin
             .from('profiles')
-            .select('id, code, username, name, sector, is_admin, is_active, apps')
+            .select('id, username, name, sector, is_admin, is_active, apps')
             .eq('id', payload.uid)
             .single();
 
@@ -48,7 +48,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
     router.head('/', (req, res) => res.status(200).end());
 
-    // ─── MARCAS ─────────────────────────────────────────────
+    // ─── LISTA DE MARCAS ────────────────────────────────────
     router.get('/marcas', requireAuth, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
@@ -72,7 +72,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── LISTAR ─────────────────────────────────────────────
+    // ─── LISTAR PREÇOS ──────────────────────────────────────
     router.get('/', requireAuth, async (req, res) => {
         try {
             const page  = Math.max(1, parseInt(req.query.page)  || 1);
@@ -174,7 +174,7 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(400).json({ error: 'Campos não podem ser vazios após formatação' });
             }
 
-            // Bloqueio de código duplicado (case-insensitive, trim)
+            // Bloqueio de código duplicado (case-insensitive)
             const { data: existing } = await supabaseAdmin
                 .from('precos')
                 .select('id')
@@ -185,8 +185,8 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(409).json({ error: 'Já existe um preço cadastrado com este código' });
             }
 
-            // Vendedor = nome do usuário logado (não vem do front)
-            const vendedor = req.user.name || req.user.username || null;
+            // Responsável = usuário logado (nunca vem do front)
+            const responsavel = req.user.name || req.user.username || null;
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
@@ -196,7 +196,7 @@ module.exports = function (supabase, supabaseAdmin) {
                     codigo:    codigoNorm,
                     preco:     precoNum,
                     descricao: descricaoNorm,
-                    vendedor:  vendedor,
+                    vendedor:  responsavel,
                     timestamp: new Date().toISOString()
                 }])
                 .select('*')
@@ -214,7 +214,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR (vendedor NÃO muda) ──────────────────────
+    // ─── ATUALIZAR (responsável NÃO muda) ───────────────────
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -237,7 +237,6 @@ module.exports = function (supabase, supabaseAdmin) {
             const marcaNorm     = String(marca).trim().toUpperCase();
             const descricaoNorm = String(descricao).trim().toUpperCase();
 
-            // Bloqueio de código duplicado (excluindo o próprio)
             const { data: existing } = await supabaseAdmin
                 .from('precos')
                 .select('id')
