@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0A">
+    <title>Tutorial · I.R. Comércio</title>
+    <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/tutorial/m/styles.css">
+</head>
+<body>
+
+<!-- HOME -->
+<div class="m-home" id="mHome">
+    <header class="m-home-header">
+        <h1>Tutorial</h1>
+        <p>Escolha um módulo para aprender passo a passo.</p>
+    </header>
+    <div class="m-modules-grid" id="mModulesGrid"></div>
+</div>
+
+<!-- STAGE -->
+<div class="m-stage" id="mStage" style="display:none">
+    <header class="m-stage-header">
+        <button class="m-back-btn" onclick="voltarHome()" aria-label="Voltar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+        </button>
+        <span class="m-current-module" id="mCurrentModule"></span>
+        <button class="m-chat-btn" onclick="toggleChat()" aria-label="Chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+        </button>
+    </header>
+
+    <main class="m-module-area" id="mModuleArea"></main>
+</div>
+
+<!-- CHAT (overlay) -->
+<div class="m-chat-overlay" id="mChatOverlay" style="display:none">
+    <div class="m-chat" id="mChat">
+        <div class="m-chat-header">
+            <strong>Tutorial</strong>
+            <span id="mStepCounter">Passo 1</span>
+            <button class="m-close-btn" onclick="toggleChat()">✕</button>
+        </div>
+        <div class="m-chat-body" id="mChatBody"></div>
+        <div class="m-chat-actions">
+            <button class="m-btn-secondary" id="mPrevBtn" onclick="passoAnterior()" disabled>Anterior</button>
+            <button class="m-btn-primary" id="mNextBtn" onclick="proximoPasso()">Próximo</button>
+        </div>
+    </div>
+</div>
+
+<script src="/tutorial/m/script.js"></script>
+</body>
+</html>
