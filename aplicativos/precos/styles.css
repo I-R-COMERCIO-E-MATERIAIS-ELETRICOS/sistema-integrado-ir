@@ -42,7 +42,6 @@ h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
 }
 .btn-new-order-header:hover { background: #2563EB; transform: translateY(-1px); }
 
-/* SEARCH BAR */
 .search-bar-wrapper { margin-bottom: 0.5rem; }
 .search-bar {
     background: var(--bg-card);
@@ -81,7 +80,6 @@ h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
 .icon-btn svg { transition: transform 0.5s ease; }
 .icon-btn.spinning svg { transform: rotate(360deg); }
 
-/* TABLE */
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 thead { background: var(--th-bg); }
 th {
@@ -99,7 +97,6 @@ tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
 .actions-cell { white-space: nowrap; min-width: 200px; }
 
-/* FORM */
 .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -123,8 +120,8 @@ input, select, textarea {
     resize: vertical;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+input:disabled { background: #E5E7EB; color: #6B7280; cursor: not-allowed; }
 
-/* BUTTONS */
 button {
     background: var(--primary); color: #fff;
     border: none; padding: 12px 24px;
@@ -147,7 +144,6 @@ button.success, button.save, button[type="submit"] { background: var(--btn-save)
     min-width: 70px; border-radius: 6px; font-weight: 500;
 }
 
-/* TOAST */
 .floating-message {
     position: fixed; bottom: 24px; right: 24px;
     padding: 14px 20px; border-radius: 10px;
@@ -163,7 +159,6 @@ button.success, button.save, button[type="submit"] { background: var(--btn-save)
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* MODAL */
 .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.6);
@@ -216,7 +211,6 @@ button.success, button.save, button[type="submit"] { background: var(--btn-save)
     color: var(--text-primary); margin: 1rem 0 2rem;
 }
 
-/* PAGINAÇÃO */
 .paginacao-wrapper {
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 0.75rem;
@@ -245,7 +239,6 @@ button.success, button.save, button[type="submit"] { background: var(--btn-save)
 .pag-nav { font-size: 1rem; font-weight: 700; }
 .pag-ellipsis { padding: 0.4rem; color: var(--text-secondary); font-size: 0.9rem; }
 
-/* ACESSO NEGADO */
 .access-denied {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     min-height: 100vh; background: var(--bg-secondary); text-align: center; padding: 2rem;
@@ -257,7 +250,6 @@ button.success, button.save, button[type="submit"] { background: var(--btn-save)
     padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;
 }
 
-/* RESPONSIVO */
 @media (max-width: 1366px) {
     .container { padding: 1.5rem 1.5rem 4rem 1.5rem; max-width: 100%; }
     h1 { font-size: 1.75rem; }
