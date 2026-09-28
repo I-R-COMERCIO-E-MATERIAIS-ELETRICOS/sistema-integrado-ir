@@ -153,4 +153,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     animation: scaleIn 0.2s ease;
 }
 @keyframes scaleIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.m-modal-message { font-size: 1.05rem; font-weight
+.m-modal-message { font-size: 1.05rem; font-weight: 500; margin-bottom: 1.75rem; color: var(--text); }
+.m-modal-actions { display: flex; gap: 0.6rem; }
+.m-modal-actions button { flex: 1; padding: 0.85rem; border-radius: 10px; font-weight: 600; font-size: 0.92rem; color: #fff; }
+.m-secondary { background: #6B7280; }
+.m-secondary:active { background: #4B5563; }
+.m-danger { background: var(--danger); }
+.m-danger:active { background: #DC2626; }
+
+.m-aviso-expediente {
+    position: fixed;
+    bottom: calc(1rem + var(--safe-bottom) + 60px);
+    left: 16px; right: 16px;
+    background: #EF4444; color: #fff;
+    padding: 14px 18px; border-radius: 12px;
+    font-size: 0.88rem; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+    z-index: 99999; line-height: 1.45;
+    animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
