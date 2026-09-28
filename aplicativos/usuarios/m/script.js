@@ -110,7 +110,7 @@ function aplicarFiltros() {
         if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
         if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
         if (state.searchTerm) {
-            const hay = `${u.code || ''} ${u.name} ${u.username || ''}`.toLowerCase();
+            const hay = `${u.name} ${u.username}`.toLowerCase();
             if (!hay.includes(state.searchTerm)) return false;
         }
         return true;
@@ -127,7 +127,6 @@ function renderUsers() {
     root.innerHTML = state.filtered.map(u => `
         <div class="m-card" onclick="editUser('${u.id}')">
             <div class="m-card-header">
-                <span class="m-code">${u.code != null ? u.code : '—'}</span>
                 <div class="m-avatar">${escHtml((u.name || '?').charAt(0).toUpperCase())}</div>
                 <div class="m-card-title">
                     <div class="m-name">${escHtml(u.name)}</div>
