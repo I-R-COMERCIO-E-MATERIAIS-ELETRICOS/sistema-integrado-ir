@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial · I.R. Comércio</title>
+    <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/tutorial/styles.css">
+    <script>
+    (function () {
+        const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        const smallTouch = window.innerWidth <= 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        if (uaMobile || smallTouch) window.location.replace('/tutorial/m/');
+    })();
+    </script>
+</head>
+<body>
+
+<!-- TELA INICIAL: grid de módulos -->
+<div class="tut-home" id="tutHome">
+    <div class="tut-home-header">
+        <h1>Tutorial Interativo</h1>
+        <p>Escolha um módulo abaixo para aprender a usá-lo passo a passo, com dados fictícios.</p>
+    </div>
+    <div class="tut-modules-grid" id="modulesGrid"></div>
+</div>
+
+<!-- TELA DE SIMULAÇÃO: interface do módulo + chat -->
+<div class="tut-stage" id="tutStage" style="display:none">
+    <div class="tut-toolbar">
+        <button class="tut-back" onclick="voltarHome()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Voltar
+        </button>
+        <span class="tut-current-module" id="tutCurrentModule"></span>
+    </div>
+
+    <div class="tut-module-area" id="tutModuleArea">
+        <!-- Aqui é injetado o HTML falso do módulo (renderizado pelo script.js) -->
+    </div>
+
+    <!-- Chat flutuante -->
+    <div class="tut-chat" id="tutChat">
+        <div class="tut-chat-header">
+            <div class="tut-chat-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="tut-chat-title">
+                <strong>Tutorial</strong>
+                <span id="tutStepCounter">Passo 1</span>
+            </div>
+            <button class="tut-chat-close" onclick="fecharChat()" title="Fechar tutorial">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="tut-chat-body" id="tutChatBody">
+            <!-- Mensagens do tutorial aparecem aqui -->
+        </div>
+
+        <div class="tut-chat-actions">
+            <button class="tut-btn-secondary" id="tutPrevBtn" onclick="passoAnterior()" disabled>Anterior</button>
+            <button class="tut-btn-primary" id="tutNextBtn" onclick="proximoPasso()">Próximo</button>
+        </div>
+    </div>
+</div>
+
+<script src="/tutorial/script.js"></script>
+</body>
+</html>
