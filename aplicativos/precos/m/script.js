@@ -224,7 +224,6 @@ function renderPagination() {
     root.appendChild(next);
 }
 
-// Paginação rola para o topo
 async function mudarPagina(page) {
     await loadPrecos(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -243,7 +242,7 @@ function abrirForm(editId) {
 
     const p = editId ? state.precos.find(x => String(x.id) === String(editId)) : null;
 
-    const responsavelTexto = p && p.vendedor ? p.vendedor : 'Será registrado no seu nome';
+    const responsavelTexto = (p && p.vendedor) ? p.vendedor : '';
 
     document.body.insertAdjacentHTML('beforeend', `
         <div class="m-modal-overlay" id="formModal">
@@ -263,7 +262,7 @@ function abrirForm(editId) {
                     <label>Responsável</label>
                     <input type="text" id="modalVendedor" value="${escHtml(responsavelTexto)}" disabled>
                     <label>Descrição *</label>
-                    <textarea id="modalDescricao" rows="3" required>${p ? escHtml(p.descricao) : ''}</textarea>
+                    <input type="text" id="modalDescricao" value="${p ? escHtml(p.descricao) : ''}" required>
                     <div class="m-form-actions">
                         <button type="button" class="m-btn secondary" onclick="fecharForm(true)">Cancelar</button>
                         <button type="submit" class="m-btn primary" id="modalSubmitBtn">Salvar</button>
