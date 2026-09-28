@@ -211,7 +211,7 @@ function renderPaginacao() {
     const botoesHTML = paginas.map(p => {
         if (p === '...') return '<span class="pag-ellipsis">…</span>';
         const cls = 'pag-btn' + (p === atual ? ' pag-btn-active' : '');
-        return `<button class="${cls}" onclick="window.loadPrecos && loadPrecos(${p})">${p}</button>`;
+        return `<button class="${cls}" onclick="mudarPagina(${p})">${p}</button>`;
     }).join('');
 
     const infoText = state.totalRecords > 0
@@ -224,16 +224,19 @@ function renderPaginacao() {
     div.innerHTML = `
         <div class="paginacao-info">${infoText}</div>
         <div class="paginacao-btns">
-            <button class="pag-btn pag-nav" onclick="loadPrecos(${atual - 1})" ${atual === 1 ? 'disabled' : ''}>‹</button>
+            <button class="pag-btn pag-nav" onclick="mudarPagina(${atual - 1})" ${atual === 1 ? 'disabled' : ''}>‹</button>
             ${botoesHTML}
-            <button class="pag-btn pag-nav" onclick="loadPrecos(${atual + 1})" ${atual === total ? 'disabled' : ''}>›</button>
+            <button class="pag-btn pag-nav" onclick="mudarPagina(${atual + 1})" ${atual === total ? 'disabled' : ''}>›</button>
         </div>`;
     tableCard.appendChild(div);
 }
 
-window.loadPrecos = loadPrecos;
+// Paginação rola para o topo depois de carregar
+window.mudarPagina = async function (page) {
+    await loadPrecos(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
-// ─── MODAL ─────────────────────────────────────────────────
 window.toggleForm = function () { abrirForm(null); };
 
 function abrirForm(editId) {
@@ -250,8 +253,6 @@ function abrirForm(editId) {
     document.getElementById('modalPreco').value = p ? p.preco.toFixed(2) : '';
     document.getElementById('modalDescricao').value = p ? p.descricao : '';
 
-    // Responsável: preenchido automaticamente pelo backend.
-    // No front só mostramos (se editando) ou "será registrado no seu nome" (se novo).
     const vendedorInput = document.getElementById('modalVendedor');
     if (isEditing) {
         vendedorInput.value = p && p.vendedor ? p.vendedor : '—';
@@ -260,9 +261,7 @@ function abrirForm(editId) {
     }
 
     document.getElementById('formModal').classList.add('show');
-    setTimeout(() => {
-        document.getElementById('modalMarca').focus();
-    }, 100);
+    setTimeout(() => document.getElementById('modalMarca').focus(), 100);
 }
 
 window.fecharForm = function (cancelado) {
