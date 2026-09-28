@@ -54,8 +54,7 @@ module.exports = function (supabase, supabaseAdmin) {
             const { data, error } = await supabaseAdmin
                 .from('precos')
                 .select('marca')
-                .not('marca', 'is', null)
-                .order('marca', { ascending: true });
+                .not('marca', 'is', null);
 
             if (error) return res.status(500).json({ error: 'Erro ao buscar marcas: ' + error.message });
 
@@ -73,38 +72,12 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── VENDEDORES ─────────────────────────────────────────
-    // Lista de vendedores únicos já cadastrados (para autocomplete no modal)
-    router.get('/vendedores', requireAuth, async (req, res) => {
-        try {
-            const { data, error } = await supabaseAdmin
-                .from('precos')
-                .select('vendedor')
-                .not('vendedor', 'is', null)
-                .order('vendedor', { ascending: true });
-
-            if (error) return res.status(500).json({ error: 'Erro ao buscar vendedores: ' + error.message });
-
-            const vendedores = [
-                ...new Set(
-                    (data || [])
-                        .map(p => (p.vendedor || '').trim())
-                        .filter(v => v.length > 0)
-                )
-            ].sort();
-
-            res.json(vendedores);
-        } catch (e) {
-            res.status(500).json({ error: 'Erro interno ao buscar vendedores' });
-        }
-    });
-
     // ─── LISTAR ─────────────────────────────────────────────
     router.get('/', requireAuth, async (req, res) => {
         try {
             const page  = Math.max(1, parseInt(req.query.page)  || 1);
             const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 50), 50);
-            const marca  = (req.query.marca  || '').trim() || null;
+            const marca  = (req.query.marca  || '').trim();
             const search = (req.query.search || '').trim() || null;
             const from   = (page - 1) * limit;
             const to     = from + limit - 1;
@@ -112,11 +85,11 @@ module.exports = function (supabase, supabaseAdmin) {
             let query = supabaseAdmin
                 .from('precos')
                 .select('*', { count: 'exact' })
-                .order('marca', { ascending: true })
+                .order('marca',  { ascending: true })
                 .order('codigo', { ascending: true });
 
             if (marca && marca.toUpperCase() !== 'TODAS') {
-                query = query.ilike('marca', marca.toUpperCase());
+                query = query.ilike('marca', marca);
             }
 
             if (search) {
@@ -146,6 +119,7 @@ module.exports = function (supabase, supabaseAdmin) {
 
             res.json({ data: normalized, total, page, limit, totalPages });
         } catch (e) {
+            console.error('Erro GET /precos:', e);
             res.status(500).json({ error: 'Erro interno ao buscar preços' });
         }
     });
@@ -181,7 +155,7 @@ module.exports = function (supabase, supabaseAdmin) {
     // ─── CRIAR ──────────────────────────────────────────────
     router.post('/', requireAuth, async (req, res) => {
         try {
-            const { marca, codigo, preco, descricao, vendedor } = req.body || {};
+            const { marca, codigo, preco, descricao } = req.body || {};
 
             if (!marca || !codigo || preco === undefined || preco === null || !descricao) {
                 return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
@@ -195,21 +169,24 @@ module.exports = function (supabase, supabaseAdmin) {
             const codigoNorm    = String(codigo).trim();
             const marcaNorm     = String(marca).trim().toUpperCase();
             const descricaoNorm = String(descricao).trim().toUpperCase();
-            const vendedorNorm  = (vendedor || '').trim() || null;
 
             if (!codigoNorm || !marcaNorm || !descricaoNorm) {
                 return res.status(400).json({ error: 'Campos não podem ser vazios após formatação' });
             }
 
+            // Bloqueio de código duplicado (case-insensitive, trim)
             const { data: existing } = await supabaseAdmin
                 .from('precos')
                 .select('id')
-                .eq('codigo', codigoNorm)
+                .ilike('codigo', codigoNorm)
                 .maybeSingle();
 
             if (existing) {
                 return res.status(409).json({ error: 'Já existe um preço cadastrado com este código' });
             }
+
+            // Vendedor = nome do usuário logado (não vem do front)
+            const vendedor = req.user.name || req.user.username || null;
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
@@ -219,7 +196,7 @@ module.exports = function (supabase, supabaseAdmin) {
                     codigo:    codigoNorm,
                     preco:     precoNum,
                     descricao: descricaoNorm,
-                    vendedor:  vendedorNorm,
+                    vendedor:  vendedor,
                     timestamp: new Date().toISOString()
                 }])
                 .select('*')
@@ -232,11 +209,12 @@ module.exports = function (supabase, supabaseAdmin) {
                 marca_nome: (data.marca || '').trim().toUpperCase()
             });
         } catch (e) {
+            console.error('Erro POST /precos:', e);
             res.status(500).json({ error: 'Erro interno ao criar preço' });
         }
     });
 
-    // ─── ATUALIZAR ──────────────────────────────────────────
+    // ─── ATUALIZAR (vendedor NÃO muda) ──────────────────────
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -244,7 +222,7 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(400).json({ error: 'ID inválido' });
             }
 
-            const { marca, codigo, preco, descricao, vendedor } = req.body || {};
+            const { marca, codigo, preco, descricao } = req.body || {};
 
             if (!marca || !codigo || preco === undefined || preco === null || !descricao) {
                 return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
@@ -258,12 +236,12 @@ module.exports = function (supabase, supabaseAdmin) {
             const codigoNorm    = String(codigo).trim();
             const marcaNorm     = String(marca).trim().toUpperCase();
             const descricaoNorm = String(descricao).trim().toUpperCase();
-            const vendedorNorm  = (vendedor || '').trim() || null;
 
+            // Bloqueio de código duplicado (excluindo o próprio)
             const { data: existing } = await supabaseAdmin
                 .from('precos')
                 .select('id')
-                .eq('codigo', codigoNorm)
+                .ilike('codigo', codigoNorm)
                 .neq('id', id)
                 .maybeSingle();
 
@@ -278,7 +256,6 @@ module.exports = function (supabase, supabaseAdmin) {
                     codigo:    codigoNorm,
                     preco:     precoNum,
                     descricao: descricaoNorm,
-                    vendedor:  vendedorNorm,
                     timestamp: new Date().toISOString()
                 })
                 .eq('id', id)
@@ -293,6 +270,7 @@ module.exports = function (supabase, supabaseAdmin) {
                 marca_nome: (data.marca || '').trim().toUpperCase()
             });
         } catch (e) {
+            console.error('Erro PUT /precos:', e);
             res.status(500).json({ error: 'Erro interno ao atualizar preço' });
         }
     });
