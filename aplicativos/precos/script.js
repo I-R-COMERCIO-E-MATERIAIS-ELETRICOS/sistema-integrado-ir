@@ -34,12 +34,26 @@ function getHeaders() {
 }
 
 function showDenied(msg) {
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ir-session-expired', reason: msg || 'sem-acesso' }, '*');
+        }
+    } catch (e) {}
+
+    document.documentElement.style.overflow = 'hidden';
     document.body.innerHTML = `
-        <div class="access-denied">
-            <h1>${msg || 'ACESSO NEGADO'}</h1>
-            <p>Você não tem permissão para acessar este módulo.</p>
-            <a href="/portal">Voltar ao Portal</a>
-        </div>`;
+        <div style="
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #F4F5F7; color: #111;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            text-align: center; padding: 2rem; z-index: 2147483647;
+        ">
+            <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
+            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.95rem;">Você não tem permissão para acessar este módulo.</p>
+        </div>
+    `;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -253,11 +267,7 @@ function abrirForm(editId) {
     document.getElementById('modalDescricao').value = p ? p.descricao : '';
 
     const vendedorInput = document.getElementById('modalVendedor');
-    if (isEditing && p && p.vendedor) {
-        vendedorInput.value = p.vendedor;
-    } else {
-        vendedorInput.value = '';
-    }
+    vendedorInput.value = (isEditing && p && p.vendedor) ? p.vendedor : '';
 
     document.getElementById('formModal').classList.add('show');
     setTimeout(() => document.getElementById('modalMarca').focus(), 100);
