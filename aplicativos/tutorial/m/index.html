@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0A0A0A">
-<title>Tutorial · I.R. Comércio</title>
+<title>Tutorial</title>
 <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -16,98 +16,83 @@ html, body {
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
 #home { padding: 1.5rem 1rem 3rem; }
-#home h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 0.5rem; }
-#home .sub { color: #5B6470; font-size: 0.9rem; text-align: center; margin-bottom: 2rem; line-height: 1.5; }
-#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+#home h1 {
+    font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+    text-align: center; margin-bottom: 0.5rem;
+}
+#home .sub {
+    color: #5B6470; font-size: 0.88rem; text-align: center;
+    margin-bottom: 1.75rem; line-height: 1.5;
+}
+
+#grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+}
 .tut-card {
-    background: #FFF; border: 1px solid #E1E4E8; border-radius: 14px;
-    padding: 1.25rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;
-    text-align: left; transition: transform 0.1s, border-color 0.15s;
+    background: #FFF;
+    border: 1px solid #E1E4E8;
+    border-radius: 10px;
+    padding: 0.75rem 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: left;
+    transition: transform 0.1s, border-color 0.15s;
+    min-height: 48px;
 }
 .tut-card:active { transform: scale(0.97); border-color: #9CA3AF; }
 .tut-card .ic {
-    width: 36px; height: 36px;
-    border-radius: 10px;
+    width: 26px; height: 26px;
+    min-width: 26px; min-height: 26px;
+    border-radius: 7px;
     background: #F1F3F5; color: #6B7280;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
+    flex-shrink: 0;
 }
-.tut-card .ic svg { width: 20px; height: 20px; max-width: 20px; max-height: 20px; stroke: currentColor; fill: none; stroke-width: 2; display: block; }
-.tut-card strong { font-size: 0.92rem; font-weight: 700; }
-
-#stage { display: none; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
-#toolbar {
-    background: #0A0A0A; color: #fff;
-    padding: 0.75rem 1rem;
-    display: flex; align-items: center; gap: 0.75rem;
-    position: sticky; top: 0; z-index: 50;
+.tut-card .ic svg {
+    width: 15px; height: 15px;
+    max-width: 15px; max-height: 15px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    display: block;
 }
-#toolbar .back { display: inline-flex; align-items: center; gap: 0.5rem; color: #fff; font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.08); }
-#toolbar .back svg { width: 16px; height: 16px; }
-#currentModule { font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.85); }
+.tut-card strong {
+    font-size: 0.78rem; font-weight: 600; color: #111;
+    overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1; min-width: 0;
+}
 
-#moduleArea { flex: 1; padding: 1rem; background: #F4F5F7; }
-
-#chat {
-    position: fixed; bottom: 0; left: 0; right: 0;
+.modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+    z-index: 10000;
+    padding: 1.5rem;
+}
+.modal.show { display: flex; }
+.modal-box {
     background: #FFF;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
-    max-height: 65vh;
-    display: flex; flex-direction: column;
-    z-index: 9000;
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem;
+    max-width: 360px; width: 100%;
+    text-align: center;
+    animation: scaleIn 0.2s ease;
 }
-#chat.open { transform: translateY(0); }
-#chatHead { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; border-bottom: 1px solid #E1E4E8; flex-shrink: 0; }
-#chatHead .av { width: 34px; height: 34px; border-radius: 50%; background: #F1F3F5; color: #6B7280; display: flex; align-items: center; justify-content: center; }
-#chatHead .av svg { width: 18px; height: 18px; }
-#chatHead .title { flex: 1; min-width: 0; }
-#chatHead .title strong { font-size: 0.9rem; display: block; }
-#chatHead .title span { font-size: 0.72rem; color: #9CA3AF; }
-#chatClose { width: 32px; height: 32px; background: #F7F8FA; border-radius: 8px; color: #5B6470; display: flex; align-items: center; justify-content: center; }
-
-#chatBody { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.msg { max-width: 92%; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.88rem; line-height: 1.5; }
-.msg.tut { background: #F1F3F5; color: #111; align-self: flex-start; border-bottom-left-radius: 4px; }
-.msg.success { background: rgba(34,197,94,0.12); color: #16A34A; border: 1px solid rgba(34,197,94,0.35); font-weight: 600; }
-
-#chatActions { display: flex; gap: 0.6rem; padding: 0.85rem 1rem 1rem; border-top: 1px solid #E1E4E8; flex-shrink: 0; }
-#chatActions button { flex: 1; padding: 0.85rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; }
-#prevBtn { background: #F7F8FA; color: #5B6470; border: 1px solid #E1E4E8; }
-#nextBtn { background: #3B82F6; color: #fff; }
-#chatActions button:disabled { opacity: 0.4; }
-
-.tut-hl {
-    position: relative; z-index: 8000;
-    outline: 3px solid #FF521D; outline-offset: 4px;
-    border-radius: 8px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-    animation: pulse 1.4s ease-in-out infinite;
+@keyframes scaleIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-box h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.6rem; }
+.modal-box p { color: #5B6470; font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.5rem; }
+.modal-box button {
+    background: #3B82F6; color: #fff;
+    padding: 0.85rem 1.5rem; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600;
+    width: 100%;
 }
-@keyframes pulse {
-    0%,100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.45), 0 0 0 3px rgba(255,82,29,0.4); }
-    50%     { box-shadow: 0 0 0 9999px rgba(0,0,0,0.45), 0 0 0 12px rgba(255,82,29,0); }
-}
-
-.fake { max-width: 100%; }
-.fake-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 0.75rem; }
-.fake-head h2 { font-size: 1.25rem; font-weight: 700; }
-.fake-btn { background: #3B82F6; color: #fff; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
-.fake-table-card { background: #FFF; border: 1px solid #E1E4E8; border-radius: 12px; overflow-x: auto; }
-.fake-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 500px; }
-.fake-table thead { background: #0A0A0A; }
-.fake-table th { padding: 10px 12px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #fff; text-transform: uppercase; }
-.fake-table td { padding: 10px 12px; border-bottom: 1px solid rgba(128,128,128,0.1); font-size: 0.84rem; }
-.fake-table tr:last-child td { border-bottom: none; }
-.fake-table tr:nth-child(even) { background: #FAFAFA; }
-.fake-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; }
-.fake-badge.on  { background: rgba(34,197,94,0.12); color: #16A34A; }
-.fake-badge.off { background: rgba(239,68,68,0.12); color: #DC2626; }
-.fake-action { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; color: #fff; margin: 0 2px; }
-.fake-action.edit { background: #6B7280; }
-.fake-action.delete { background: #EF4444; }
 </style>
 </head>
 <body>
@@ -118,187 +103,80 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     <div id="grid"></div>
 </div>
 
-<div id="stage">
-    <div id="toolbar">
-        <button class="back" onclick="voltarHome()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/>
-                <polyline points="12 19 5 12 12 5"/>
-            </svg>
-        </button>
-        <span id="currentModule"></span>
-    </div>
-    <div id="moduleArea"></div>
-
-    <div id="chat">
-        <div id="chatHead">
-            <div class="av">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-            </div>
-            <div class="title">
-                <strong>Tutorial</strong>
-                <span id="stepCounter">Passo 1</span>
-            </div>
-            <button id="chatClose" onclick="fecharChat()">✕</button>
-        </div>
-        <div id="chatBody"></div>
-        <div id="chatActions">
-            <button id="prevBtn" onclick="passoAnterior()" disabled>Anterior</button>
-            <button id="nextBtn" onclick="proximoPasso()">Próximo</button>
-        </div>
+<div class="modal" id="soonModal">
+    <div class="modal-box">
+        <h2 id="soonTitle">Em breve</h2>
+        <p id="soonText">O tutorial interativo deste módulo ainda está em desenvolvimento.</p>
+        <button onclick="fecharModal()">Entendi</button>
     </div>
 </div>
 
 <script>
 var ICONS = {
-    usuarios: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
-    licitacoes: '<svg viewBox="0 0 24 24"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/></svg>'
+    usuarios:         '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+    licitacoes:       '<svg viewBox="0 0 24 24"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/></svg>',
+    precos:           '<svg viewBox="0 0 24 24"><path d="M11 13H7"/><path d="M19 9h-4"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="15" y="5" width="4" height="12" rx="1"/><rect x="7" y="8" width="4" height="9" rx="1"/></svg>',
+    compra:           '<svg viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
+    transportadoras:  '<svg viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+    cotacoes:         '<svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>',
+    faturamento:      '<svg viewBox="0 0 24 24"><path d="M4 11V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M2 15h10"/><path d="m9 18 3-3-3-3"/></svg>',
+    frete:            '<svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+    estoque:          '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+    receber:          '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
+    pagar:            '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
+    lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'
 };
 
 var MODULES = [
-    { id: 'usuarios', name: 'Usuários' },
-    { id: 'licitacoes', name: 'Licitações' }
+    { id: 'usuarios',        name: 'Usuários'                },
+    { id: 'licitacoes',      name: 'Licitações'              },
+    { id: 'precos',          name: 'Tabela de Preços'        },
+    { id: 'compra',          name: 'Ordens de Compra'        },
+    { id: 'transportadoras', name: 'Transportadoras'         },
+    { id: 'cotacoes',        name: 'Cotações de Frete'       },
+    { id: 'faturamento',     name: 'Pedidos de Faturamento'  },
+    { id: 'frete',           name: 'Controle de Frete'       },
+    { id: 'estoque',         name: 'Estoque'                 },
+    { id: 'receber',         name: 'Contas a Receber'        },
+    { id: 'pagar',           name: 'Contas a Pagar'          },
+    { id: 'lucro',           name: 'Lucro Real'              }
 ];
-
-var RENDER = {
-    usuarios: function() {
-        return '<div class="fake">' +
-            '<div class="fake-head"><h2>Usuários</h2><button class="fake-btn">+ Novo</button></div>' +
-            '<div class="fake-table-card"><table class="fake-table">' +
-            '<thead><tr><th style="width:50px;">Cód.</th><th>Nome</th><th>Usuário</th><th>Setor</th><th>Status</th></tr></thead>' +
-            '<tbody>' +
-            '<tr><td><strong>1</strong></td><td><strong>João Silva</strong></td><td>joao.silva</td><td>Vendas</td><td><span class="fake-badge on">Ativo</span></td></tr>' +
-            '<tr><td><strong>2</strong></td><td><strong>Maria Souza</strong></td><td>maria.souza</td><td>Financeiro</td><td><span class="fake-badge on">Ativo</span></td></tr>' +
-            '<tr><td><strong>3</strong></td><td><strong>Pedro Alves</strong></td><td>pedro.alves</td><td>Almoxarifado</td><td><span class="fake-badge off">Inativo</span></td></tr>' +
-            '</tbody></table></div></div>';
-    },
-    licitacoes: function() {
-        return '<div class="fake">' +
-            '<div class="fake-head"><h2>Licitações</h2><button class="fake-btn">+ Nova</button></div>' +
-            '<div class="fake-table-card"><table class="fake-table">' +
-            '<thead><tr><th style="width:50px;">Cód.</th><th>Título</th><th>Status</th></tr></thead>' +
-            '<tbody>' +
-            '<tr><td><strong>1</strong></td><td>Pregão 001/2026</td><td>Em análise</td></tr>' +
-            '<tr><td><strong>2</strong></td><td>Tomada 002/2026</td><td>Aberta</td></tr>' +
-            '</tbody></table></div></div>';
-    }
-};
-
-var STEPS = {
-    usuarios: [
-        { sel: '.fake-head h2', msg: 'Bem-vindo ao módulo de Usuários. Aqui você gerencia quem acessa o sistema.' },
-        { sel: '.fake-head .fake-btn', msg: 'Este é o botão "Novo". Use-o para cadastrar um novo funcionário.' },
-        { sel: '.fake-table', msg: 'Esta é a lista de usuários. Cada linha mostra código, nome, login, setor e status.' },
-        { sel: '.fake-table .fake-badge', msg: 'O status indica se o usuário pode fazer login. Verde = ativo. Vermelho = inativo.' },
-        { sel: null, msg: 'Você aprendeu o básico. Explore livremente!' }
-    ],
-    licitacoes: [
-        { sel: '.fake-head h2', msg: 'Bem-vindo ao módulo de Licitações. Aqui você acompanha os processos.' },
-        { sel: '.fake-head .fake-btn', msg: 'Este é o botão "Nova". Use-o para cadastrar um novo processo.' },
-        { sel: '.fake-table', msg: 'Esta é a lista de licitações. Cada linha mostra código, título e status.' },
-        { sel: null, msg: 'Você aprendeu o básico. Explore livremente!' }
-    ]
-};
-
-var currentModule = null;
-var currentStep = 0;
 
 function renderHome() {
     var grid = document.getElementById('grid');
     grid.innerHTML = '';
+
     MODULES.forEach(function(m) {
         var card = document.createElement('button');
         card.className = 'tut-card';
+
         var ic = document.createElement('div');
         ic.className = 'ic';
         ic.innerHTML = ICONS[m.id] || '';
+
         var strong = document.createElement('strong');
         strong.textContent = m.name;
+
         card.appendChild(ic);
         card.appendChild(strong);
-        card.addEventListener('click', function() { iniciar(m.id, m.name); });
+        card.addEventListener('click', function () { abrirModal(m.name); });
         grid.appendChild(card);
     });
 }
 
-function iniciar(id, name) {
-    currentModule = id;
-    currentStep = 0;
-    document.getElementById('home').style.display = 'none';
-    document.getElementById('stage').style.display = 'flex';
-    document.getElementById('currentModule').textContent = name;
-    document.getElementById('moduleArea').innerHTML = RENDER[id] ? RENDER[id]() : '';
-    document.getElementById('chat').classList.add('open');
-    renderChat();
-    aplicarHighlight();
+function abrirModal(nome) {
+    document.getElementById('soonTitle').textContent = nome + ' — Em breve';
+    document.getElementById('soonText').textContent = 'O tutorial interativo deste módulo ainda está em desenvolvimento. Avisaremos quando estiver disponível.';
+    document.getElementById('soonModal').classList.add('show');
 }
 
-function renderChat() {
-    var steps = STEPS[currentModule] || [];
-    document.getElementById('stepCounter').textContent = 'Passo ' + (currentStep + 1) + ' de ' + steps.length;
-    document.getElementById('prevBtn').disabled = (currentStep === 0);
-    document.getElementById('nextBtn').textContent = (currentStep === steps.length - 1) ? 'Concluir' : 'Próximo';
-    var body = document.getElementById('chatBody');
-    body.innerHTML = '';
-    var msg = document.createElement('div');
-    msg.className = 'msg tut';
-    msg.textContent = steps[currentStep] ? steps[currentStep].msg : '';
-    body.appendChild(msg);
+function fecharModal() {
+    document.getElementById('soonModal').classList.remove('show');
 }
 
-function aplicarHighlight() {
-    document.querySelectorAll('.tut-hl').forEach(function(el) { el.classList.remove('tut-hl'); });
-    var steps = STEPS[currentModule] || [];
-    var step = steps[currentStep];
-    if (!step || !step.sel) return;
-    var el = document.querySelector(step.sel);
-    if (el) {
-        el.classList.add('tut-hl');
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
-function proximoPasso() {
-    var steps = STEPS[currentModule] || [];
-    if (currentStep >= steps.length - 1) {
-        document.querySelectorAll('.tut-hl').forEach(function(el) { el.classList.remove('tut-hl'); });
-        var body = document.getElementById('chatBody');
-        var el = document.createElement('div');
-        el.className = 'msg success';
-        el.textContent = 'Tutorial concluído!';
-        body.appendChild(el);
-        body.scrollTop = body.scrollHeight;
-        document.getElementById('nextBtn').disabled = true;
-        return;
-    }
-    currentStep++;
-    renderChat();
-    aplicarHighlight();
-}
-
-function passoAnterior() {
-    if (currentStep === 0) return;
-    currentStep--;
-    renderChat();
-    aplicarHighlight();
-}
-
-function voltarHome() {
-    document.getElementById('stage').style.display = 'none';
-    document.getElementById('home').style.display = 'block';
-    document.getElementById('moduleArea').innerHTML = '';
-    document.getElementById('chat').classList.remove('open');
-    currentModule = null;
-    currentStep = 0;
-}
-
-function fecharChat() {
-    if (confirm('Deseja sair do tutorial?')) voltarHome();
-}
+document.getElementById('soonModal').addEventListener('click', function(e) {
+    if (e.target.id === 'soonModal') fecharModal();
+});
 
 document.addEventListener('DOMContentLoaded', renderHome);
 </script>
