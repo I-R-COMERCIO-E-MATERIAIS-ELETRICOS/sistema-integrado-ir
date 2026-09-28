@@ -9,6 +9,7 @@ let state = {
     marcaSelecionada: 'TODAS',
     searchTerm: '',
     marcasDisponiveis: [],
+    vendedoresDisponiveis: [],
     isLoading: false
 };
 let accessToken = null;
@@ -50,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function carregarTudo() {
     await loadPrecos(state.currentPage);
-    await atualizarMarcasDisponiveis();
+    await Promise.all([atualizarMarcasDisponiveis(), atualizarVendedoresDisponiveis()]);
 }
 
 async function atualizarMarcasDisponiveis() {
@@ -79,6 +80,19 @@ function renderMarcaSelect() {
         if (nome === selecionada) opt.selected = true;
         select.appendChild(opt);
     });
+}
+
+async function atualizarVendedoresDisponiveis() {
+    try {
+        const res = await fetch(`${API_URL}/vendedores`, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (res.ok) {
+            const vendedores = await res.json();
+            state.vendedoresDisponiveis = Array.isArray(vendedores) ? vendedores : [];
+        }
+    } catch (err) {
+        console.error('Erro ao carregar vendedores:', err);
+    }
 }
 
 window.selecionarMarca = function (nome) {
@@ -125,11 +139,11 @@ async function loadPrecos(page) {
 function normalizePreco(p) {
     return {
         id:         p.id,
-        code:       p.code,
         marca:      (p.marca || '').trim().toUpperCase(),
         codigo:     (p.codigo || '').trim(),
         preco:      parseFloat(p.preco) || 0,
         descricao:  (p.descricao || '').trim().toUpperCase(),
+        vendedor:   (p.vendedor || '').trim() || null,
         timestamp:  p.timestamp || null,
         marca_nome: (p.marca_nome || p.marca || '').trim().toUpperCase()
     };
@@ -157,13 +171,13 @@ function renderPrecos() {
         return `
             <div class="m-card" onclick="editPreco('${p.id}')">
                 <div class="m-card-header">
-                    <span class="m-code">${p.code != null ? p.code : '—'}</span>
                     <span class="m-marca">${escHtml(p.marca_nome || p.marca)}</span>
                     <span class="m-preco">${precoFormatado}</span>
                 </div>
                 <div class="m-card-body">
                     <div class="m-row"><span>Código</span><strong>${escHtml(p.codigo)}</strong></div>
                     <div class="m-row"><span>Descrição</span><strong>${escHtml(p.descricao)}</strong></div>
+                    <div class="m-row"><span>Vendedor</span><strong>${escHtml(p.vendedor || '—')}</strong></div>
                     <div class="m-row"><span>Alterado</span><strong>${getTimeAgo(p.timestamp)}</strong></div>
                 </div>
                 <div class="m-card-actions">
@@ -228,7 +242,6 @@ function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ─── MODAL ─────────────────────────────────────────────────
 window.toggleForm = function () { abrirForm(null); };
 
 function abrirForm(editId) {
@@ -252,6 +265,11 @@ function abrirForm(editId) {
                     <input type="text" id="modalCodigo" value="${p ? escHtml(p.codigo) : ''}" required>
                     <label>Preço (R$) *</label>
                     <input type="number" id="modalPreco" step="0.01" min="0.01" value="${p ? p.preco.toFixed(2) : ''}" required>
+                    <label>Vendedor</label>
+                    <input type="text" id="modalVendedor" list="vendedoresListMobile" value="${p && p.vendedor ? escHtml(p.vendedor) : ''}">
+                    <datalist id="vendedoresListMobile">
+                        ${state.vendedoresDisponiveis.map(v => `<option value="${escHtml(v)}"></option>`).join('')}
+                    </datalist>
                     <label>Descrição *</label>
                     <textarea id="modalDescricao" rows="3" required>${p ? escHtml(p.descricao) : ''}</textarea>
                     <div class="m-form-actions">
@@ -281,6 +299,7 @@ window.handleSubmit = async function (e) {
     const codigo = document.getElementById('modalCodigo').value.trim();
     const preco = parseFloat(document.getElementById('modalPreco').value);
     const descricao = document.getElementById('modalDescricao').value.trim().toUpperCase();
+    const vendedor = document.getElementById('modalVendedor').value.trim();
 
     if (!marca || !codigo || !descricao) { showToast('Preencha todos os campos', 'error'); return; }
     if (isNaN(preco) || preco <= 0) { showToast('Preço inválido', 'error'); return; }
@@ -295,7 +314,7 @@ window.handleSubmit = async function (e) {
         const res = await fetch(url, {
             method,
             headers: getHeaders(),
-            body: JSON.stringify({ marca, codigo, preco, descricao })
+            body: JSON.stringify({ marca, codigo, preco, descricao, vendedor })
         });
 
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
