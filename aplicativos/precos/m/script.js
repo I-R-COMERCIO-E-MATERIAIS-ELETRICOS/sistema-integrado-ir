@@ -185,7 +185,7 @@ function renderPagination() {
     const prev = document.createElement('button');
     prev.textContent = '‹';
     prev.disabled = state.currentPage === 1;
-    prev.onclick = () => loadPrecos(state.currentPage - 1);
+    prev.onclick = () => mudarPagina(state.currentPage - 1);
     root.appendChild(prev);
 
     const total = state.totalPages;
@@ -213,16 +213,23 @@ function renderPagination() {
         const btn = document.createElement('button');
         btn.textContent = p;
         if (p === atual) btn.classList.add('active');
-        btn.onclick = () => loadPrecos(p);
+        btn.onclick = () => mudarPagina(p);
         root.appendChild(btn);
     });
 
     const next = document.createElement('button');
     next.textContent = '›';
     next.disabled = state.currentPage === state.totalPages;
-    next.onclick = () => loadPrecos(state.currentPage + 1);
+    next.onclick = () => mudarPagina(state.currentPage + 1);
     root.appendChild(next);
 }
+
+// Paginação rola para o topo
+async function mudarPagina(page) {
+    await loadPrecos(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.mudarPagina = mudarPagina;
 
 function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -236,7 +243,7 @@ function abrirForm(editId) {
 
     const p = editId ? state.precos.find(x => String(x.id) === String(editId)) : null;
 
-    const vendedorTexto = p && p.vendedor ? p.vendedor : 'Será registrado no seu nome';
+    const responsavelTexto = p && p.vendedor ? p.vendedor : 'Será registrado no seu nome';
 
     document.body.insertAdjacentHTML('beforeend', `
         <div class="m-modal-overlay" id="formModal">
@@ -254,7 +261,7 @@ function abrirForm(editId) {
                     <label>Preço (R$) *</label>
                     <input type="number" id="modalPreco" step="0.01" min="0.01" value="${p ? p.preco.toFixed(2) : ''}" required>
                     <label>Responsável</label>
-                    <input type="text" id="modalVendedor" value="${escHtml(vendedorTexto)}" disabled>
+                    <input type="text" id="modalVendedor" value="${escHtml(responsavelTexto)}" disabled>
                     <label>Descrição *</label>
                     <textarea id="modalDescricao" rows="3" required>${p ? escHtml(p.descricao) : ''}</textarea>
                     <div class="m-form-actions">
@@ -338,7 +345,7 @@ window.abrirExclusao = function (id) {
                 <p class="m-confirm-msg">Tem certeza que deseja excluir este preço?</p>
                 <div class="m-form-actions centered">
                     <button type="button" class="m-btn secondary" onclick="fecharExclusao()">Não</button>
-                    <button type="button" class="m-btn primary" style="background:#22C55E;" onclick="confirmarExclusao()">Sim</button>
+                    <button type="button" class="m-btn primary" onclick="confirmarExclusao()">Sim</button>
                 </div>
             </div>
         </div>
@@ -353,53 +360,4 @@ window.fecharExclusao = function () {
 
 window.confirmarExclusao = async function () {
     if (!deleteTargetId) return;
-    const id = deleteTargetId;
-    fecharExclusao();
-    try {
-        const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getHeaders() });
-        if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
-        showToast('Preço excluído', 'success');
-        await carregarTudo();
-    } catch {
-        showToast('Erro ao excluir', 'error');
-    }
-};
-
-window.sincronizarDados = async function () {
-    const btn = document.querySelector('.m-sync-btn');
-    if (!btn) return;
-    btn.classList.add('spinning');
-    try {
-        await carregarTudo();
-        showToast('Sincronização concluída', 'success');
-    } catch {
-        showToast('Erro na sincronização', 'error');
-    } finally {
-        setTimeout(() => btn.classList.remove('spinning'), 600);
-    }
-};
-
-function getTimeAgo(timestamp) {
-    if (!timestamp) return 'Sem data';
-    const past = new Date(timestamp);
-    if (isNaN(past.getTime())) return 'Data inválida';
-    const diff = Math.floor((Date.now() - past.getTime()) / 1000);
-    if (diff < 60) return diff + 's';
-    if (diff < 3600) return Math.floor(diff / 60) + 'min';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
-    if (diff < 604800) return Math.floor(diff / 86400) + 'd';
-    return past.toLocaleDateString('pt-BR');
-}
-
-function showToast(msg, type) {
-    document.querySelectorAll('.m-toast').forEach(t => t.remove());
-    const el = document.createElement('div');
-    el.className = 'm-toast ' + type;
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => {
-        el.style.transition = 'opacity 0.3s';
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 300);
-    }, 3000);
-}
+   
