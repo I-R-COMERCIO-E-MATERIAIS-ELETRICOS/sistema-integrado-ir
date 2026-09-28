@@ -9,12 +9,12 @@ let state = {
     marcaSelecionada: 'TODAS',
     searchTerm: '',
     marcasDisponiveis: [],
+    vendedoresDisponiveis: [],
     isLoading: false
 };
 let accessToken = null;
 let deleteTargetId = null;
 
-// ─── TOKEN ─────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -43,7 +43,6 @@ function showDenied(msg) {
         </div>`;
 }
 
-// ─── INIT ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -52,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function carregarTudo() {
     await loadPrecos(state.currentPage);
-    await atualizarMarcasDisponiveis();
+    await Promise.all([atualizarMarcasDisponiveis(), atualizarVendedoresDisponiveis()]);
 }
 
 // ─── MARCAS ────────────────────────────────────────────────
@@ -84,6 +83,33 @@ function renderMarcaSelect() {
     });
 }
 
+// ─── VENDEDORES ────────────────────────────────────────────
+async function atualizarVendedoresDisponiveis() {
+    try {
+        const res = await fetch(`${API_URL}/vendedores`, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (res.ok) {
+            const vendedores = await res.json();
+            state.vendedoresDisponiveis = Array.isArray(vendedores) ? vendedores : [];
+        }
+    } catch (err) {
+        console.error('Erro ao carregar vendedores:', err);
+    }
+    renderVendedoresDatalist();
+}
+
+function renderVendedoresDatalist() {
+    const list = document.getElementById('vendedoresList');
+    if (!list) return;
+    list.innerHTML = '';
+    state.vendedoresDisponiveis.forEach(nome => {
+        const opt = document.createElement('option');
+        opt.value = nome;
+        list.appendChild(opt);
+    });
+}
+
+// ─── SELECIONAR MARCA ──────────────────────────────────────
 window.selecionarMarca = function (nome) {
     state.marcaSelecionada = nome || 'TODAS';
     state.searchTerm = '';
@@ -139,11 +165,11 @@ async function loadPrecos(page) {
 function normalizePreco(p) {
     return {
         id:         p.id,
-        code:       p.code,
         marca:      (p.marca || '').trim().toUpperCase(),
         codigo:     (p.codigo || '').trim(),
         preco:      parseFloat(p.preco) || 0,
         descricao:  (p.descricao || '').trim().toUpperCase(),
+        vendedor:   (p.vendedor || '').trim() || null,
         timestamp:  p.timestamp || null,
         marca_nome: (p.marca_nome || p.marca || '').trim().toUpperCase()
     };
@@ -172,11 +198,11 @@ function renderPrecos() {
         const precoFormatado = 'R$ ' + p.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
             <tr>
-                <td><strong>${p.code != null ? p.code : '—'}</strong></td>
                 <td><strong>${escHtml(p.marca_nome || p.marca || '')}</strong></td>
                 <td>${escHtml(p.codigo)}</td>
                 <td>${precoFormatado}</td>
                 <td>${escHtml(p.descricao)}</td>
+                <td>${escHtml(p.vendedor || '—')}</td>
                 <td style="color:var(--text-secondary);font-size:0.85rem;">${getTimeAgo(p.timestamp)}</td>
                 <td class="actions-cell" style="text-align:center;">
                     <button onclick="editPreco('${p.id}')" class="action-btn edit">Editar</button>
@@ -238,10 +264,9 @@ function renderPaginacao() {
     tableCard.appendChild(div);
 }
 
-// Expõe para o HTML
 window.loadPrecos = loadPrecos;
 
-// ─── MODAL NOVO/EDITAR ─────────────────────────────────────
+// ─── MODAL ─────────────────────────────────────────────────
 window.toggleForm = function () { abrirForm(null); };
 
 function abrirForm(editId) {
@@ -257,6 +282,7 @@ function abrirForm(editId) {
     document.getElementById('modalCodigo').value = p ? p.codigo : '';
     document.getElementById('modalPreco').value = p ? p.preco.toFixed(2) : '';
     document.getElementById('modalDescricao').value = p ? p.descricao : '';
+    document.getElementById('modalVendedor').value = p && p.vendedor ? p.vendedor : '';
 
     document.getElementById('formModal').classList.add('show');
     setTimeout(() => {
@@ -281,6 +307,7 @@ window.handleSubmit = async function (e) {
     const codigo = document.getElementById('modalCodigo').value.trim();
     const preco = parseFloat(document.getElementById('modalPreco').value);
     const descricao = document.getElementById('modalDescricao').value.trim().toUpperCase();
+    const vendedor = document.getElementById('modalVendedor').value.trim();
 
     if (!marca || !codigo || !descricao) {
         showToast('Preencha todos os campos obrigatórios', 'error');
@@ -301,7 +328,7 @@ window.handleSubmit = async function (e) {
         const res = await fetch(url, {
             method,
             headers: getHeaders(),
-            body: JSON.stringify({ marca, codigo, preco, descricao })
+            body: JSON.stringify({ marca, codigo, preco, descricao, vendedor })
         });
 
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
@@ -370,7 +397,6 @@ window.sincronizarDados = async function () {
     }
 };
 
-// ─── TEMPO RELATIVO ────────────────────────────────────────
 function getTimeAgo(timestamp) {
     if (!timestamp) return 'Sem data';
     const past = new Date(timestamp);
@@ -384,7 +410,6 @@ function getTimeAgo(timestamp) {
     return past.toLocaleDateString('pt-BR');
 }
 
-// ─── TOAST ─────────────────────────────────────────────────
 function showToast(message, type) {
     type = type || 'success';
     document.querySelectorAll('.floating-message').forEach(m => m.remove());
