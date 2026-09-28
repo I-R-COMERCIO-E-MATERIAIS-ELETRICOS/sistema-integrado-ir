@@ -4,6 +4,7 @@
 
 const MODULE_ICONS = {
     usuarios:         '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    licitacoes:       '<svg viewBox="0 0 24 24"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>',
     precos:           '<svg viewBox="0 0 24 24"><path d="M11 13H7"/><path d="M19 9h-4"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="15" y="5" width="4" height="12" rx="1"/><rect x="7" y="8" width="4" height="9" rx="1"/></svg>',
     compra:           '<svg viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
     transportadoras:  '<svg viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
@@ -14,7 +15,7 @@ const MODULE_ICONS = {
     receber:          '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
     pagar:            '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
     lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
-    licitacoes:       '<svg viewBox="0 0 24 24"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>'
+    tutorial:         '<svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6v3h8v-3c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>'
 };
 
 const LOGOUT_ICON = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
@@ -107,7 +108,7 @@ function agendarAvisoExpediente() {
             const el = document.createElement('div');
             el.id = 'avisoExpediente';
             el.className = 'm-aviso-expediente';
-            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades antes do encerramento da sessão.';
+            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades.';
             document.body.appendChild(el);
         }
 
@@ -135,10 +136,8 @@ function renderTabs() {
         tab.type = 'button';
         tab.className = 'm-tab' + (m.allowed ? '' : ' disabled');
         tab.dataset.moduleId = m.id;
-        tab.innerHTML = `
-            <span class="m-tab-icon">${MODULE_ICONS[m.id] || ''}</span>
-            <span>${m.name}</span>
-        `;
+        tab.title = m.name;
+        tab.innerHTML = `<span class="m-tab-icon">${MODULE_ICONS[m.id] || ''}</span>`;
         if (m.allowed) {
             tab.addEventListener('click', () => openModule(m));
         } else {
@@ -150,10 +149,8 @@ function renderTabs() {
     const logoutTab = document.createElement('button');
     logoutTab.type = 'button';
     logoutTab.className = 'm-tab logout';
-    logoutTab.innerHTML = `
-        <span class="m-tab-icon">${LOGOUT_ICON}</span>
-        <span>Sair</span>
-    `;
+    logoutTab.title = 'Sair';
+    logoutTab.innerHTML = `<span class="m-tab-icon">${LOGOUT_ICON}</span>`;
     logoutTab.addEventListener('click', () => window.showLogout());
     bar.appendChild(logoutTab);
 }
