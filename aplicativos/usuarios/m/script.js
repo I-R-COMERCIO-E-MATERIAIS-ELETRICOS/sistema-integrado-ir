@@ -1,7 +1,20 @@
 const API_URL = window.location.origin + '/api/usuarios';
 
-let state = { users: [], filtered: [], searchTerm: '', sector: 'TODOS', modulesCatalog: [] };
+let state = {
+    users: [],
+    filtered: [],
+    searchTerm: '',
+    sector: 'TODOS',
+    employeeId: 'TODOS',
+    modulesCatalog: [],
+    employeesCatalog: [],
+    editingId: null,
+    selectedModules: [],
+    userActive: true,
+    adminMode: false
+};
 let accessToken = null;
+let deleteTargetId = null;
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -14,15 +27,6 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
-function showDenied(msg) {
-    document.body.innerHTML = `
-        <div class="m-denied">
-            <h1>${msg || 'ACESSO NEGADO'}</h1>
-            <p>Somente administradores podem acessar esta área.</p>
-            <a href="/">Voltar ao Login</a>
-        </div>`;
-}
-
 function getHeaders() {
     return {
         'Accept': 'application/json',
@@ -31,10 +35,20 @@ function getHeaders() {
     };
 }
 
+function showDenied(msg) {
+    document.body.innerHTML = `
+        <div class="m-denied">
+            <h1>${msg || 'ACESSO NEGADO'}</h1>
+            <p>Somente administradores podem acessar esta área.</p>
+            <a href="/portal/m/">Voltar ao Portal</a>
+        </div>`;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
     await carregarModulos();
+    await carregarEmployees();
     await carregarUsuarios();
 });
 
@@ -45,6 +59,16 @@ async function carregarModulos() {
         if (!res.ok) throw new Error('Erro ' + res.status);
         state.modulesCatalog = await res.json();
     } catch (err) { console.error('Erro ao carregar módulos:', err); }
+}
+
+async function carregarEmployees() {
+    try {
+        const res = await fetch(`${API_URL}/employees`, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        state.employeesCatalog = await res.json();
+        popularEmployees();
+    } catch (err) { console.error('Erro ao carregar funcionários:', err); }
 }
 
 async function carregarUsuarios() {
@@ -60,21 +84,33 @@ async function carregarUsuarios() {
     }
 }
 
-window.filterUsers = function() {
+function popularEmployees() {
+    const sel = document.getElementById('employeeSelect');
+    if (!sel) return;
+    const atual = sel.value || 'TODOS';
+    sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
+    state.employeesCatalog.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.name;
+        sel.appendChild(opt);
+    });
+    sel.value = atual;
+}
+
+window.filterUsers = function () {
     state.searchTerm = document.getElementById('search').value.trim().toLowerCase();
     aplicarFiltros();
 };
-
-window.filterBySector = function(s) {
-    state.sector = s;
-    aplicarFiltros();
-};
+window.filterBySector = function (v) { state.sector = v; aplicarFiltros(); };
+window.filterByEmployee = function (v) { state.employeeId = v; aplicarFiltros(); };
 
 function aplicarFiltros() {
     state.filtered = state.users.filter(u => {
         if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
+        if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
         if (state.searchTerm) {
-            const hay = `${u.name} ${u.username} ${u.sector}`.toLowerCase();
+            const hay = `${u.code || ''} ${u.name} ${u.username || ''}`.toLowerCase();
             if (!hay.includes(state.searchTerm)) return false;
         }
         return true;
@@ -91,6 +127,7 @@ function renderUsers() {
     root.innerHTML = state.filtered.map(u => `
         <div class="m-card" onclick="editUser('${u.id}')">
             <div class="m-card-header">
+                <span class="m-code">${u.code != null ? u.code : '—'}</span>
                 <div class="m-avatar">${escHtml((u.name || '?').charAt(0).toUpperCase())}</div>
                 <div class="m-card-title">
                     <div class="m-name">${escHtml(u.name)}</div>
@@ -102,147 +139,193 @@ function renderUsers() {
                 <div class="m-row"><span>Setor</span><strong>${escHtml(u.sector || '—')}</strong></div>
                 ${u.contact_email ? `<div class="m-row"><span>E-mail</span><strong>${escHtml(u.contact_email)}</strong></div>` : ''}
                 ${u.contact_phone ? `<div class="m-row"><span>Telefone</span><strong>${escHtml(u.contact_phone)}</strong></div>` : ''}
-                <div class="m-modules-row">${renderModulesChips(u)}</div>
             </div>
             <div class="m-card-actions">
                 <button class="m-btn edit" onclick="event.stopPropagation();editUser('${u.id}')">Editar</button>
-                <button class="m-btn del"  onclick="event.stopPropagation();deleteUser('${u.id}')">Excluir</button>
+                <button class="m-btn del"  onclick="event.stopPropagation();abrirModalExclusao('${u.id}')">Excluir</button>
             </div>
         </div>
     `).join('');
-}
-
-function renderModulesChips(u) {
-    if (u.is_admin) return '<span class="m-chip all">Acesso total</span>';
-    const apps = Array.isArray(u.apps) ? u.apps : [];
-    if (!apps.length) return '<span class="m-chip none">Nenhum módulo</span>';
-    return apps.map(id => {
-        const mod = state.modulesCatalog.find(m => m.id === id);
-        return `<span class="m-chip">${escHtml(mod ? mod.name : id)}</span>`;
-    }).join('');
 }
 
 function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-window.toggleForm = function() { showFormModal(null); };
+window.toggleForm = function () { abrirModalUsuario(null); };
 
-function showFormModal(editId) {
+function abrirModalUsuario(editId) {
     const existing = document.getElementById('formModal');
     if (existing) existing.remove();
 
-    const isEditing = !!editId;
-    const u = isEditing ? state.users.find(x => x.id === editId) : null;
-    const userApps = Array.isArray(u?.apps) ? u.apps : [];
-    const isAdmin = u?.is_admin === true;
+    state.editingId = editId || null;
+    const u = editId ? state.users.find(x => x.id === editId) : null;
+    state.adminMode = u?.is_admin === true;
+    state.userActive = u ? (u.is_active !== false) : true;
+    state.selectedModules = Array.isArray(u?.apps) ? u.apps.slice() : [];
+    if (state.adminMode) state.selectedModules = state.modulesCatalog.map(m => m.id);
+
+    const userApps = state.selectedModules;
 
     document.body.insertAdjacentHTML('beforeend', `
         <div class="m-modal-overlay" id="formModal">
             <div class="m-modal">
                 <div class="m-modal-header">
-                    <h2>${isEditing ? 'Editar Usuário' : 'Novo Usuário'}</h2>
-                    <button class="m-close" onclick="closeFormModal()">✕</button>
+                    <h2>${editId ? 'Editar Usuário' : 'Novo Usuário'}</h2>
+                    <button class="m-close" onclick="fecharModalUsuario(true)">✕</button>
                 </div>
-                <form id="mUserForm" onsubmit="handleSubmit(event)" class="m-form">
+
+                <div class="m-tabs">
+                    <button class="m-tab-btn active" data-tab="info" onclick="mostrarTab('info')">Informações</button>
+                    <button class="m-tab-btn" data-tab="modules" onclick="mostrarTab('modules')">Módulos</button>
+                    <button class="m-tab-btn" data-tab="credentials" onclick="mostrarTab('credentials')">Credenciais</button>
+                </div>
+
+                <form id="modalUserForm" onsubmit="handleSubmit(event)" class="m-form">
                     <input type="hidden" id="modalEditId" value="${editId || ''}">
-                    <label>Nome do funcionário *</label>
-                    <input type="text" id="modalName" value="${u ? escHtml(u.name) : ''}" required>
-                    <label>Nome de usuário *</label>
-                    <input type="text" id="modalUsername" value="${u ? escHtml(u.username || '') : ''}" ${isEditing ? 'disabled' : ''} required>
-                    <label>Setor *</label>
-                    <select id="modalSector" required onchange="onSectorChange()">
-                        ${['Administrador','Vendas','Almoxarifado','Financeiro'].map(s =>
-                            `<option value="${s}" ${u?.sector === s ? 'selected' : ''}>${s}</option>`
-                        ).join('')}
-                    </select>
-                    <label>Senha ${isEditing ? '(deixe em branco para manter)' : '*'}</label>
-                    <input type="password" id="modalPassword" ${isEditing ? '' : 'required'}>
-                    <label>E-mail de contato (opcional)</label>
-                    <input type="email" id="modalContactEmail" value="${u ? escHtml(u.contact_email || '') : ''}">
-                    <label>Telefone (opcional)</label>
-                    <input type="tel" id="modalContactPhone" value="${u ? escHtml(u.contact_phone || '') : ''}">
-                    <div class="m-toggle-row">
-                        <div class="m-switch ${u?.is_active !== false ? 'active' : ''}" id="mActiveSwitch"></div>
-                        <span>Usuário ativo</span>
-                        <input type="checkbox" id="modalActive" ${u?.is_active !== false ? 'checked' : ''} style="display:none;">
+
+                    <div class="m-tab-content active" data-pane="info">
+                        <label>Nome do funcionário *</label>
+                        <input type="text" id="modalName" value="${u ? escHtml(u.name) : ''}" required>
+
+                        <label>Setor *</label>
+                        <select id="modalSector" onchange="onSectorChange()">
+                            ${['Administrador','Vendas','Almoxarifado','Financeiro'].map(s =>
+                                `<option value="${s}" ${u?.sector === s ? 'selected' : ''}>${s}</option>`
+                            ).join('')}
+                        </select>
+
+                        <label>E-mail</label>
+                        <input type="email" id="modalContactEmail" value="${u ? escHtml(u.contact_email || '') : ''}">
+
+                        <label>Telefone</label>
+                        <input type="tel" id="modalContactPhone" value="${u ? escHtml(u.contact_phone || '') : ''}">
                     </div>
-                    <label>Módulos liberados</label>
-                    <div class="m-modules-picker ${isAdmin ? 'disabled' : ''}" id="modulesPicker">
-                        ${state.modulesCatalog.map(m => `
-                            <label class="m-module-check ${userApps.includes(m.id) ? 'checked' : ''}">
-                                <input type="checkbox" value="${m.id}"
-                                    ${userApps.includes(m.id) ? 'checked' : ''}
-                                    ${isAdmin ? 'disabled' : ''}
-                                    onchange="this.parentElement.classList.toggle('checked', this.checked)">
-                                <span>${escHtml(m.name)}</span>
-                            </label>
-                        `).join('')}
+
+                    <div class="m-tab-content" data-pane="modules">
+                        <p class="m-hint" style="margin-bottom: 0.75rem; font-style: normal;">Selecione os módulos que este usuário poderá acessar:</p>
+                        <div class="m-modules-picker ${state.adminMode ? 'disabled' : ''}" id="modulesPicker">
+                            ${state.modulesCatalog.map(m => `
+                                <div class="m-module-check ${userApps.includes(m.id) ? 'checked' : ''}"
+                                     data-module-id="${m.id}"
+                                     onclick="toggleModuloMobile('${m.id}')">${escHtml(m.name)}</div>
+                            `).join('')}
+                        </div>
+                        <p class="m-hint ${state.adminMode ? '' : 'hidden'}" id="modulesHint">O administrador tem acesso a todos os módulos.</p>
                     </div>
-                    <div class="m-hint" id="modulesHint">
-                        ${isAdmin ? 'Administrador tem acesso automático a todos os módulos.'
-                                  : 'Selecione os módulos que este usuário poderá acessar.'}
+
+                    <div class="m-tab-content" data-pane="credentials">
+                        <div class="m-form-row-2">
+                            <div>
+                                <label>Nome de usuário *</label>
+                                <input type="text" id="modalUsername" value="${u ? escHtml(u.username || '') : ''}"
+                                       ${editId ? 'disabled' : ''} required>
+                            </div>
+                            <div>
+                                <label>Senha ${editId ? '' : '*'}</label>
+                                <input type="password" id="modalPassword" ${editId ? '' : 'required'} placeholder="${editId ? 'Manter' : ''}">
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <label>Status do usuário</label>
+                            <div class="m-status-card ${state.userActive ? 'active' : 'inactive'} ${state.adminMode ? 'disabled' : ''}"
+                                 id="statusCard" onclick="toggleStatusUsuario()">
+                                <span id="statusCardText">${state.userActive ? 'Selecione para desativar' : 'Selecione para ativar'}</span>
+                            </div>
+                        </div>
                     </div>
+
                     <div class="m-form-actions">
-                        <button type="button" class="m-btn secondary" onclick="closeFormModal()">Cancelar</button>
-                        <button type="submit" class="m-btn primary">${isEditing ? 'Atualizar' : 'Salvar'}</button>
+                        <button type="button" class="m-btn secondary" onclick="fecharModalUsuario(true)">Cancelar</button>
+                        <button type="submit" class="m-btn primary" id="modalSubmitBtn">Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     `);
-
-    const sw = document.getElementById('mActiveSwitch');
-    const cb = document.getElementById('modalActive');
-    sw.addEventListener('click', () => {
-        cb.checked = !cb.checked;
-        sw.classList.toggle('active', cb.checked);
-    });
 }
+
+window.fecharModalUsuario = function (cancelado) {
+    const m = document.getElementById('formModal');
+    if (m) m.remove();
+    if (cancelado) {
+        showToast(state.editingId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+    }
+};
+
+window.mostrarTab = function (tab) {
+    document.querySelectorAll('#formModal .m-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    document.querySelectorAll('#formModal .m-tab-content').forEach(c => {
+        c.classList.toggle('active', c.dataset.pane === tab);
+    });
+};
+
+window.toggleStatusUsuario = function () {
+    if (state.adminMode) return;
+    state.userActive = !state.userActive;
+    const card = document.getElementById('statusCard');
+    const text = document.getElementById('statusCardText');
+    card.classList.toggle('active', state.userActive);
+    card.classList.toggle('inactive', !state.userActive);
+    text.textContent = state.userActive ? 'Selecione para desativar' : 'Selecione para ativar';
+};
+
+window.toggleModuloMobile = function (id) {
+    if (state.adminMode) return;
+    const idx = state.selectedModules.indexOf(id);
+    if (idx >= 0) state.selectedModules.splice(idx, 1);
+    else state.selectedModules.push(id);
+
+    const el = document.querySelector(`#modulesPicker .m-module-check[data-module-id="${id}"]`);
+    if (el) el.classList.toggle('checked', state.selectedModules.includes(id));
+};
 
 window.onSectorChange = function () {
     const sector = document.getElementById('modalSector').value;
+    state.adminMode = sector === 'Administrador';
     const picker = document.getElementById('modulesPicker');
     const hint = document.getElementById('modulesHint');
-    const isAdmin = sector === 'Administrador';
-    picker.classList.toggle('disabled', isAdmin);
-    picker.querySelectorAll('input[type="checkbox"]').forEach(i => { i.disabled = isAdmin; });
-    hint.textContent = isAdmin
-        ? 'Administrador tem acesso automático a todos os módulos.'
-        : 'Selecione os módulos que este usuário poderá acessar.';
+    if (state.adminMode) {
+        state.selectedModules = state.modulesCatalog.map(m => m.id);
+        picker.classList.add('disabled');
+        hint.classList.remove('hidden');
+    } else {
+        picker.classList.remove('disabled');
+        hint.classList.add('hidden');
+    }
+    document.querySelectorAll('#modulesPicker .m-module-check').forEach(el => {
+        el.classList.toggle('checked', state.selectedModules.includes(el.dataset.moduleId));
+    });
+    document.getElementById('statusCard').classList.toggle('disabled', state.adminMode);
 };
 
-window.closeFormModal = function() {
-    const m = document.getElementById('formModal');
-    if (m) m.remove();
-};
+window.editUser = function (id) { abrirModalUsuario(id); };
 
-window.handleSubmit = async function(e) {
+window.handleSubmit = async function (e) {
     e.preventDefault();
     const editId = document.getElementById('modalEditId').value.trim();
     const name = document.getElementById('modalName').value.trim();
-    const username = document.getElementById('modalUsername').value.trim();
     const sector = document.getElementById('modalSector').value;
-    const password = document.getElementById('modalPassword').value;
-    const is_active = document.getElementById('modalActive').checked;
     const contact_email = document.getElementById('modalContactEmail').value.trim();
     const contact_phone = document.getElementById('modalContactPhone').value.trim();
+    const username = document.getElementById('modalUsername').value.trim();
+    const password = document.getElementById('modalPassword').value;
 
     if (!name || !sector) { showToast('Preencha os campos obrigatórios', 'error'); return; }
     if (!editId && (!username || !password)) { showToast('Usuário e senha obrigatórios', 'error'); return; }
 
     const isAdmin = sector === 'Administrador';
-    const apps = isAdmin
-        ? []
-        : Array.from(document.querySelectorAll('#modulesPicker input[type="checkbox"]:checked')).map(i => i.value);
-
-    const body = { name, sector, is_active, apps };
+    const apps = isAdmin ? [] : state.selectedModules.slice();
+    const body = { name, sector, is_active: state.userActive, apps };
     if (!editId) body.username = username;
     if (password) body.password = password;
-    if (contact_email !== '') body.contact_email = contact_email;
-    if (contact_phone !== '') body.contact_phone = contact_phone;
+    if (contact_email) body.contact_email = contact_email;
+    if (contact_phone) body.contact_phone = contact_phone;
 
-    const btn = document.querySelector('#mUserForm button[type="submit"]');
+    const btn = document.getElementById('modalSubmitBtn');
     btn.disabled = true;
     btn.textContent = 'Aguarde...';
 
@@ -252,31 +335,55 @@ window.handleSubmit = async function(e) {
         const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(body) });
 
         if (res.status === 401 || res.status === 403) { showDenied('ACESSO NEGADO'); return; }
-        if (res.status === 409) {
-            showToast('Usuário já existe', 'error');
-            btn.disabled = false; btn.textContent = editId ? 'Atualizar' : 'Salvar';
-            return;
-        }
+        if (res.status === 409) { showToast('Usuário já existe', 'error'); return; }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || 'Erro ' + res.status);
         }
 
-        closeFormModal();
+        document.getElementById('formModal').remove();
         showToast(editId ? 'Usuário atualizado' : 'Usuário criado', 'success');
+        await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
         showToast('Erro: ' + err.message, 'error');
-        btn.disabled = false; btn.textContent = editId ? 'Atualizar' : 'Salvar';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar';
     }
 };
 
-window.editUser = function(id) { showFormModal(id); };
+window.abrirModalExclusao = function (id) {
+    deleteTargetId = id;
+    const existing = document.getElementById('deleteModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="m-modal-overlay" id="deleteModal">
+            <div class="m-modal">
+                <div class="m-modal-header">
+                    <h2>Excluir</h2>
+                    <button class="m-close" onclick="fecharModalExclusao()">✕</button>
+                </div>
+                <p class="m-confirm-msg">Tem certeza que deseja excluir este usuário?</p>
+                <div class="m-form-actions centered">
+                    <button type="button" class="m-btn danger" onclick="fecharModalExclusao()">Não</button>
+                    <button type="button" class="m-btn success" onclick="confirmarExclusao()">Sim</button>
+                </div>
+            </div>
+        </div>
+    `);
+};
 
-window.deleteUser = async function(id) {
-    const u = state.users.find(x => x.id === id);
-    if (!u) return;
-    if (!confirm(`Excluir o usuário "${u.name}"?`)) return;
+window.fecharModalExclusao = function () {
+    deleteTargetId = null;
+    const m = document.getElementById('deleteModal');
+    if (m) m.remove();
+};
+
+window.confirmarExclusao = async function () {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    fecharModalExclusao();
     try {
         const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: getHeaders() });
         if (res.status === 400) {
@@ -286,9 +393,30 @@ window.deleteUser = async function(id) {
         }
         if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
         showToast('Usuário excluído', 'success');
+        await carregarEmployees();
         await carregarUsuarios();
     } catch {
         showToast('Erro ao excluir', 'error');
+    }
+};
+
+window.sincronizarDados = async function () {
+    const btn = document.querySelector('.m-sync-btn');
+    if (!btn) return;
+    btn.classList.add('spinning');
+    btn.disabled = true;
+    try {
+        await carregarModulos();
+        await carregarEmployees();
+        await carregarUsuarios();
+        showToast('Sincronização concluída', 'success');
+    } catch {
+        showToast('Erro na sincronização', 'error');
+    } finally {
+        setTimeout(() => {
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+        }, 600);
     }
 };
 
