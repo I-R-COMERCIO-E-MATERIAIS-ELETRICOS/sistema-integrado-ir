@@ -34,12 +34,26 @@ function getHeaders() {
 }
 
 function showDenied(msg) {
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ir-session-expired', reason: msg || 'sem-acesso' }, '*');
+        }
+    } catch (e) {}
+
+    document.documentElement.style.overflow = 'hidden';
     document.body.innerHTML = `
-        <div class="m-denied">
-            <h1>${msg || 'ACESSO NEGADO'}</h1>
-            <p>Você não tem permissão para acessar este módulo.</p>
-            <a href="/portal/m/">Voltar ao Portal</a>
-        </div>`;
+        <div style="
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #F4F5F7; color: #111;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            text-align: center; padding: 2rem; z-index: 2147483647;
+        ">
+            <h1 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
+            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.9rem;">Você não tem permissão para acessar este módulo.</p>
+        </div>
+    `;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -241,8 +255,6 @@ function abrirForm(editId) {
     if (existing) existing.remove();
 
     const p = editId ? state.precos.find(x => String(x.id) === String(editId)) : null;
-
-    // Responsável: vazio ao criar; mostra quem registrou ao editar.
     const responsavelTexto = (p && p.vendedor) ? p.vendedor : '';
 
     document.body.insertAdjacentHTML('beforeend', `
