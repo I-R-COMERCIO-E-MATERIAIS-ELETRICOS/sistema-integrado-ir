@@ -8,7 +8,6 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── SUPABASE ────────────────────────────────────────────────
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,7 +26,6 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
 
-// ─── MIDDLEWARES ─────────────────────────────────────────────
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
@@ -36,10 +34,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ─── IMAGENS GLOBAIS ─────────────────────────────────────────
 app.use('/imagens', express.static(path.join(__dirname, 'aplicativos', 'imagens')));
 
-// ─── HEALTH ──────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
     try {
         const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
@@ -53,13 +49,15 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// ─── APIs DOS MÓDULOS ────────────────────────────────────────
-app.use('/api/auth',     require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
-app.use('/api/portal',   require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
-app.use('/api/usuarios', require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
+// ─── APIs ───────────────────────────────────────────────────
+app.use('/api/auth',        require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal',      require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+app.use('/api/usuarios',    require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
+app.use('/api/licitacoes',  require('./aplicativos/licitacoes/routes')(supabase, supabaseAdmin));
+app.use('/api/tutorial',    require('./aplicativos/tutorial/routes')(supabase, supabaseAdmin));
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────
-const MODULES = ['login-e-autenticacao', 'portal', 'usuarios'];
+// ─── ARQUIVOS ESTÁTICOS ─────────────────────────────────────
+const MODULES = ['login-e-autenticacao', 'portal', 'usuarios', 'licitacoes', 'tutorial'];
 
 MODULES.forEach(name => {
     const dir = path.join(__dirname, 'aplicativos', name);
@@ -77,23 +75,16 @@ MODULES.forEach(name => {
     app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
 });
 
-// ─── RAIZ → LOGIN ────────────────────────────────────────────
 app.get('/', (req, res) =>
     res.sendFile(path.join(__dirname, 'aplicativos', 'login-e-autenticacao', 'index.html'))
 );
 
-// ─── 404 ─────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: '404 - Rota não encontrada' }));
-
-// ─── ERROS ───────────────────────────────────────────────────
 app.use((error, req, res, next) => {
     console.error('Erro interno:', error.message);
     res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// ─── START ───────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
-    console.log(`✅ Supabase conectado`);
-    console.log(`✅ Autenticação: username + senha\n`);
 });
