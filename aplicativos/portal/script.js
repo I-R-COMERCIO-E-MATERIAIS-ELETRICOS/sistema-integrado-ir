@@ -182,3 +182,14 @@ window.confirmLogout = () => {
     sessionStorage.removeItem('irUser');
     window.location.href = '/';
 };
+
+// ─── Escuta recados dos iframes. Se algum módulo avisar que a sessão caiu,
+// o portal inteiro sai do iframe e vai pro login. ───
+window.addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.type === 'ir-session-expired') {
+        sessionStorage.removeItem('irToken');
+        sessionStorage.removeItem('irUser');
+        window.location.href = '/';
+    }
+});
