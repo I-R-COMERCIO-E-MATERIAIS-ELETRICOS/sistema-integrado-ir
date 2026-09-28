@@ -242,6 +242,7 @@ function abrirForm(editId) {
 
     const p = editId ? state.precos.find(x => String(x.id) === String(editId)) : null;
 
+    // Responsável: vazio ao criar; mostra quem registrou ao editar.
     const responsavelTexto = (p && p.vendedor) ? p.vendedor : '';
 
     document.body.insertAdjacentHTML('beforeend', `
