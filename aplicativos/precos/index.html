@@ -39,7 +39,7 @@
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.35-4.35"></path>
                 </svg>
-                <input type="text" id="search" placeholder="Buscar por código, marca ou descrição..." oninput="filterPrecos()">
+                <input type="text" id="search" placeholder="Buscar por código, marca, descrição ou vendedor..." oninput="filterPrecos()">
                 <select id="marcaSelect" class="search-select" onchange="selecionarMarca(this.value)">
                     <option value="TODAS">TODAS AS MARCAS</option>
                 </select>
@@ -59,11 +59,11 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 60px;">Cód.</th>
                             <th>Marca</th>
                             <th>Código</th>
                             <th>Preço</th>
                             <th>Descrição</th>
+                            <th>Vendedor</th>
                             <th>Alteração</th>
                             <th style="text-align: center;">Ações</th>
                         </tr>
@@ -95,6 +95,11 @@
                 <div class="form-group">
                     <label for="modalPreco">Preço (R$) *</label>
                     <input type="number" id="modalPreco" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="modalVendedor">Vendedor</label>
+                    <input type="text" id="modalVendedor" autocomplete="off" list="vendedoresList">
+                    <datalist id="vendedoresList"></datalist>
                 </div>
                 <div class="form-group full" style="grid-column: 1 / -1;">
                     <label for="modalDescricao">Descrição *</label>
