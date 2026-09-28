@@ -15,14 +15,11 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     color-scheme: light only;
 }
-
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100%;
-    -webkit-font-smoothing: antialiased;
+    background: var(--bg); color: var(--text);
+    min-height: 100%; -webkit-font-smoothing: antialiased;
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
@@ -36,9 +33,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
 .m-add-btn {
     width: 42px; height: 42px; border-radius: 12px;
-    background: var(--primary); color: #fff;
+    background: #3B82F6; color: #fff;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(255, 82, 29, 0.3);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     transition: transform 0.1s ease;
 }
 .m-add-btn:active { transform: scale(0.94); }
@@ -61,7 +58,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .m-search input::placeholder { color: var(--text-3); }
 
-.m-filters { margin-bottom: 1rem; }
+.m-filters {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    margin-bottom: 1rem;
+}
 .m-filters select {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -73,6 +73,19 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     color: var(--text);
     outline: none;
 }
+.m-sync-btn {
+    padding: 0.75rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-2);
+    transition: transform 0.1s ease;
+}
+.m-sync-btn:active { transform: scale(0.98); }
+.m-sync-btn svg { width: 20px; height: 20px; }
+.m-sync-btn.spinning svg { animation: spin 0.6s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .m-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
@@ -90,18 +103,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     display: flex; align-items: center; gap: 0.75rem;
     margin-bottom: 0.75rem;
 }
+.m-code {
+    font-size: 0.7rem; font-weight: 700;
+    padding: 3px 8px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    border-radius: 6px;
+    flex-shrink: 0;
+}
 .m-avatar {
-    width: 42px; height: 42px; border-radius: 12px;
+    width: 40px; height: 40px; border-radius: 12px;
     background: var(--primary-soft); color: var(--primary);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
+    font-weight: 700; font-size: 1rem; flex-shrink: 0;
 }
 .m-card-title { flex: 1; min-width: 0; }
-.m-name { font-weight: 700; font-size: 0.98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.m-username { font-size: 0.8rem; color: var(--text-3); }
+.m-name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-username { font-size: 0.78rem; color: var(--text-3); }
 .m-badge {
     padding: 3px 8px; border-radius: 6px;
-    font-size: 0.68rem; font-weight: 700;
+    font-size: 0.65rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.04em;
     flex-shrink: 0;
 }
@@ -112,15 +133,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
 .m-row span { color: var(--text-2); }
 .m-row strong { color: var(--text); font-weight: 600; }
-
-.m-modules-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.25rem; }
-.m-chip {
-    font-size: 0.7rem; padding: 3px 8px; border-radius: 4px;
-    background: var(--primary-soft); color: var(--primary-hover);
-    font-weight: 600;
-}
-.m-chip.all  { background: rgba(34,197,94,0.12); color: #16A34A; }
-.m-chip.none { background: rgba(107,114,128,0.1); color: #6B7280; }
 
 .m-card-actions {
     display: flex; gap: 0.5rem;
@@ -135,8 +147,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-btn:active { transform: scale(0.98); }
 .m-btn.edit { background: rgba(107,114,128,0.1); color: var(--text); }
 .m-btn.del  { background: rgba(239,68,68,0.1); color: var(--danger); }
-.m-btn.primary { background: var(--primary); color: #fff; }
+.m-btn.primary { background: #22C55E; color: #fff; }
 .m-btn.secondary { background: var(--input-bg); color: var(--text-2); }
+.m-btn.danger { background: var(--danger); color: #fff; }
+.m-btn.success { background: var(--success); color: #fff; }
 
 .m-empty { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 0.9rem; }
 
@@ -171,6 +185,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     color: var(--text-2);
 }
 
+.m-tabs {
+    display: flex; gap: 0; margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+.m-tab-btn {
+    padding: 0.75rem 1rem; border: none; background: transparent;
+    font-size: 0.85rem; font-weight: 600;
+    color: var(--text-2); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px; white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.m-tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.m-tab-content { display: none; }
+.m-tab-content.active { display: block; }
+
 .m-form { display: flex; flex-direction: column; gap: 0.85rem; }
 .m-form label {
     font-size: 0.78rem; font-weight: 600; color: var(--text-2);
@@ -186,28 +220,33 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     font-family: inherit;
     color: var(--text);
     outline: none;
-    transition: border-color 0.15s ease;
 }
-.m-form input:focus, .m-form select:focus { border-color: var(--primary); background: #fff; }
-.m-form input:disabled { background: #E5E7EB; color: #6B7280; cursor: not-allowed; }
+.m-form input:focus, .m-form select:focus {
+    border-color: var(--primary); background: #fff;
+}
+.m-form input:disabled { background: #E5E7EB; color: #6B7280; }
 
-.m-toggle-row {
-    display: flex; align-items: center; gap: 0.75rem;
-    padding: 0.75rem 0; font-size: 0.9rem; font-weight: 500;
+.m-form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
 }
-.m-switch {
-    width: 44px; height: 26px; border-radius: 999px;
-    background: #D1D5DB; position: relative; cursor: pointer;
-    transition: background 0.2s;
+
+.m-status-card {
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--input-bg);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.15s ease;
+    user-select: none;
 }
-.m-switch::after {
-    content: ''; position: absolute; top: 3px; left: 3px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: #fff; transition: transform 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.m-switch.active { background: var(--success); }
-.m-switch.active::after { transform: translateX(18px); }
+.m-status-card.active { background: rgba(34,197,94,0.12); color: #16A34A; border-color: rgba(34,197,94,0.4); }
+.m-status-card.inactive { background: rgba(239,68,68,0.12); color: #DC2626; border-color: rgba(239,68,68,0.4); }
+.m-status-card.disabled { opacity: 0.55; pointer-events: none; }
 
 .m-modules-picker {
     display: flex; flex-direction: column; gap: 0.45rem;
@@ -216,24 +255,41 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid var(--border);
     border-radius: 12px;
 }
-.m-modules-picker.disabled { opacity: 0.45; pointer-events: none; }
+.m-modules-picker.disabled { opacity: 0.55; pointer-events: none; }
 .m-module-check {
-    display: flex; align-items: center; gap: 0.65rem;
-    padding: 0.65rem 0.85rem;
+    padding: 0.7rem 0.85rem;
     background: #fff;
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: 10px;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    font-weight: 500;
     cursor: pointer;
+    text-align: center;
     transition: all 0.15s ease;
 }
-.m-module-check:active { transform: scale(0.99); }
-.m-module-check input { width: 18px; height: 18px; accent-color: var(--primary); margin: 0; }
-.m-module-check.checked { border-color: var(--primary); background: rgba(255, 82, 29, 0.06); }
-.m-hint { font-size: 0.78rem; color: var(--text-2); padding: 0 0.25rem; }
+.m-module-check.checked {
+    border-color: rgba(34,197,94,0.5);
+    background: rgba(34,197,94,0.12);
+    color: #16A34A;
+    font-weight: 700;
+}
+.m-hint {
+    font-size: 0.78rem; color: var(--text-2);
+    padding: 0 0.25rem; margin-top: 0.5rem;
+    font-style: italic;
+}
+.m-hint.hidden { display: none; }
 
 .m-form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
 .m-form-actions .m-btn { padding: 0.9rem; }
+.m-form-actions.centered { justify-content: center; }
+.m-form-actions.centered .m-btn { flex: 0 1 130px; }
+
+.m-confirm-msg {
+    text-align: center; font-size: 1.05rem;
+    font-weight: 500; color: var(--text);
+    margin: 1rem 0 1.5rem;
+}
 
 .m-toast {
     position: fixed; bottom: calc(1rem + var(--safe-bottom)); left: 1rem; right: 1rem;
@@ -243,7 +299,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     animation: slideUp 0.3s ease;
 }
 .m-toast.success { background: #10B981; }
-.m-toast.error   { background: #EF4444; }
+.m-toast.error { background: #EF4444; }
 
 .m-denied {
     display: flex; flex-direction: column;
@@ -253,7 +309,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .m-denied h1 { font-size: 1.5rem; margin-bottom: 1rem; }
 .m-denied p { color: var(--text-2); margin-bottom: 2rem; }
 .m-denied a {
-    display: inline-block; background: var(--primary); color: #fff;
+    display: inline-block; background: #3B82F6; color: #fff;
     padding: 12px 24px; border-radius: 10px;
     text-decoration: none; font-weight: 600;
 }
