@@ -46,6 +46,14 @@ module.exports = function (supabase, supabaseAdmin) {
         next();
     }
 
+    function nomeResponsavel(user) {
+        if (!user) return null;
+        const nome = (user.name || '').trim();
+        if (nome) return nome;
+        const username = (user.username || '').trim();
+        return username || null;
+    }
+
     router.head('/', (req, res) => res.status(200).end());
 
     // ─── MARCAS ─────────────────────────────────────────────
@@ -184,10 +192,8 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(409).json({ error: 'Já existe um preço cadastrado com este código' });
             }
 
-            // Nome do usuário logado
-            const responsavel = (req.user.name || req.user.username || '').trim() || null;
-
-            console.log('[PRECOS POST] usuario:', req.user.username, '| responsavel:', responsavel);
+            const responsavel = nomeResponsavel(req.user);
+            console.log('[PRECOS POST] usuario:', req.user.username, '| nome:', req.user.name, '| gravando vendedor:', responsavel);
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
@@ -218,7 +224,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR (vendedor NÃO muda) ──────────────────────
+    // ─── ATUALIZAR (atualiza responsável com quem está editando) ───
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -252,6 +258,9 @@ module.exports = function (supabase, supabaseAdmin) {
                 return res.status(409).json({ error: 'Já existe outro preço cadastrado com este código' });
             }
 
+            const responsavel = nomeResponsavel(req.user);
+            console.log('[PRECOS PUT] usuario:', req.user.username, '| nome:', req.user.name, '| gravando vendedor:', responsavel);
+
             const { data, error } = await supabaseAdmin
                 .from('precos')
                 .update({
@@ -259,6 +268,7 @@ module.exports = function (supabase, supabaseAdmin) {
                     codigo:    codigoNorm,
                     preco:     precoNum,
                     descricao: descricaoNorm,
+                    vendedor:  responsavel,
                     timestamp: new Date().toISOString()
                 })
                 .eq('id', id)
