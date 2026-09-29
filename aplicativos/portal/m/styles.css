@@ -57,4 +57,127 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* OVERLAY DE CARREGAMENTO DENTRO DO IFRAME */
 .m-module-loader {
     position: absolute;
-    inset:
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 0.35s ease;
+    pointer-events: auto;
+}
+.m-module-loader.done {
+    opacity: 0;
+    pointer-events: none;
+}
+.m-module-spinner {
+    width: 44px; height: 44px;
+    border: 4px solid rgba(255, 82, 29, 0.15);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: splashSpin 0.8s linear infinite;
+}
+@keyframes splashSpin { to { transform: rotate(360deg); } }
+
+/* BARRA INFERIOR */
+.m-tabs {
+    background: var(--dark);
+    padding-bottom: var(--safe-bottom);
+    flex-shrink: 0;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+    z-index: 50;
+}
+.m-tabs-scroll {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.m-tabs-scroll::-webkit-scrollbar { display: none; }
+
+.m-tab {
+    flex-shrink: 0;
+    padding: 0.85rem 1rem;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    background: transparent;
+    min-width: 56px;
+}
+.m-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.m-tab:active { background: rgba(255,255,255,0.04); }
+.m-tab.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.m-tab-icon {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+}
+.m-tab-icon svg {
+    width: 100%; height: 100%;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+.m-tab.logout {
+    color: var(--danger);
+    margin-left: auto;
+    border-left: 1px solid rgba(255,255,255,0.08);
+}
+.m-tab.logout.active { border-bottom-color: var(--danger); color: var(--danger); }
+
+/* MODAL LOGOUT */
+.m-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+    z-index: 10000;
+    padding: 1.5rem;
+}
+.m-modal-overlay.show { display: flex; }
+.m-modal {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem;
+    width: 100%; max-width: 360px;
+    text-align: center;
+    animation: scaleIn 0.2s ease;
+}
+@keyframes scaleIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.m-modal-message { font-size: 1.05rem; font-weight: 500; margin-bottom: 1.75rem; color: var(--text); }
+.m-modal-actions { display: flex; gap: 0.6rem; }
+.m-modal-actions button { flex: 1; padding: 0.85rem; border-radius: 10px; font-weight: 600; font-size: 0.92rem; color: #fff; }
+.m-secondary { background: #6B7280; }
+.m-secondary:active { background: #4B5563; }
+.m-danger { background: var(--danger); }
+.m-danger:active { background: #DC2626; }
+
+/* Aviso de fim de expediente */
+.m-aviso-expediente {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 62px);
+    left: 16px; right: 16px;
+    background: #EF4444; color: #fff;
+    padding: 14px 18px; border-radius: 12px;
+    font-size: 0.88rem; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+    z-index: 99999; line-height: 1.45;
+    animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
