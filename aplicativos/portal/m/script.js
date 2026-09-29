@@ -37,6 +37,15 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
@@ -56,15 +65,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
-        // Monta a barra de abas COMPLETA antes de revelar o app
+        // Monta barra + saudação
         renderTabs();
+        escreverSaudacao();
 
-        // Revela o app com fade — já com os ícones prontos
+        // Revela o app com fade
         const app = document.getElementById('app');
         requestAnimationFrame(() => app.classList.add('ready'));
 
         const primeiro = modules.find(m => m.allowed);
-        if (primeiro) openModule(primeiro);
+        if (primeiro) {
+            openModule(primeiro);
+        } else {
+            esconderSaudacao();
+        }
 
         if (!userInfo.is_admin) agendarAvisoExpediente();
     } catch (err) {
@@ -72,6 +86,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/';
     }
 });
+
+function escreverSaudacao() {
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+    const el = document.getElementById('greetingText');
+    if (el) el.textContent = `${getGreeting()}, ${firstName}!`;
+}
+
+function esconderSaudacao() {
+    const el = document.getElementById('greetingOverlay');
+    if (el && !el.classList.contains('hide')) {
+        el.classList.add('hide');
+        setTimeout(() => el.remove(), 500);
+    }
+}
 
 function agendarAvisoExpediente() {
     const tick = () => {
@@ -164,7 +193,7 @@ function openModule(mod) {
         iframe.title = mod.name;
         iframe.addEventListener('load', () => {
             clearTimeout(loaderTimeouts[mod.id]);
-            loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 6000);
+            loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 1800);
         });
         container.appendChild(iframe);
 
@@ -179,7 +208,10 @@ function esconderLoader(moduleId) {
     const loader = document.getElementById(`loader-${moduleId}`);
     if (loader && !loader.classList.contains('done')) {
         loader.classList.add('done');
-        setTimeout(() => loader.remove(), 400);
+        setTimeout(() => loader.remove(), 350);
+    }
+    if (document.getElementById('greetingOverlay')) {
+        esconderSaudacao();
     }
 }
 
