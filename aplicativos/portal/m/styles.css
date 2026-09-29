@@ -23,13 +23,18 @@ html, body {
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* APP */
+/* APP COM FADE-IN */
 .m-app {
     display: flex;
     flex-direction: column;
     height: 100vh;
     height: 100dvh;
     background: var(--bg);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.m-app.ready {
+    opacity: 1;
 }
 
 /* ÁREA DO MÓDULO */
