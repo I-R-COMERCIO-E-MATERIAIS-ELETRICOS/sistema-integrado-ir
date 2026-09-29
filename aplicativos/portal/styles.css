@@ -18,7 +18,7 @@
 html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* SPLASH */
+/* SPLASH — só o spinner */
 .splash {
     position: fixed; inset: 0;
     background: var(--bg);
@@ -27,22 +27,17 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transition: opacity 0.4s ease;
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
-.splash-inner { text-align: center; }
-.splash-greeting {
-    font-size: 1.6rem; font-weight: 600;
-    margin-bottom: 1.75rem; letter-spacing: -0.02em;
+.splash-inner {
+    display: flex; align-items: center; justify-content: center;
 }
-.splash-bar {
-    width: 220px; height: 2px;
-    background: var(--border); border-radius: 2px;
-    overflow: hidden; margin: 0 auto;
+.splash-spinner {
+    width: 52px; height: 52px;
+    border: 4px solid rgba(255, 82, 29, 0.15);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: splashSpin 0.8s linear infinite;
 }
-.splash-bar span {
-    display: block; height: 100%; width: 40%;
-    background: var(--primary);
-    animation: progress 1.4s ease-in-out infinite;
-}
-@keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@keyframes splashSpin { to { transform: rotate(360deg); } }
 
 /* LAYOUT */
 .dashboard { display: flex; height: 100vh; overflow: hidden; }
@@ -173,7 +168,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     color: #ff6b6b !important;
 }
 
-/* Tooltip quando colapsado */
 .sidebar:not(:hover) .module-item { position: relative; }
 .sidebar:not(:hover) .module-item:hover::after {
     content: attr(data-tooltip);
@@ -199,7 +193,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     to   { opacity: 1; transform: translateY(-50%) translateX(0); }
 }
 
-/* MAIN */
 .main-content { flex: 1; position: relative; overflow: hidden; background: var(--bg); min-width: 0; }
 #iframesContainer { width: 100%; height: 100%; position: relative; }
 .iframe-container {
@@ -210,7 +203,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .iframe-container.active { opacity: 1; visibility: visible; }
 .iframe-container iframe { width: 100%; height: 100%; border: none; display: block; }
 
-/* MODAL LOGOUT */
 .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.55);
@@ -246,7 +238,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .modal-actions .secondary { background: #6B7280; }
 .modal-actions .secondary:hover { background: #4B5563; }
 
-/* Aviso de fim de expediente */
 .aviso-expediente {
     position: fixed;
     bottom: 24px;
@@ -268,7 +259,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* RESPONSIVO */
 @media (max-width: 1366px) {
     .sidebar { width: 58px; }
     .sidebar:hover { width: 220px; }
