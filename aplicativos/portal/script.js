@@ -4,7 +4,6 @@
 (function () {
     'use strict';
 
-    // Guarda contra dupla execução (caso o script seja incluído 2x)
     if (window.__IR_PORTAL_BOOTED__) {
         console.warn('[PORTAL] script.js já foi inicializado. Ignorando carga duplicada.');
         return;
@@ -184,7 +183,6 @@
         requestAnimationFrame(() => container.classList.add('active'));
     }
 
-    // Handlers globais (mantidos no window para os onclick do HTML)
     window.showLogout   = () => document.getElementById('logoutModal').classList.add('show');
     window.closeLogout  = () => document.getElementById('logoutModal').classList.remove('show');
     window.confirmLogout = () => {
