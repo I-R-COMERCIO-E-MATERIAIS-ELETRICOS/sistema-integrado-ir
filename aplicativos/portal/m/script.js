@@ -19,6 +19,9 @@ const MODULE_ICONS = {
 };
 
 const LOGOUT_ICON = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+const HAMBURGER_ICON = '<svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+
+const MAX_BAR_ITEMS = 4; // 4 módulos visíveis na barra + hambúrguer
 
 let accessToken = null;
 let userInfo = null;
@@ -65,11 +68,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
-        // Monta barra + saudação
         renderTabs();
+        renderDrawer();
         escreverSaudacao();
 
-        // Revela o app com fade
         const app = document.getElementById('app');
         requestAnimationFrame(() => app.classList.add('ready'));
 
@@ -131,16 +133,22 @@ function agendarAvisoExpediente() {
     setInterval(tick, 30000);
 }
 
+// ============================================================
+// BARRA INFERIOR — só os 4 primeiros + hambúrguer
+// ============================================================
 function renderTabs() {
     const bar = document.getElementById('tabsScroll');
     bar.innerHTML = '';
 
     if (!modules.length) {
-        bar.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,0.5);font-size:0.85rem;">Nenhum módulo disponível.</div>';
+        bar.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,0.5);font-size:0.85rem;">Nenhum módulo</div>';
         return;
     }
 
-    modules.forEach(m => {
+    // Só os 4 primeiros vão pra barra
+    const visiveis = modules.slice(0, MAX_BAR_ITEMS);
+
+    visiveis.forEach(m => {
         const tab = document.createElement('button');
         tab.type = 'button';
         tab.className = 'm-tab' + (m.allowed ? '' : ' disabled');
@@ -155,24 +163,99 @@ function renderTabs() {
         bar.appendChild(tab);
     });
 
-    const logoutTab = document.createElement('button');
-    logoutTab.type = 'button';
-    logoutTab.className = 'm-tab logout';
-    logoutTab.title = 'Sair';
-    logoutTab.innerHTML = `<span class="m-tab-icon">${LOGOUT_ICON}</span>`;
-    logoutTab.addEventListener('click', () => window.showLogout());
-    bar.appendChild(logoutTab);
+    // 5º botão: hambúrguer
+    const menuTab = document.createElement('button');
+    menuTab.type = 'button';
+    menuTab.className = 'm-tab menu';
+    menuTab.title = 'Mais';
+    menuTab.innerHTML = `<span class="m-tab-icon">${HAMBURGER_ICON}</span>`;
+    menuTab.addEventListener('click', abrirDrawer);
+    bar.appendChild(menuTab);
 }
 
+// ============================================================
+// DRAWER LATERAL
+// ============================================================
+function renderDrawer() {
+    const nav = document.getElementById('drawerModules');
+    if (!nav) return;
+    nav.innerHTML = '';
+
+    modules.forEach(m => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'm-drawer-item' + (m.allowed ? '' : ' disabled');
+        item.dataset.moduleId = m.id;
+        item.innerHTML = `
+            <span class="m-drawer-icon">${MODULE_ICONS[m.id] || ''}</span>
+            <span>${m.name}</span>
+        `;
+        if (m.allowed) {
+            item.addEventListener('click', () => {
+                fecharDrawer();
+                openModule(m);
+            });
+        } else {
+            item.disabled = true;
+        }
+        nav.appendChild(item);
+    });
+
+    // Separador + Sair
+    const sep = document.createElement('div');
+    sep.className = 'm-drawer-sep';
+    nav.appendChild(sep);
+
+    const logout = document.createElement('button');
+    logout.type = 'button';
+    logout.className = 'm-drawer-item m-drawer-logout';
+    logout.innerHTML = `
+        <span class="m-drawer-icon">${LOGOUT_ICON}</span>
+        <span>Sair</span>
+    `;
+    logout.addEventListener('click', () => {
+        fecharDrawer();
+        window.showLogout();
+    });
+    nav.appendChild(logout);
+}
+
+function abrirDrawer() {
+    const overlay = document.getElementById('drawerOverlay');
+    if (!overlay) return;
+    overlay.classList.add('open');
+}
+
+function fecharDrawer() {
+    const overlay = document.getElementById('drawerOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('open');
+}
+window.fecharDrawer = fecharDrawer;
+
+// Fecha o drawer ao clicar fora (no overlay)
+document.addEventListener('click', (e) => {
+    const overlay = document.getElementById('drawerOverlay');
+    if (overlay && overlay.classList.contains('open') && e.target === overlay) {
+        fecharDrawer();
+    }
+});
+
+// ============================================================
+// ABRIR MÓDULO
+// ============================================================
 function openModule(mod) {
     activeModuleId = mod.id;
 
+    // Marca aba ativa (na barra) se estiver visível
     document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
     const tab = document.querySelector(`.m-tab[data-module-id="${mod.id}"]`);
-    if (tab) {
-        tab.classList.add('active');
-        tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
+    if (tab) tab.classList.add('active');
+
+    // Marca item ativo no drawer
+    document.querySelectorAll('.m-drawer-item').forEach(i => i.classList.remove('active'));
+    const item = document.querySelector(`.m-drawer-item[data-module-id="${mod.id}"]`);
+    if (item) item.classList.add('active');
 
     const area = document.getElementById('iframeArea');
     let container = document.getElementById(`m-iframe-${mod.id}`);
