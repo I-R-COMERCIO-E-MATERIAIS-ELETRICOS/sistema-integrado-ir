@@ -36,6 +36,15 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
@@ -64,6 +73,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function bootUI() {
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+    const greetingEl = document.getElementById('splashGreeting');
+    if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
+
     renderTabs();
 
     setTimeout(() => {
@@ -176,8 +190,8 @@ window.confirmLogout = () => {
     window.location.href = '/';
 };
 
-// Escuta recados dos iframes. Se algum módulo avisar que a sessão caiu,
-// o portal inteiro sai do iframe e vai pro login.
+// ─── Escuta recados dos iframes. Se algum módulo avisar que a sessão caiu,
+// o portal inteiro sai do iframe e vai pro login. ───
 window.addEventListener('message', (event) => {
     const data = event.data || {};
     if (data.type === 'ir-session-expired') {
