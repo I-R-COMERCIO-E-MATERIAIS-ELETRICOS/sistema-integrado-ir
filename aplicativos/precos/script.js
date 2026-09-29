@@ -50,8 +50,8 @@ function showDenied(msg) {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             text-align: center; padding: 2rem; z-index: 2147483647;
         ">
-            <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
-            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.95rem;">Você não tem permissão para acessar este módulo.</p>
+            <h1 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
+            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.9rem;">Você não tem permissão para acessar este módulo.</p>
         </div>
     `;
 }
@@ -63,8 +63,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function carregarTudo() {
-    await loadPrecos(state.currentPage);
-    await atualizarMarcasDisponiveis();
+    try {
+        await loadPrecos(state.currentPage);
+        await atualizarMarcasDisponiveis();
+    } catch (err) {
+        console.error('Erro ao carregar:', err);
+    } finally {
+        // Avisa o portal que o módulo está pronto
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'ir-module-ready', module: 'precos' }, '*');
+            }
+        } catch (e) {}
+    }
 }
 
 async function atualizarMarcasDisponiveis() {
@@ -85,7 +96,7 @@ function renderMarcaSelect() {
     const select = document.getElementById('marcaSelect');
     if (!select) return;
     const selecionada = state.marcaSelecionada;
-    select.innerHTML = '<option value="TODAS">TODAS AS MARCAS</option>';
+    select.innerHTML = '<option value="TODAS">Todas as Marcas</option>';
     state.marcasDisponiveis.forEach(nome => {
         const opt = document.createElement('option');
         opt.value = nome;
@@ -117,30 +128,20 @@ async function loadPrecos(page) {
         if (state.searchTerm) params.set('search', state.searchTerm);
 
         const res = await fetch(`${API_URL}?${params.toString()}`, { headers: getHeaders() });
-
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || 'Erro ' + res.status);
-        }
+        if (!res.ok) throw new Error('Erro ' + res.status);
 
         const result = await res.json();
-        if (Array.isArray(result)) {
-            state.precos = result.map(normalizePreco);
-            state.totalRecords = result.length;
-            state.totalPages = 1;
-            state.currentPage = 1;
-        } else {
-            state.precos = (result.data || []).map(normalizePreco);
-            state.totalRecords = typeof result.total === 'number' ? result.total : state.precos.length;
-            state.totalPages = result.totalPages || 1;
-            state.currentPage = result.page || page;
-        }
+        state.precos = (result.data || []).map(normalizePreco);
+        state.totalRecords = typeof result.total === 'number' ? result.total : state.precos.length;
+        state.totalPages = result.totalPages || 1;
+        state.currentPage = result.page || page;
+
         renderPrecos();
-        renderPaginacao();
+        renderPagination();
     } catch (err) {
         console.error(err);
-        showToast('Erro ao carregar preços: ' + err.message, 'error');
+        showToast('Erro ao carregar: ' + err.message, 'error');
     } finally {
         state.isLoading = false;
     }
@@ -168,51 +169,54 @@ window.filterPrecos = function () {
 };
 
 function renderPrecos() {
-    const tbody = document.getElementById('precosTableBody');
-    if (!tbody) return;
+    const root = document.getElementById('precosList');
+    if (!root) return;
 
     if (!state.precos.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum preço encontrado</td></tr>';
+        root.innerHTML = '<div class="m-empty">Nenhum preço encontrado</div>';
         return;
     }
 
-    tbody.innerHTML = state.precos.map(p => {
+    root.innerHTML = state.precos.map(p => {
         const precoFormatado = 'R$ ' + p.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
-            <tr>
-                <td><strong>${escHtml(p.marca_nome || p.marca || '')}</strong></td>
-                <td>${escHtml(p.codigo)}</td>
-                <td>${precoFormatado}</td>
-                <td>${escHtml(p.descricao)}</td>
-                <td>${escHtml(p.vendedor || '—')}</td>
-                <td style="color:var(--text-secondary);font-size:0.85rem;">${getTimeAgo(p.timestamp)}</td>
-                <td class="actions-cell" style="text-align:center;">
-                    <button onclick="editPreco('${p.id}')" class="action-btn edit">Editar</button>
-                    <button onclick="abrirExclusao('${p.id}')" class="action-btn delete">Excluir</button>
-                </td>
-            </tr>
+            <div class="m-card" onclick="editPreco('${p.id}')">
+                <div class="m-card-header">
+                    <span class="m-marca">${escHtml(p.marca_nome || p.marca)}</span>
+                    <span class="m-preco">${precoFormatado}</span>
+                </div>
+                <div class="m-card-body">
+                    <div class="m-row"><span>Código</span><strong>${escHtml(p.codigo)}</strong></div>
+                    <div class="m-row"><span>Descrição</span><strong>${escHtml(p.descricao)}</strong></div>
+                    <div class="m-row"><span>Responsável</span><strong>${escHtml(p.vendedor || '—')}</strong></div>
+                    <div class="m-row"><span>Alterado</span><strong>${getTimeAgo(p.timestamp)}</strong></div>
+                </div>
+                <div class="m-card-actions">
+                    <button class="m-btn edit" onclick="event.stopPropagation();editPreco('${p.id}')">Editar</button>
+                    <button class="m-btn del"  onclick="event.stopPropagation();abrirExclusao('${p.id}')">Excluir</button>
+                </div>
+            </div>
         `;
     }).join('');
 }
 
-function escHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+function renderPagination() {
+    const root = document.getElementById('pagination');
+    if (!root) return;
+    root.innerHTML = '';
 
-function renderPaginacao() {
-    const existing = document.getElementById('paginacaoContainer');
-    if (existing) existing.remove();
+    if (state.totalPages <= 1) return;
 
-    const tableCard = document.querySelector('.table-card');
-    if (!tableCard) return;
+    const prev = document.createElement('button');
+    prev.textContent = '‹';
+    prev.disabled = state.currentPage === 1;
+    prev.onclick = () => mudarPagina(state.currentPage - 1);
+    root.appendChild(prev);
 
     const total = state.totalPages;
     const atual = state.currentPage;
-    const inicio = state.totalRecords === 0 ? 0 : (atual - 1) * PAGE_SIZE + 1;
-    const fim = Math.min(atual * PAGE_SIZE, state.totalRecords);
-
     const paginas = [];
-    if (total <= 7) {
+    if (total <= 5) {
         for (let i = 1; i <= total; i++) paginas.push(i);
     } else {
         paginas.push(1);
@@ -222,61 +226,82 @@ function renderPaginacao() {
         paginas.push(total);
     }
 
-    const botoesHTML = paginas.map(p => {
-        if (p === '...') return '<span class="pag-ellipsis">…</span>';
-        const cls = 'pag-btn' + (p === atual ? ' pag-btn-active' : '');
-        return `<button class="${cls}" onclick="mudarPagina(${p})">${p}</button>`;
-    }).join('');
+    paginas.forEach(p => {
+        if (p === '...') {
+            const span = document.createElement('span');
+            span.textContent = '…';
+            span.style.padding = '0.5rem';
+            span.style.color = '#9CA3AF';
+            root.appendChild(span);
+            return;
+        }
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        if (p === atual) btn.classList.add('active');
+        btn.onclick = () => mudarPagina(p);
+        root.appendChild(btn);
+    });
 
-    const infoText = state.totalRecords > 0
-        ? `Exibindo ${inicio}–${fim} de ${state.totalRecords} registros`
-        : 'Nenhum registro';
-
-    const div = document.createElement('div');
-    div.id = 'paginacaoContainer';
-    div.className = 'paginacao-wrapper';
-    div.innerHTML = `
-        <div class="paginacao-info">${infoText}</div>
-        <div class="paginacao-btns">
-            <button class="pag-btn pag-nav" onclick="mudarPagina(${atual - 1})" ${atual === 1 ? 'disabled' : ''}>‹</button>
-            ${botoesHTML}
-            <button class="pag-btn pag-nav" onclick="mudarPagina(${atual + 1})" ${atual === total ? 'disabled' : ''}>›</button>
-        </div>`;
-    tableCard.appendChild(div);
+    const next = document.createElement('button');
+    next.textContent = '›';
+    next.disabled = state.currentPage === state.totalPages;
+    next.onclick = () => mudarPagina(state.currentPage + 1);
+    root.appendChild(next);
 }
 
-window.mudarPagina = async function (page) {
+async function mudarPagina(page) {
     await loadPrecos(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+}
+window.mudarPagina = mudarPagina;
+
+function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 window.toggleForm = function () { abrirForm(null); };
 
 function abrirForm(editId) {
     const existing = document.getElementById('formModal');
-    if (existing) existing.classList.remove('show');
+    if (existing) existing.remove();
 
-    const isEditing = !!editId;
-    const p = isEditing ? state.precos.find(x => String(x.id) === String(editId)) : null;
+    const p = editId ? state.precos.find(x => String(x.id) === String(editId)) : null;
+    const responsavelTexto = (p && p.vendedor) ? p.vendedor : '';
 
-    document.getElementById('modalTitle').textContent = isEditing ? 'Editar Preço' : 'Novo Preço';
-    document.getElementById('modalEditId').value = editId || '';
-    document.getElementById('modalMarca').value = p ? (p.marca_nome || p.marca) : '';
-    document.getElementById('modalCodigo').value = p ? p.codigo : '';
-    document.getElementById('modalPreco').value = p ? p.preco.toFixed(2) : '';
-    document.getElementById('modalDescricao').value = p ? p.descricao : '';
-
-    const vendedorInput = document.getElementById('modalVendedor');
-    vendedorInput.value = (isEditing && p && p.vendedor) ? p.vendedor : '';
-
-    document.getElementById('formModal').classList.add('show');
-    setTimeout(() => document.getElementById('modalMarca').focus(), 100);
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="m-modal-overlay" id="formModal">
+            <div class="m-modal">
+                <div class="m-modal-header">
+                    <h2>${editId ? 'Editar Preço' : 'Novo Preço'}</h2>
+                    <button class="m-close" onclick="fecharForm(true)">✕</button>
+                </div>
+                <form class="m-form" onsubmit="handleSubmit(event)">
+                    <input type="hidden" id="modalEditId" value="${editId || ''}">
+                    <label>Marca *</label>
+                    <input type="text" id="modalMarca" value="${p ? escHtml(p.marca_nome || p.marca) : ''}" required>
+                    <label>Código *</label>
+                    <input type="text" id="modalCodigo" value="${p ? escHtml(p.codigo) : ''}" required>
+                    <label>Preço (R$) *</label>
+                    <input type="number" id="modalPreco" step="0.01" min="0.01" value="${p ? p.preco.toFixed(2) : ''}" required>
+                    <label>Responsável</label>
+                    <input type="text" id="modalVendedor" value="${escHtml(responsavelTexto)}" disabled>
+                    <label>Descrição *</label>
+                    <input type="text" id="modalDescricao" value="${p ? escHtml(p.descricao) : ''}" required>
+                    <div class="m-form-actions">
+                        <button type="button" class="m-btn secondary" onclick="fecharForm(true)">Cancelar</button>
+                        <button type="submit" class="m-btn primary" id="modalSubmitBtn">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `);
 }
 
 window.fecharForm = function (cancelado) {
-    document.getElementById('formModal').classList.remove('show');
+    const m = document.getElementById('formModal');
+    if (m) m.remove();
     if (cancelado) {
-        const id = document.getElementById('modalEditId').value;
+        const id = document.getElementById('modalEditId')?.value;
         showToast(id ? 'Atualização cancelada' : 'Registro cancelado', 'error');
     }
 };
@@ -290,14 +315,8 @@ window.handleSubmit = async function (e) {
     const preco = parseFloat(document.getElementById('modalPreco').value);
     const descricao = document.getElementById('modalDescricao').value.trim().toUpperCase();
 
-    if (!marca || !codigo || !descricao) {
-        showToast('Preencha todos os campos obrigatórios', 'error');
-        return;
-    }
-    if (isNaN(preco) || preco <= 0) {
-        showToast('Informe um preço válido maior que zero', 'error');
-        return;
-    }
+    if (!marca || !codigo || !descricao) { showToast('Preencha todos os campos', 'error'); return; }
+    if (isNaN(preco) || preco <= 0) { showToast('Preço inválido', 'error'); return; }
 
     const btn = document.getElementById('modalSubmitBtn');
     btn.disabled = true;
@@ -314,8 +333,7 @@ window.handleSubmit = async function (e) {
 
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
         if (res.status === 409) {
-            const err = await res.json().catch(() => ({}));
-            showToast(err.error || 'Código já cadastrado', 'error');
+            showToast('Código já cadastrado', 'error');
             return;
         }
         if (!res.ok) {
@@ -323,7 +341,7 @@ window.handleSubmit = async function (e) {
             throw new Error(err.error || 'Erro ' + res.status);
         }
 
-        document.getElementById('formModal').classList.remove('show');
+        document.getElementById('formModal').remove();
         showToast(editId ? 'Item atualizado' : 'Item cadastrado', 'success');
         await carregarTudo();
     } catch (err) {
@@ -338,12 +356,31 @@ window.editPreco = function (id) { abrirForm(id); };
 
 window.abrirExclusao = function (id) {
     deleteTargetId = id;
-    document.getElementById('deleteModal').classList.add('show');
+    const existing = document.getElementById('deleteModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="m-modal-overlay" id="deleteModal">
+            <div class="m-modal">
+                <div class="m-modal-header">
+                    <h2>Excluir</h2>
+                    <button class="m-close" onclick="fecharExclusao()">✕</button>
+                </div>
+                <p class="m-confirm-msg">Tem certeza que deseja excluir este preço?</p>
+                <div class="m-form-actions centered">
+                    <button type="button" class="m-btn secondary" onclick="fecharExclusao()">Não</button>
+                    <button type="button" class="m-btn primary" onclick="confirmarExclusao()">Sim</button>
+                </div>
+            </div>
+        </div>
+    `);
 };
+
 window.fecharExclusao = function () {
     deleteTargetId = null;
-    document.getElementById('deleteModal').classList.remove('show');
+    const m = document.getElementById('deleteModal');
+    if (m) m.remove();
 };
+
 window.confirmarExclusao = async function () {
     if (!deleteTargetId) return;
     const id = deleteTargetId;
@@ -359,20 +396,16 @@ window.confirmarExclusao = async function () {
 };
 
 window.sincronizarDados = async function () {
-    const btn = document.getElementById('syncBtn');
+    const btn = document.querySelector('.m-sync-btn');
     if (!btn) return;
     btn.classList.add('spinning');
-    btn.disabled = true;
     try {
         await carregarTudo();
         showToast('Sincronização concluída', 'success');
     } catch {
         showToast('Erro na sincronização', 'error');
     } finally {
-        setTimeout(() => {
-            btn.classList.remove('spinning');
-            btn.disabled = false;
-        }, 600);
+        setTimeout(() => btn.classList.remove('spinning'), 600);
     }
 };
 
@@ -381,7 +414,6 @@ function getTimeAgo(timestamp) {
     const past = new Date(timestamp);
     if (isNaN(past.getTime())) return 'Data inválida';
     const diff = Math.floor((Date.now() - past.getTime()) / 1000);
-    if (diff < 0) return 'agora';
     if (diff < 60) return diff + 's';
     if (diff < 3600) return Math.floor(diff / 60) + 'min';
     if (diff < 86400) return Math.floor(diff / 3600) + 'h';
@@ -389,16 +421,15 @@ function getTimeAgo(timestamp) {
     return past.toLocaleDateString('pt-BR');
 }
 
-function showToast(message, type) {
-    type = type || 'success';
-    document.querySelectorAll('.floating-message').forEach(m => m.remove());
-    const div = document.createElement('div');
-    div.className = 'floating-message ' + type;
-    div.textContent = String(message || '');
-    document.body.appendChild(div);
+function showToast(msg, type) {
+    document.querySelectorAll('.m-toast').forEach(t => t.remove());
+    const el = document.createElement('div');
+    el.className = 'm-toast ' + type;
+    el.textContent = msg;
+    document.body.appendChild(el);
     setTimeout(() => {
-        div.style.transition = 'opacity 0.3s';
-        div.style.opacity = '0';
-        setTimeout(() => div.remove(), 300);
+        el.style.transition = 'opacity 0.3s';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
     }, 3000);
 }
