@@ -25,10 +25,51 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     overflow: hidden;
     opacity: 0;
     transition: opacity 0.45s ease;
+    position: relative;
 }
 .dashboard.ready {
     opacity: 1;
 }
+
+/* SAUDAÇÃO SOBRE O DASHBOARD */
+.greeting-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    z-index: 500;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+}
+.greeting-overlay.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+.greeting-text {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    text-align: center;
+    padding: 0 1rem;
+    animation: fadeSlideIn 0.5s ease;
+}
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.greeting-spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(255, 82, 29, 0.15);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: splashSpin 0.8s linear infinite;
+}
+@keyframes splashSpin { to { transform: rotate(360deg); } }
 
 /* SIDEBAR COLAPSÁVEL */
 .sidebar {
@@ -206,7 +247,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     justify-content: center;
     z-index: 10;
     opacity: 1;
-    transition: opacity 0.35s ease;
+    transition: opacity 0.3s ease;
     pointer-events: auto;
 }
 .module-loader.done {
@@ -214,13 +255,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     pointer-events: none;
 }
 .module-spinner {
-    width: 52px; height: 52px;
+    width: 42px; height: 42px;
     border: 4px solid rgba(255, 82, 29, 0.15);
     border-top-color: var(--primary);
     border-radius: 50%;
-    animation: splashSpin 0.8s linear infinite;
+    animation: splashSpin 0.7s linear infinite;
 }
-@keyframes splashSpin { to { transform: rotate(360deg); } }
 
 .modal-overlay {
     display: none; position: fixed; inset: 0;
@@ -294,6 +334,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     .avatar { width: 34px; height: 34px; min-width: 34px; min-height: 34px; font-size: 0.9rem; }
     .sidebar-name { font-size: 0.84rem; }
     .sidebar-sector { font-size: 0.68rem; }
+    .greeting-text { font-size: 1.5rem; }
 }
 
 @media (max-height: 700px) {
