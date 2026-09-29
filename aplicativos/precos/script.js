@@ -1,6 +1,10 @@
 const API_URL = window.location.origin + '/api/precos';
 const PAGE_SIZE = 50;
 
+// ─── Splash interno ─────────────────────────────────────────
+const SPLASH_MIN_MS = 2000;
+const splashStart = Date.now();
+
 let state = {
     precos: [],
     currentPage: 1,
@@ -56,10 +60,31 @@ function showDenied(msg) {
     `;
 }
 
+function esconderSplashModulo() {
+    const s = document.getElementById('moduleSplash');
+    if (!s || s.classList.contains('fade-out')) return;
+
+    const elapsed = Date.now() - splashStart;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+
+    setTimeout(() => {
+        s.classList.add('fade-out');
+        setTimeout(() => s.remove(), 400);
+    }, remaining);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
-    if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
-    await carregarTudo();
+    if (!accessToken) {
+        showDenied('SESSÃO EXPIRADA');
+        return;
+    }
+
+    try {
+        await carregarTudo();
+    } finally {
+        esconderSplashModulo();
+    }
 });
 
 async function carregarTudo() {
