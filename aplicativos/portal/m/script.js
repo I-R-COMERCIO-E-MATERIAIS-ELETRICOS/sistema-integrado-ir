@@ -56,7 +56,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
+        // Monta a barra de abas COMPLETA antes de revelar o app
         renderTabs();
+
+        // Revela o app com fade — já com os ícones prontos
+        const app = document.getElementById('app');
+        requestAnimationFrame(() => app.classList.add('ready'));
 
         const primeiro = modules.find(m => m.allowed);
         if (primeiro) openModule(primeiro);
