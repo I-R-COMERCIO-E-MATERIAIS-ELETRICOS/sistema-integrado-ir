@@ -23,6 +23,7 @@ let userInfo = null;
 let modules = [];
 let activeModuleId = null;
 const loaderTimeouts = {};
+let greetingTimeout = null;
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -33,6 +34,15 @@ function resolveToken() {
         return fromUrl;
     }
     return sessionStorage.getItem('irToken');
+}
+
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -55,16 +65,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
-        // Monta a sidebar COMPLETA antes de revelar o dashboard
+        // Monta sidebar e escreve a saudação
         renderSidebar();
+        escreverSaudacao();
 
-        // Revela o dashboard com fade — já com os ícones prontos
+        // Revela o dashboard com fade
         const dash = document.getElementById('dashboard');
         requestAnimationFrame(() => dash.classList.add('ready'));
 
-        // Abre o primeiro módulo permitido
+        // Abre o primeiro módulo permitido (sai escondido atrás da saudação)
         const primeiro = modules.find(m => m.allowed);
-        if (primeiro) openModule(primeiro);
+        if (primeiro) {
+            openModule(primeiro);
+        } else {
+            esconderSaudacao();
+        }
 
         if (!userInfo.is_admin) agendarAvisoExpediente();
     } catch (err) {
@@ -72,6 +87,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/';
     }
 });
+
+function escreverSaudacao() {
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+    const el = document.getElementById('greetingText');
+    if (el) el.textContent = `${getGreeting()}, ${firstName}!`;
+}
+
+function esconderSaudacao() {
+    const el = document.getElementById('greetingOverlay');
+    if (el && !el.classList.contains('hide')) {
+        el.classList.add('hide');
+        setTimeout(() => el.remove(), 500);
+    }
+    clearTimeout(greetingTimeout);
+}
 
 function agendarAvisoExpediente() {
     const tick = () => {
@@ -160,8 +191,9 @@ function openModule(mod) {
         iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
         iframe.title = mod.name;
         iframe.addEventListener('load', () => {
+            // Fallback curto: 1.8s após o load do iframe
             clearTimeout(loaderTimeouts[mod.id]);
-            loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 6000);
+            loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 1800);
         });
         container.appendChild(iframe);
 
@@ -176,7 +208,11 @@ function esconderLoader(moduleId) {
     const loader = document.getElementById(`loader-${moduleId}`);
     if (loader && !loader.classList.contains('done')) {
         loader.classList.add('done');
-        setTimeout(() => loader.remove(), 400);
+        setTimeout(() => loader.remove(), 350);
+    }
+    // Primeira carga: some também com a saudação
+    if (document.getElementById('greetingOverlay')) {
+        esconderSaudacao();
     }
 }
 
@@ -199,10 +235,4 @@ window.addEventListener('message', (event) => {
     }
 });
 
-window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
-window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
-window.confirmLogout = () => {
-    sessionStorage.removeItem('irToken');
-    sessionStorage.removeItem('irUser');
-    window.location.href = '/';
-};
+window.show
