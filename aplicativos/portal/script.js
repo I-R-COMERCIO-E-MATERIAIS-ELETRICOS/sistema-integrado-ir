@@ -231,4 +231,38 @@ window.closeLogout = () => document.getElementById('logoutModal').classList.remo
 window.confirmLogout = () => {
     sessionStorage.removeItem('irToken');
     sessionStorage.removeItem('irUser');
-    window.location.href =
+    window.location.href = '/';
+};
+
+// ─── Mensagens vindas dos iframes dos módulos ───
+// Esperado:
+//   { type: 'ir-module-ready', moduleId: '<id>' }  → libera o splash
+//   { type: 'ir-session-expired' }                 → volta pro login
+window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+
+    const data = event.data || {};
+
+    if (data.type === 'ir-module-ready') {
+        if (primeiroModuloCarregado) return;
+
+        const sourceWindow = event.source;
+        let fromKnownIframe = false;
+        document.querySelectorAll('.iframe-container iframe').forEach(ifr => {
+            if (ifr.contentWindow === sourceWindow) fromKnownIframe = true;
+        });
+        if (!fromKnownIframe) return;
+
+        console.log('[PORTAL] Módulo pronto:', data.moduleId);
+        primeiroModuloCarregado = true;
+        clearTimeout(readyTimeoutId);
+        esconderSplash();
+        return;
+    }
+
+    if (data.type === 'ir-session-expired') {
+        sessionStorage.removeItem('irToken');
+        sessionStorage.removeItem('irUser');
+        window.location.href = '/';
+    }
+});
