@@ -23,7 +23,7 @@ html, body {
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
-/* SPLASH — só spinner */
+/* SPLASH */
 .m-splash {
     position: fixed; inset: 0;
     background: var(--bg);
@@ -32,17 +32,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transition: opacity 0.4s ease;
 }
 .m-splash.fade-out { opacity: 0; pointer-events: none; }
-.m-splash-inner {
-    display: flex; align-items: center; justify-content: center;
+.m-splash-inner { text-align: center; padding: 0 1.5rem; }
+.m-splash-greeting { font-size: 1.35rem; font-weight: 600; margin-bottom: 1.5rem; letter-spacing: -0.02em; }
+.m-splash-greeting {
+    font-size: 1.35rem; font-weight: 600;
+    margin-bottom: 1.5rem; letter-spacing: -0.02em;
 }
-.m-splash-spinner {
-    width: 44px; height: 44px;
-    border: 4px solid rgba(255, 82, 29, 0.15);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: splashSpin 0.8s linear infinite;
+.m-splash-bar {
+    width: 180px; height: 2px;
+    background: var(--border); border-radius: 2px;
+    overflow: hidden; margin: 0 auto;
 }
-@keyframes splashSpin { to { transform: rotate(360deg); } }
+.m-splash-bar span {
+    display: block; height: 100%; width: 40%;
+    background: var(--primary);
+    animation: progress 1.4s ease-in-out infinite;
+}
+@keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 
 /* APP */
 .m-app {
@@ -163,6 +169,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* Aviso de fim de expediente — acima da barra */
 .m-aviso-expediente {
     position: fixed;
+    bottom: calc(1rem + var(--safe-bottom) + 60px);
     bottom: calc(var(--safe-bottom) + 62px);
     left: 16px; right: 16px;
     background: #EF4444; color: #fff;
