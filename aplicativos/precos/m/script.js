@@ -1,6 +1,10 @@
 const API_URL = window.location.origin + '/api/precos';
 const PAGE_SIZE = 50;
 
+// ─── Splash interno ─────────────────────────────────────────
+const SPLASH_MIN_MS = 2000;
+const splashStart = Date.now();
+
 let state = {
     precos: [],
     currentPage: 1,
@@ -50,16 +54,37 @@ function showDenied(msg) {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             text-align: center; padding: 2rem; z-index: 2147483647;
         ">
-            <h1 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
-            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.9rem;">Você não tem permissão para acessar este módulo.</p>
+            <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
+            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.95rem;">Você não tem permissão para acessar este módulo.</p>
         </div>
     `;
 }
 
+function esconderSplashModulo() {
+    const s = document.getElementById('moduleSplash');
+    if (!s || s.classList.contains('fade-out')) return;
+
+    const elapsed = Date.now() - splashStart;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+
+    setTimeout(() => {
+        s.classList.add('fade-out');
+        setTimeout(() => s.remove(), 400);
+    }, remaining);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
-    if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
-    await carregarTudo();
+    if (!accessToken) {
+        showDenied('SESSÃO EXPIRADA');
+        return;
+    }
+
+    try {
+        await carregarTudo();
+    } finally {
+        esconderSplashModulo();
+    }
 });
 
 async function carregarTudo() {
@@ -117,20 +142,30 @@ async function loadPrecos(page) {
         if (state.searchTerm) params.set('search', state.searchTerm);
 
         const res = await fetch(`${API_URL}?${params.toString()}`, { headers: getHeaders() });
+
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
-        if (!res.ok) throw new Error('Erro ' + res.status);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erro ' + res.status);
+        }
 
         const result = await res.json();
-        state.precos = (result.data || []).map(normalizePreco);
-        state.totalRecords = typeof result.total === 'number' ? result.total : state.precos.length;
-        state.totalPages = result.totalPages || 1;
-        state.currentPage = result.page || page;
-
+        if (Array.isArray(result)) {
+            state.precos = result.map(normalizePreco);
+            state.totalRecords = result.length;
+            state.totalPages = 1;
+            state.currentPage = 1;
+        } else {
+            state.precos = (result.data || []).map(normalizePreco);
+            state.totalRecords = typeof result.total === 'number' ? result.total : state.precos.length;
+            state.totalPages = result.totalPages || 1;
+            state.currentPage = result.page || page;
+        }
         renderPrecos();
         renderPagination();
     } catch (err) {
         console.error(err);
-        showToast('Erro ao carregar: ' + err.message, 'error');
+        showToast('Erro ao carregar preços: ' + err.message, 'error');
     } finally {
         state.isLoading = false;
     }
