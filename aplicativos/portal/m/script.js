@@ -20,7 +20,8 @@ const MODULE_ICONS = {
 
 const LOGOUT_ICON = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
 
-const READY_TIMEOUT_MS = 12000;
+const READY_TIMEOUT_MS = 6000;
+const IFRAME_LOAD_GRACE_MS = 800;
 
 let accessToken = null;
 let userInfo = null;
@@ -40,9 +41,27 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
+
+    // Watchdog global: nunca deixa o splash eterno.
+    setTimeout(() => {
+        if (!primeiroModuloCarregado) {
+            console.warn('[PORTAL m] Watchdog global disparou. Liberando splash.');
+            primeiroModuloCarregado = true;
+            esconderSplash();
+        }
+    }, READY_TIMEOUT_MS + 2000);
 
     try {
         const res = await fetch('/api/portal/modules', {
@@ -68,10 +87,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function bootUI() {
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+
+    // Saudação no splash
+    const greetingEl = document.getElementById('splashGreeting');
+    if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
+
     renderTabs();
 
     // Mostra o app atrás do splash. O splash SÓ sai quando o módulo avisar
-    // via postMessage (ir-module-ready), ou no timeout de segurança.
+    // via postMessage (ir-module-ready), no `load` do iframe, ou no timeout.
     document.getElementById('app').style.display = 'flex';
 
     const primeiroPermitido = modules.find(m => m.allowed);
@@ -183,6 +209,18 @@ function openModule(mod) {
         const iframe = document.createElement('iframe');
         iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
         iframe.title = mod.name;
+
+        iframe.addEventListener('load', () => {
+            console.log('[PORTAL m] iframe carregado:', mod.id);
+            setTimeout(() => {
+                if (!primeiroModuloCarregado) {
+                    console.warn('[PORTAL m] iframe carregou mas módulo não avisou. Liberando splash após grace period.');
+                    primeiroModuloCarregado = true;
+                    esconderSplash();
+                }
+            }, IFRAME_LOAD_GRACE_MS);
+        });
+
         container.appendChild(iframe);
         area.appendChild(container);
     }
@@ -218,6 +256,7 @@ window.addEventListener('message', (event) => {
         });
         if (!fromKnownIframe) return;
 
+        console.log('[PORTAL m] Módulo pronto:', data.moduleId);
         primeiroModuloCarregado = true;
         clearTimeout(readyTimeoutId);
         esconderSplash();
