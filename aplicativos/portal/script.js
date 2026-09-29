@@ -55,10 +55,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
+        // Monta a sidebar COMPLETA antes de revelar o dashboard
         renderSidebar();
 
-        // Abre direto o primeiro módulo permitido. A interface já aparece
-        // com o iframe + loader; o loader só some quando o módulo avisar.
+        // Revela o dashboard com fade — já com os ícones prontos
+        const dash = document.getElementById('dashboard');
+        requestAnimationFrame(() => dash.classList.add('ready'));
+
+        // Abre o primeiro módulo permitido
         const primeiro = modules.find(m => m.allowed);
         if (primeiro) openModule(primeiro);
 
@@ -156,7 +160,6 @@ function openModule(mod) {
         iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
         iframe.title = mod.name;
         iframe.addEventListener('load', () => {
-            // Fallback: se o módulo não avisar, libera após 6s
             clearTimeout(loaderTimeouts[mod.id]);
             loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 6000);
         });
@@ -177,7 +180,6 @@ function esconderLoader(moduleId) {
     }
 }
 
-// Escuta recados dos iframes
 window.addEventListener('message', (event) => {
     const data = event.data || {};
 
