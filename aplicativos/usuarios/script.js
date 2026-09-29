@@ -1,5 +1,9 @@
 const API_URL = window.location.origin + '/api/usuarios';
 
+// ─── Splash interno ─────────────────────────────────────────
+const SPLASH_MIN_MS = 2000;
+const splashStart = Date.now();
+
 let state = {
     users: [],
     filtered: [],
@@ -44,12 +48,33 @@ function showDenied(msg) {
         </div>`;
 }
 
+function esconderSplashModulo() {
+    const s = document.getElementById('moduleSplash');
+    if (!s || s.classList.contains('fade-out')) return;
+
+    const elapsed = Date.now() - splashStart;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+
+    setTimeout(() => {
+        s.classList.add('fade-out');
+        setTimeout(() => s.remove(), 400);
+    }, remaining);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
-    if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
-    await carregarModulos();
-    await carregarEmployees();
-    await carregarUsuarios();
+    if (!accessToken) {
+        showDenied('SESSÃO EXPIRADA');
+        return;
+    }
+
+    try {
+        await carregarModulos();
+        await carregarEmployees();
+        await carregarUsuarios();
+    } finally {
+        esconderSplashModulo();
+    }
 });
 
 async function carregarModulos() {
