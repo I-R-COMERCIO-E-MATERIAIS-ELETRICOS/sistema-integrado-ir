@@ -20,10 +20,14 @@ const MODULE_ICONS = {
 
 const LOGOUT_ICON = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
 
+const READY_TIMEOUT_MS = 12000;
+
 let accessToken = null;
 let userInfo = null;
 let modules = [];
 let activeModuleId = null;
+let primeiroModuloCarregado = false;
+let readyTimeoutId = null;
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -66,17 +70,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 function bootUI() {
     renderTabs();
 
-    setTimeout(() => {
-        const s = document.getElementById('splash');
-        if (s) {
-            s.classList.add('fade-out');
-            setTimeout(() => { s.style.display = 'none'; }, 400);
-        }
-        document.getElementById('app').style.display = 'flex';
+    // Mostra o app atrás do splash. O splash SÓ sai quando o módulo avisar
+    // via postMessage (ir-module-ready), ou no timeout de segurança.
+    document.getElementById('app').style.display = 'flex';
 
-        const primeiroPermitido = modules.find(m => m.allowed);
-        if (primeiroPermitido) openModule(primeiroPermitido);
-    }, 2200);
+    const primeiroPermitido = modules.find(m => m.allowed);
+    if (primeiroPermitido) {
+        openModule(primeiroPermitido);
+        iniciarTimeoutReady();
+    } else {
+        esconderSplash();
+    }
+}
+
+function iniciarTimeoutReady() {
+    clearTimeout(readyTimeoutId);
+    readyTimeoutId = setTimeout(() => {
+        if (!primeiroModuloCarregado) {
+            console.warn('[PORTAL m] Módulo não enviou ir-module-ready em ' + READY_TIMEOUT_MS + 'ms. Liberando splash por timeout.');
+            primeiroModuloCarregado = true;
+            esconderSplash();
+        }
+    }, READY_TIMEOUT_MS);
+}
+
+function esconderSplash() {
+    const s = document.getElementById('splash');
+    if (!s || s.classList.contains('fade-out')) return;
+    s.classList.add('fade-out');
+    setTimeout(() => { s.style.display = 'none'; }, 400);
 }
 
 function agendarAvisoExpediente() {
@@ -156,6 +178,7 @@ function openModule(mod) {
         container = document.createElement('div');
         container.className = 'm-iframe-frame';
         container.id = `m-iframe-${mod.id}`;
+        container.dataset.moduleId = mod.id;
 
         const iframe = document.createElement('iframe');
         iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
@@ -176,10 +199,31 @@ window.confirmLogout = () => {
     window.location.href = '/';
 };
 
-// Escuta recados dos iframes. Se algum módulo avisar que a sessão caiu,
-// o portal inteiro sai do iframe e vai pro login.
+// ─── Mensagens vindas dos iframes dos módulos ───
+// Esperado:
+//   { type: 'ir-module-ready', moduleId: '<id>' }  → libera o splash
+//   { type: 'ir-session-expired' }                 → volta pro login
 window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+
     const data = event.data || {};
+
+    if (data.type === 'ir-module-ready') {
+        if (primeiroModuloCarregado) return;
+
+        const sourceWindow = event.source;
+        let fromKnownIframe = false;
+        document.querySelectorAll('.m-iframe-frame iframe').forEach(ifr => {
+            if (ifr.contentWindow === sourceWindow) fromKnownIframe = true;
+        });
+        if (!fromKnownIframe) return;
+
+        primeiroModuloCarregado = true;
+        clearTimeout(readyTimeoutId);
+        esconderSplash();
+        return;
+    }
+
     if (data.type === 'ir-session-expired') {
         sessionStorage.removeItem('irToken');
         sessionStorage.removeItem('irUser');
