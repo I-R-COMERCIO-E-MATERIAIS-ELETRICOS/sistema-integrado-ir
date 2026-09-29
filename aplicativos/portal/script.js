@@ -235,4 +235,10 @@ window.addEventListener('message', (event) => {
     }
 });
 
-window.show
+window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
+window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
+window.confirmLogout = () => {
+    sessionStorage.removeItem('irToken');
+    sessionStorage.removeItem('irUser');
+    window.location.href = '/';
+};
