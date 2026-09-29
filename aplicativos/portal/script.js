@@ -18,17 +18,9 @@ const MODULE_ICONS = {
     tutorial:         '<svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6v3h8v-3c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>'
 };
 
-// Tempo máximo que o splash fica visível mesmo que o módulo não avise.
-const READY_TIMEOUT_MS = 6000;
-// Tempo após o `load` do iframe para liberar o splash caso o módulo não envie
-// ir-module-ready. Serve como rede de segurança adicional.
-const IFRAME_LOAD_GRACE_MS = 800;
-
 let accessToken = null;
 let userInfo = null;
 let modules = [];
-let primeiroModuloCarregado = false;
-let readyTimeoutId = null;
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -53,15 +45,6 @@ function getGreeting() {
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
-
-    // Garantia final: se qualquer coisa travar antes do bootUI, destrava o splash.
-    setTimeout(() => {
-        if (!primeiroModuloCarregado) {
-            console.warn('[PORTAL] Watchdog global disparou. Liberando splash.');
-            primeiroModuloCarregado = true;
-            esconderSplash();
-        }
-    }, READY_TIMEOUT_MS + 2000);
 
     try {
         const res = await fetch('/api/portal/modules', {
@@ -89,47 +72,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function bootUI() {
     const name = userInfo.name || userInfo.username || 'Usuário';
-    const firstName = name.split(' ')[0];
 
     document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
     document.getElementById('userName').textContent = name;
     document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
 
-    // Saudação no splash
-    const greetingEl = document.getElementById('splashGreeting');
-    if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
-
     renderSidebar();
 
-    // Mostra o dashboard atrás do splash. O splash SÓ sai quando o módulo avisar
-    // via postMessage (ir-module-ready), no `load` do iframe, ou no timeout.
+    // Mostra o dashboard imediatamente. O splash agora vive DENTRO de cada módulo.
     document.getElementById('dashboard').style.display = 'flex';
 
     const primeiroPermitido = modules.find(m => m.allowed);
-    if (primeiroPermitido) {
-        openModule(primeiroPermitido);
-        iniciarTimeoutReady();
-    } else {
-        esconderSplash();
-    }
-}
-
-function iniciarTimeoutReady() {
-    clearTimeout(readyTimeoutId);
-    readyTimeoutId = setTimeout(() => {
-        if (!primeiroModuloCarregado) {
-            console.warn('[PORTAL] Módulo não enviou ir-module-ready em ' + READY_TIMEOUT_MS + 'ms. Liberando splash por timeout.');
-            primeiroModuloCarregado = true;
-            esconderSplash();
-        }
-    }, READY_TIMEOUT_MS);
-}
-
-function esconderSplash() {
-    const s = document.getElementById('splash');
-    if (!s || s.classList.contains('fade-out')) return;
-    s.classList.add('fade-out');
-    setTimeout(() => { s.style.display = 'none'; }, 400);
+    if (primeiroPermitido) openModule(primeiroPermitido);
 }
 
 function agendarAvisoExpediente() {
@@ -201,23 +155,19 @@ function openModule(mod) {
         container.id = `iframe-${mod.id}`;
         container.dataset.moduleId = mod.id;
 
-        const iframe = document.createElement('iframe');
-        iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
-        iframe.title = mod.name;
+        // Monta a saudação e passa pela query string para o módulo exibir no
+        // próprio splash interno dele.
+        const name = (userInfo?.name || userInfo?.username || 'Usuário').split(' ')[0];
+        const greeting = `${getGreeting()}, ${name}!`;
 
-        // Rede de segurança: se o iframe disparar `load` e o módulo não enviar
-        // ir-module-ready em IFRAME_LOAD_GRACE_MS, libera o splash mesmo assim.
-        iframe.addEventListener('load', () => {
-            console.log('[PORTAL] iframe carregado:', mod.id);
-            setTimeout(() => {
-                if (!primeiroModuloCarregado) {
-                    console.warn('[PORTAL] iframe carregou mas módulo não avisou. Liberando splash após grace period.');
-                    primeiroModuloCarregado = true;
-                    esconderSplash();
-                }
-            }, IFRAME_LOAD_GRACE_MS);
+        const params = new URLSearchParams({
+            access_token: accessToken,
+            greeting: greeting
         });
 
+        const iframe = document.createElement('iframe');
+        iframe.src = `${mod.url}?${params.toString()}`;
+        iframe.title = mod.name;
         container.appendChild(iframe);
         document.getElementById('iframesContainer').appendChild(container);
     }
@@ -234,32 +184,10 @@ window.confirmLogout = () => {
     window.location.href = '/';
 };
 
-// ─── Mensagens vindas dos iframes dos módulos ───
-// Esperado:
-//   { type: 'ir-module-ready', moduleId: '<id>' }  → libera o splash
-//   { type: 'ir-session-expired' }                 → volta pro login
+// ─── Sessão expirada vinda dos módulos ───
 window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
-
     const data = event.data || {};
-
-    if (data.type === 'ir-module-ready') {
-        if (primeiroModuloCarregado) return;
-
-        const sourceWindow = event.source;
-        let fromKnownIframe = false;
-        document.querySelectorAll('.iframe-container iframe').forEach(ifr => {
-            if (ifr.contentWindow === sourceWindow) fromKnownIframe = true;
-        });
-        if (!fromKnownIframe) return;
-
-        console.log('[PORTAL] Módulo pronto:', data.moduleId);
-        primeiroModuloCarregado = true;
-        clearTimeout(readyTimeoutId);
-        esconderSplash();
-        return;
-    }
-
     if (data.type === 'ir-session-expired') {
         sessionStorage.removeItem('irToken');
         sessionStorage.removeItem('irUser');
