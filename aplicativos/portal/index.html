@@ -10,22 +10,15 @@
     <link rel="stylesheet" href="/portal/styles.css">
     <script>
     (function () {
-        var uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-        var smallTouch = window.innerWidth <= 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        const smallTouch = window.innerWidth <= 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (uaMobile || smallTouch) window.location.replace('/portal/m/');
     })();
     </script>
 </head>
 <body>
 
-<div class="splash" id="splash">
-    <div class="splash-inner">
-        <div class="splash-greeting" id="splashGreeting"></div>
-        <div class="splash-bar"><span></span></div>
-    </div>
-</div>
-
-<div class="dashboard" id="dashboard" style="display:none">
+<div class="dashboard" id="dashboard">
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
