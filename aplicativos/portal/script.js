@@ -1,5 +1,5 @@
 // ============================================================
-// Portal Mobile · I.R. Comércio
+// Portal · I.R. Comércio (desktop)
 // ============================================================
 
 const MODULE_ICONS = {
@@ -10,21 +10,17 @@ const MODULE_ICONS = {
     transportadoras:  '<svg viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
     cotacoes:         '<svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>',
     faturamento:      '<svg viewBox="0 0 24 24"><path d="M4 11V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M2 15h10"/><path d="m9 18 3-3-3-3"/></svg>',
-    estoque:          '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
     frete:            '<svg viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+    estoque:          '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
     receber:          '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
     pagar:            '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
     lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
     tutorial:         '<svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6v3h8v-3c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>'
 };
 
-const LOGOUT_ICON = '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
-
 let accessToken = null;
 let userInfo = null;
 let modules = [];
-let activeModuleId = null;
-const loaderTimeouts = {};
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -37,6 +33,15 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
+function getGreeting() {
+    const now = new Date();
+    const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const h = br.getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
@@ -45,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await fetch('/api/portal/modules', {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
+
         if (res.status === 401 || res.status === 403) {
             sessionStorage.removeItem('irToken');
             window.location.href = '/';
@@ -55,20 +61,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await res.json();
         userInfo = data.user;
         modules = data.modules || [];
-
-        renderTabs();
-
-        // Abre direto o primeiro módulo permitido. A interface já aparece
-        // com o iframe + loader; o loader só some quando o módulo avisar.
-        const primeiro = modules.find(m => m.allowed);
-        if (primeiro) openModule(primeiro);
+        bootUI();
 
         if (!userInfo.is_admin) agendarAvisoExpediente();
     } catch (err) {
-        console.error('[PORTAL m]', err);
+        console.error('[PORTAL]', err);
         window.location.href = '/';
     }
 });
+
+function bootUI() {
+    const name = userInfo.name || userInfo.username || 'Usuário';
+    const firstName = name.split(' ')[0];
+
+    document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
+
+    const greetingEl = document.getElementById('splashGreeting');
+    if (greetingEl) greetingEl.textContent = `${getGreeting()}, ${firstName}!`;
+
+    renderSidebar();
+
+    setTimeout(() => {
+        const s = document.getElementById('splash');
+        if (s) {
+            s.classList.add('fade-out');
+            setTimeout(() => { s.style.display = 'none'; }, 400);
+        }
+        document.getElementById('dashboard').style.display = 'flex';
+
+        const primeiroPermitido = modules.find(m => m.allowed);
+        if (primeiroPermitido) openModule(primeiroPermitido);
+    }, 2200);
+}
 
 function agendarAvisoExpediente() {
     const tick = () => {
@@ -84,8 +110,8 @@ function agendarAvisoExpediente() {
         if (mins >= limite && mins < fim && !document.getElementById('avisoExpediente')) {
             const el = document.createElement('div');
             el.id = 'avisoExpediente';
-            el.className = 'm-aviso-expediente';
-            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades.';
+            el.className = 'aviso-expediente';
+            el.textContent = 'O expediente encerra em 15 minutos. Finalize suas atividades antes do encerramento da sessão.';
             document.body.appendChild(el);
         }
 
@@ -99,106 +125,55 @@ function agendarAvisoExpediente() {
     setInterval(tick, 30000);
 }
 
-function renderTabs() {
-    const bar = document.getElementById('tabsScroll');
-    bar.innerHTML = '';
+function renderSidebar() {
+    const nav = document.getElementById('sidebarModules');
+    nav.innerHTML = '';
 
     if (!modules.length) {
-        bar.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,0.5);font-size:0.85rem;">Nenhum módulo disponível.</div>';
+        nav.innerHTML = '<div style="padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.85rem;">Nenhum módulo disponível.</div>';
         return;
     }
 
     modules.forEach(m => {
-        const tab = document.createElement('button');
-        tab.type = 'button';
-        tab.className = 'm-tab' + (m.allowed ? '' : ' disabled');
-        tab.dataset.moduleId = m.id;
-        tab.title = m.name;
-        tab.innerHTML = `<span class="m-tab-icon">${MODULE_ICONS[m.id] || ''}</span>`;
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'module-item' + (m.allowed ? '' : ' disabled');
+        el.dataset.moduleId = m.id;
+        el.dataset.tooltip = m.allowed ? m.name : `${m.name} (sem acesso)`;
+        el.innerHTML = `
+            <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
+            <span class="module-label">${m.name}</span>
+        `;
         if (m.allowed) {
-            tab.addEventListener('click', () => openModule(m));
+            el.addEventListener('click', () => openModule(m));
         } else {
-            tab.disabled = true;
+            el.disabled = true;
         }
-        bar.appendChild(tab);
+        nav.appendChild(el);
     });
-
-    const logoutTab = document.createElement('button');
-    logoutTab.type = 'button';
-    logoutTab.className = 'm-tab logout';
-    logoutTab.title = 'Sair';
-    logoutTab.innerHTML = `<span class="m-tab-icon">${LOGOUT_ICON}</span>`;
-    logoutTab.addEventListener('click', () => window.showLogout());
-    bar.appendChild(logoutTab);
 }
 
 function openModule(mod) {
-    activeModuleId = mod.id;
+    document.querySelectorAll('.module-item').forEach(i => i.classList.remove('active'));
+    const sidebarItem = document.querySelector(`.module-item[data-module-id="${mod.id}"]`);
+    if (sidebarItem) sidebarItem.classList.add('active');
 
-    // Aba ativa
-    document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector(`.m-tab[data-module-id="${mod.id}"]`);
-    if (tab) {
-        tab.classList.add('active');
-        tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-
-    const area = document.getElementById('iframeArea');
-    let container = document.getElementById(`m-iframe-${mod.id}`);
-
+    let container = document.getElementById(`iframe-${mod.id}`);
     if (!container) {
-        // Cria o container + iframe + loader
         container = document.createElement('div');
-        container.className = 'm-iframe-frame';
-        container.id = `m-iframe-${mod.id}`;
-
-        const loader = document.createElement('div');
-        loader.className = 'm-module-loader';
-        loader.id = `loader-${mod.id}`;
-        loader.innerHTML = '<div class="m-module-spinner"></div>';
-        container.appendChild(loader);
+        container.className = 'iframe-container';
+        container.id = `iframe-${mod.id}`;
 
         const iframe = document.createElement('iframe');
         iframe.src = `${mod.url}?access_token=${encodeURIComponent(accessToken)}`;
         iframe.title = mod.name;
-        iframe.addEventListener('load', () => {
-            // Se o módulo não avisar por conta própria, libera após 6s
-            clearTimeout(loaderTimeouts[mod.id]);
-            loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 6000);
-        });
         container.appendChild(iframe);
-
-        area.appendChild(container);
+        document.getElementById('iframesContainer').appendChild(container);
     }
 
-    document.querySelectorAll('.m-iframe-frame').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.iframe-container').forEach(c => c.classList.remove('active'));
     requestAnimationFrame(() => container.classList.add('active'));
 }
-
-function esconderLoader(moduleId) {
-    const loader = document.getElementById(`loader-${moduleId}`);
-    if (loader && !loader.classList.contains('done')) {
-        loader.classList.add('done');
-        setTimeout(() => loader.remove(), 400);
-    }
-}
-
-// Escuta o postMessage "ir-module-ready" dos iframes
-window.addEventListener('message', (event) => {
-    const data = event.data || {};
-
-    if (data.type === 'ir-session-expired') {
-        sessionStorage.removeItem('irToken');
-        sessionStorage.removeItem('irUser');
-        window.location.href = '/';
-        return;
-    }
-
-    if (data.type === 'ir-module-ready') {
-        const id = data.module || activeModuleId;
-        if (id) esconderLoader(id);
-    }
-});
 
 window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
 window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
@@ -207,3 +182,14 @@ window.confirmLogout = () => {
     sessionStorage.removeItem('irUser');
     window.location.href = '/';
 };
+
+// ─── Escuta recados dos iframes. Se algum módulo avisar que a sessão caiu,
+// o portal inteiro sai do iframe e vai pro login. ───
+window.addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.type === 'ir-session-expired') {
+        sessionStorage.removeItem('irToken');
+        sessionStorage.removeItem('irUser');
+        window.location.href = '/';
+    }
+});
