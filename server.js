@@ -26,6 +26,8 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
 
+const logActivity = require('./aplicativos/portal/logActivity');
+
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
@@ -55,6 +57,7 @@ app.use('/api/portal',     require('./aplicativos/portal/routes')(supabase, supa
 app.use('/api/usuarios',   require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
 app.use('/api/licitacoes', require('./aplicativos/licitacoes/routes')(supabase, supabaseAdmin));
 app.use('/api/precos',     require('./aplicativos/precos/routes')(supabase, supabaseAdmin));
+app.use('/api',            require('./aplicativos/compra/routes')(supabase, supabaseAdmin, logActivity));
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────
 const MODULES = [
@@ -63,6 +66,7 @@ const MODULES = [
     'usuarios',
     'licitacoes',
     'precos',
+    'compra',
     'tutorial'
 ];
 
