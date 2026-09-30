@@ -4,9 +4,10 @@
 
 const API_URL = window.location.origin + '/api';
 
+console.log('[compra-mobile] script carregado');
+
 let accessToken = null;
 let currentUserName = null;
-
 let ordens = [];
 let editingId = null;
 let itemCounter = 0;
@@ -16,16 +17,18 @@ let ultimoNumeroGlobal = 0;
 
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
-// ─── AUTH ───────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
     if (fromUrl) {
         sessionStorage.setItem('irToken', fromUrl);
         window.history.replaceState({}, '', window.location.pathname);
+        console.log('[compra-mobile] token vindo da URL');
         return fromUrl;
     }
-    return sessionStorage.getItem('irToken');
+    const t = sessionStorage.getItem('irToken');
+    console.log('[compra-mobile] token vindo do sessionStorage:', t ? 'SIM' : 'NÃO');
+    return t;
 }
 
 function getHeaders() {
@@ -59,7 +62,6 @@ function showDenied(msg) {
     `;
 }
 
-// ─── HELPERS ────────────────────────────────────────────────
 function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
 function parseFloatLocale(str) {
     if (typeof str !== 'string') return NaN;
@@ -100,10 +102,14 @@ function showToast(msg, type) {
     }, 3000);
 }
 
-// ─── INIT ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[compra-mobile] DOMContentLoaded');
     accessToken = resolveToken();
-    if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
+    if (!accessToken) {
+        console.log('[compra-mobile] ✗ sem token');
+        showDenied('SESSÃO EXPIRADA');
+        return;
+    }
 
     await fetchSessionUser();
     await carregarTudo();
@@ -113,19 +119,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchSessionUser() {
     try {
         const res = await fetch('/api/portal/modules', { headers: getHeaders() });
+        console.log('[compra-mobile] /api/portal/modules status:', res.status);
         if (!res.ok) return;
         const data = await res.json();
         if (data.user) currentUserName = data.user.name || data.user.username || null;
-    } catch (e) {}
+        console.log('[compra-mobile] usuário:', currentUserName);
+    } catch (e) {
+        console.log('[compra-mobile] erro fetchSessionUser:', e.message);
+    }
 }
 
 async function carregarTudo() {
+    console.log('[compra-mobile] carregarTudo início');
     try {
         await loadOrdens();
         await loadUltimoNumero();
         await loadFornecedoresGlobal();
+        console.log('[compra-mobile] carregarTudo fim ✓');
     } catch (e) {
-        console.error('[compra m] carregarTudo:', e);
+        console.error('[compra-mobile] carregarTudo erro:', e);
     } finally {
         try {
             if (window.parent && window.parent !== window) {
@@ -135,21 +147,34 @@ async function carregarTudo() {
     }
 }
 
-// ─── FETCH ──────────────────────────────────────────────────
 async function loadOrdens() {
+    const url = `${API_URL}/ordens`;
+    console.log('[compra-mobile] GET', url);
+
     try {
-        const res = await fetch(`${API_URL}/ordens`, {
+        const res = await fetch(url, {
             headers: getHeaders(),
             cache: 'no-cache'
         });
-        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
-        if (!res.ok) throw new Error('Erro ' + res.status);
+        console.log('[compra-mobile] /ordens status:', res.status);
+
+        if (res.status === 401 || res.status === 403) {
+            console.log('[compra-mobile] ✗ sem acesso');
+            showDenied('SEM ACESSO');
+            return;
+        }
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            console.log('[compra-mobile] ✗ erro HTTP:', res.status, txt.slice(0, 300));
+            throw new Error('Erro ' + res.status);
+        }
         const data = await res.json();
+        console.log('[compra-mobile] /ordens retornou', Array.isArray(data) ? data.length : 'não-array', 'itens');
         ordens = Array.isArray(data) ? data : [];
         mesclarCacheFornecedores(ordens);
         updateDisplay();
     } catch (e) {
-        console.error('[compra m] loadOrdens:', e);
+        console.error('[compra-mobile] loadOrdens erro:', e);
         showToast('Erro ao carregar ordens', 'error');
     }
 }
@@ -157,17 +182,23 @@ async function loadOrdens() {
 async function loadUltimoNumero() {
     try {
         const res = await fetch(`${API_URL}/ordens/ultimo-numero`, { headers: getHeaders(), cache: 'no-cache' });
+        console.log('[compra-mobile] /ordens/ultimo-numero status:', res.status);
         if (!res.ok) return;
         const data = await res.json();
         ultimoNumeroGlobal = data.ultimoNumero || 0;
-    } catch (e) {}
+        console.log('[compra-mobile] último número:', ultimoNumeroGlobal);
+    } catch (e) {
+        console.log('[compra-mobile] erro loadUltimoNumero:', e.message);
+    }
 }
 
 async function loadFornecedoresGlobal() {
     try {
         const res = await fetch(`${API_URL}/fornecedores`, { headers: getHeaders(), cache: 'no-cache' });
+        console.log('[compra-mobile] /fornecedores status:', res.status);
         if (!res.ok) return;
         const lista = await res.json();
+        console.log('[compra-mobile] /fornecedores retornou', Array.isArray(lista) ? lista.length : 'não-array');
         lista.forEach(f => {
             const key = (f.razao_social || '').trim().toUpperCase();
             if (key && !fornecedoresCache[key]) {
@@ -216,7 +247,6 @@ async function syncData() {
     }
 }
 
-// ─── RENDER ─────────────────────────────────────────────────
 function updateDisplay() {
     updateStats();
     updateList();
@@ -298,7 +328,6 @@ function updateResponsaveisFilter() {
     s.value = cur;
 }
 
-// ─── VISUALIZAR ─────────────────────────────────────────────
 function viewOrdem(id) {
     const o = ordens.find(x => String(x.id) === String(id));
     if (!o) return;
@@ -362,7 +391,6 @@ function viewOrdem(id) {
 }
 function closeView() { document.getElementById('viewModalHost')?.remove(); }
 
-// ─── FORM ───────────────────────────────────────────────────
 function toggleForm() {
     editingId = null;
     currentTab = 0;
@@ -440,34 +468,13 @@ function openFormModal(cfg) {
                     </div>
 
                     <div class="m-pane" data-pane="1">
-                        <div>
-                            <label>Razão Social *</label>
-                            <input type="text" id="razaoSocial" value="${o ? escHtml(o.razao_social) : ''}" required>
-                        </div>
-                        <div>
-                            <label>Nome Fantasia</label>
-                            <input type="text" id="nomeFantasia" value="${o ? escHtml(o.nome_fantasia || '') : ''}">
-                        </div>
-                        <div>
-                            <label>CNPJ *</label>
-                            <input type="text" id="cnpj" value="${o ? escHtml(o.cnpj || '') : ''}" required>
-                        </div>
-                        <div>
-                            <label>Endereço</label>
-                            <input type="text" id="enderecoFornecedor" value="${o ? escHtml(o.endereco_fornecedor || '') : ''}">
-                        </div>
-                        <div>
-                            <label>Contato</label>
-                            <input type="text" id="contato" value="${o ? escHtml(o.contato || '') : ''}">
-                        </div>
-                        <div>
-                            <label>Telefone</label>
-                            <input type="text" id="telefone" value="${o ? escHtml(o.telefone || '') : ''}">
-                        </div>
-                        <div>
-                            <label>E-mail</label>
-                            <input type="email" id="email" value="${o ? escHtml(o.email || '') : ''}">
-                        </div>
+                        <div><label>Razão Social *</label><input type="text" id="razaoSocial" value="${o ? escHtml(o.razao_social) : ''}" required></div>
+                        <div><label>Nome Fantasia</label><input type="text" id="nomeFantasia" value="${o ? escHtml(o.nome_fantasia || '') : ''}"></div>
+                        <div><label>CNPJ *</label><input type="text" id="cnpj" value="${o ? escHtml(o.cnpj || '') : ''}" required></div>
+                        <div><label>Endereço</label><input type="text" id="enderecoFornecedor" value="${o ? escHtml(o.endereco_fornecedor || '') : ''}"></div>
+                        <div><label>Contato</label><input type="text" id="contato" value="${o ? escHtml(o.contato || '') : ''}"></div>
+                        <div><label>Telefone</label><input type="text" id="telefone" value="${o ? escHtml(o.telefone || '') : ''}"></div>
+                        <div><label>E-mail</label><input type="email" id="email" value="${o ? escHtml(o.email || '') : ''}"></div>
                     </div>
 
                     <div class="m-pane" data-pane="2">
@@ -499,18 +506,9 @@ function openFormModal(cfg) {
                     </div>
 
                     <div class="m-pane" data-pane="4">
-                        <div>
-                            <label>Forma de Pagamento *</label>
-                            <input type="text" id="formaPagamento" value="${o ? escHtml(o.forma_pagamento || '') : ''}" required>
-                        </div>
-                        <div>
-                            <label>Prazo de Pagamento *</label>
-                            <input type="text" id="prazoPagamento" value="${o ? escHtml(o.prazo_pagamento || '') : ''}" required>
-                        </div>
-                        <div>
-                            <label>Dados Bancários</label>
-                            <textarea id="dadosBancarios" rows="3">${o ? escHtml(o.dados_bancarios || '') : ''}</textarea>
-                        </div>
+                        <div><label>Forma de Pagamento *</label><input type="text" id="formaPagamento" value="${o ? escHtml(o.forma_pagamento || '') : ''}" required></div>
+                        <div><label>Prazo de Pagamento *</label><input type="text" id="prazoPagamento" value="${o ? escHtml(o.prazo_pagamento || '') : ''}" required></div>
+                        <div><label>Dados Bancários</label><textarea id="dadosBancarios" rows="3">${o ? escHtml(o.dados_bancarios || '') : ''}</textarea></div>
                     </div>
 
                     <div class="m-form-actions">
@@ -681,7 +679,6 @@ async function handleSubmit(e) {
     }
 }
 
-// ─── STATUS / DELETE ────────────────────────────────────────
 async function toggleStatus(id) {
     const o = ordens.find(x => String(x.id) === String(id));
     if (!o) return;
@@ -746,7 +743,6 @@ async function confirmDelete(id) {
     }
 }
 
-// ─── DUPLICAR ───────────────────────────────────────────────
 function abrirDuplicar() {
     document.getElementById('duplicarHost')?.remove();
     const host = document.createElement('div');
