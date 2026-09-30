@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0A">
+    <title>Ordens de Compra</title>
+    <link rel="icon" type="image/png" href="/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/compra/m/styles.css">
+</head>
+<body>
+
+<header class="m-header">
+    <h1>Compras</h1>
+    <div class="m-header-actions">
+        <button class="m-icon-btn" onclick="abrirDuplicar()" aria-label="Duplicar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        </button>
+        <button class="m-add-btn" onclick="toggleForm()" aria-label="Nova ordem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+    </div>
+</header>
+
+<main class="m-content">
+
+    <div class="m-stats">
+        <div class="m-stat"><span class="m-stat-num" id="m-total">0</span><span class="m-stat-lbl">Total</span></div>
+        <div class="m-stat m-stat-green"><span class="m-stat-num" id="m-fechadas">0</span><span class="m-stat-lbl">Fechadas</span></div>
+        <div class="m-stat m-stat-red"><span class="m-stat-num" id="m-abertas">0</span><span class="m-stat-lbl">Abertas</span></div>
+    </div>
+
+    <div class="m-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search" placeholder="Buscar..." oninput="filterOrdens()">
+    </div>
+
+    <div class="m-filters">
+        <select id="filterResponsavel" onchange="filterOrdens()">
+            <option value="">Responsável</option>
+        </select>
+        <select id="filterStatus" onchange="filterOrdens()">
+            <option value="">Todos</option>
+            <option value="aberta">Aberta</option>
+            <option value="fechada">Fechada</option>
+        </select>
+        <button class="m-sync-btn" onclick="syncData()" title="Sincronizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"/>
+                <path d="M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="m-month">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span id="currentMonth">Carregando...</span>
+        <button onclick="changeMonth(1)">›</button>
+    </div>
+
+    <div id="ordensList" class="m-list"></div>
+</main>
+
+<script src="/compra/m/script.js"></script>
+</body>
+</html>
