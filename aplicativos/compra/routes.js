@@ -33,16 +33,13 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     const admin  = supabaseAdmin || supabase;
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
-    // ─── AUTH (mesmo padrão de precos) ─────────────────────
+    // ─── AUTH ───────────────────────────────────────────────
     async function requireAuth(req, res, next) {
         const auth  = req.headers['authorization'];
-        const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
-
-        // Aceita tanto Bearer token quanto X-Session-Token (front legado)
-        const sessionToken = token || req.headers['x-session-token'];
+        const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+        const sessionToken = bearer || req.headers['x-session-token'];
         if (!sessionToken) return res.status(401).json({ error: 'Não autenticado' });
 
-        // Tenta verificar como JWT assinado
         let profile = null;
         const payload = verifyToken(sessionToken, SESSION_SECRET);
         if (payload && payload.uid) {
@@ -54,7 +51,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             profile = data;
         }
 
-        // Fallback: sessão via active_sessions (legado)
         if (!profile) {
             const { data: sess } = await admin
                 .from('active_sessions')
@@ -93,18 +89,19 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         catch (e) { console.error('[compra] notificação:', e.message); }
     }
 
-    async function audit(req, action, entityId, details) {
+    function audit(req, action, targetId, details) {
         if (typeof logActivity !== 'function') return;
         try {
-            await logActivity({
-                user: req.user,
-                app: 'compra',
+            logActivity(admin, req, {
                 action,
-                entity: 'ordens_compra',
-                entity_id: entityId,
-                details
+                module: 'compra',
+                target_id: targetId,
+                target_code: details?.numero || null,
+                details: typeof details === 'object' ? JSON.stringify(details) : (details || null)
             });
-        } catch (e) { console.error('[compra] logActivity:', e.message); }
+        } catch (e) {
+            console.error('[compra] logActivity:', e.message);
+        }
     }
 
     // ─── ÚLTIMO NÚMERO ──────────────────────────────────────
@@ -168,6 +165,9 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             if (!Array.isArray(body.items)) body.items = [];
             if (!body.status) body.status = 'aberta';
 
+            const responsavel = nomeResponsavel(req.user);
+            if (!body.responsavel && responsavel) body.responsavel = responsavel;
+
             const { data, error } = await admin
                 .from('ordens_compra')
                 .insert(body)
@@ -176,7 +176,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             if (error) throw error;
 
             await notificar(`Ordem de Nº ${data.numero_ordem} aberta`);
-            await audit(req, 'create', data.id, { numero: data.numero_ordem });
+            audit(req, 'create', data.id, { numero: data.numero_ordem });
 
             res.status(201).json(data);
         } catch (e) {
@@ -207,7 +207,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             if (error) throw error;
 
             await notificar(`Ordem de Nº ${old.numero_ordem} atualizada`);
-            await audit(req, 'update', data.id, { numero: data.numero_ordem });
+            audit(req, 'update', data.id, { numero: data.numero_ordem });
 
             res.json(data);
         } catch (e) {
@@ -233,7 +233,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             if (error) throw error;
 
             await notificar(`Ordem de Nº ${ordem.numero_ordem} excluída`);
-            await audit(req, 'delete', req.params.id, { numero: ordem.numero_ordem });
+            audit(req, 'delete', req.params.id, { numero: ordem.numero_ordem });
 
             res.status(204).end();
         } catch (e) {
@@ -258,7 +258,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .single();
             if (error) throw error;
 
-            await audit(req, 'status', data.id, { numero: data.numero_ordem, status });
+            audit(req, 'status', data.id, { numero: data.numero_ordem, status });
             res.json(data);
         } catch (e) {
             res.status(500).json({ error: e.message });
