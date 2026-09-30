@@ -26,7 +26,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
 
-const logActivity = require('./aplicativos/portal/logActivity');
+const logActivity = require('./aplicativos/shared/logActivity');
 
 app.use(cors({
     origin: '*',
