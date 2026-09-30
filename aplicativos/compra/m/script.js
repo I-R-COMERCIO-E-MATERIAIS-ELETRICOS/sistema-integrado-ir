@@ -8,7 +8,6 @@ let accessToken = null;
 let currentUserName = null;
 
 let ordens = [];
-let currentMonth = new Date();
 let editingId = null;
 let itemCounter = 0;
 let currentTab = 0;
@@ -16,7 +15,6 @@ let fornecedoresCache = {};
 let ultimoNumeroGlobal = 0;
 
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
-const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
 // ─── AUTH ───────────────────────────────────────────────────
 function resolveToken() {
@@ -78,11 +76,13 @@ function detectResponsavelFromUser(name) {
     return null;
 }
 function formatCurrency(v) {
-    return parseFloat(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const n = parseFloat(v);
+    return isNaN(n) ? 'R$ 0,00' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 function formatDate(d) {
     if (!d) return '-';
-    return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+    const dt = new Date(d + 'T00:00:00');
+    return isNaN(dt.getTime()) ? '-' : dt.toLocaleDateString('pt-BR');
 }
 function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -106,7 +106,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
 
     await fetchSessionUser();
-    updateMonthDisplay();
     await carregarTudo();
     setInterval(() => carregarTudo(), 30000);
 });
@@ -138,10 +137,11 @@ async function carregarTudo() {
 
 // ─── FETCH ──────────────────────────────────────────────────
 async function loadOrdens() {
-    const mes = currentMonth.getMonth();
-    const ano = currentMonth.getFullYear();
     try {
-        const res = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, { headers: getHeaders(), cache: 'no-cache' });
+        const res = await fetch(`${API_URL}/ordens`, {
+            headers: getHeaders(),
+            cache: 'no-cache'
+        });
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         const data = await res.json();
@@ -150,6 +150,7 @@ async function loadOrdens() {
         updateDisplay();
     } catch (e) {
         console.error('[compra m] loadOrdens:', e);
+        showToast('Erro ao carregar ordens', 'error');
     }
 }
 
@@ -202,21 +203,6 @@ function mesclarCacheFornecedores(lista) {
     });
 }
 
-// ─── MÊS ────────────────────────────────────────────────────
-function changeMonth(dir) {
-    currentMonth.setMonth(currentMonth.getMonth() + dir);
-    ordens = [];
-    updateMonthDisplay();
-    document.getElementById('ordensList').innerHTML = '';
-    loadOrdens();
-}
-function updateMonthDisplay() {
-    const m = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const el = document.getElementById('currentMonth');
-    if (el) el.textContent = `${m[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
-}
-
 async function syncData() {
     const btn = document.querySelector('.m-sync-btn');
     if (btn) btn.classList.add('spinning');
@@ -232,7 +218,6 @@ async function syncData() {
 
 // ─── RENDER ─────────────────────────────────────────────────
 function updateDisplay() {
-    updateMonthDisplay();
     updateStats();
     updateList();
     updateResponsaveisFilter();
@@ -273,7 +258,7 @@ function updateList() {
         return;
     }
 
-    lista.sort((a, b) => parseInt(a.numero_ordem) - parseInt(b.numero_ordem));
+    lista.sort((a, b) => parseInt(b.numero_ordem || 0) - parseInt(a.numero_ordem || 0));
 
     root.innerHTML = lista.map(o => `
         <div class="m-card ${o.status === 'fechada' ? 'fechada' : ''}" onclick="viewOrdem('${o.id}')">
@@ -319,10 +304,12 @@ function viewOrdem(id) {
     if (!o) return;
 
     const items = Array.isArray(o.items) ? o.items : [];
-    const itemsHtml = items.map(it => `
-        <p><strong>${escHtml(it.item)}. ${escHtml(toUpperCase(it.especificacao))}</strong><br>
-        ${it.quantidade} ${escHtml(toUpperCase(it.unidade))} × ${formatCurrency(it.valorUnitario || 0)} = ${escHtml(it.valorTotal || '')}</p>
-    `).join('');
+    const itemsHtml = items.length
+        ? items.map(it => `
+            <p><strong>${escHtml(it.item)}. ${escHtml(toUpperCase(it.especificacao))}</strong><br>
+            ${escHtml(it.quantidade)} ${escHtml(toUpperCase(it.unidade))} × ${formatCurrency(it.valorUnitario || 0)} = ${escHtml(it.valorTotal || '')}</p>
+        `).join('')
+        : '<p>—</p>';
 
     document.getElementById('viewModalHost')?.remove();
     const host = document.createElement('div');
@@ -349,7 +336,7 @@ function viewOrdem(id) {
                 </div>
                 <div class="m-info-section">
                     <h4>Itens</h4>
-                    ${itemsHtml || '<p>—</p>'}
+                    ${itemsHtml}
                     <p style="margin-top:0.5rem;"><strong>Total:</strong> ${escHtml(o.valor_total || '-')}</p>
                 </div>
                 <div class="m-info-section">
@@ -427,67 +414,103 @@ function openFormModal(cfg) {
                 </div>
 
                 <div class="m-tabs" id="formTabs">
-                    <button class="m-tab active" onclick="switchTab(0,this)">Geral</button>
-                    <button class="m-tab" onclick="switchTab(1,this)">Fornecedor</button>
-                    <button class="m-tab" onclick="switchTab(2,this)">Itens</button>
-                    <button class="m-tab" onclick="switchTab(3,this)">Entrega</button>
-                    <button class="m-tab" onclick="switchTab(4,this)">Pagamento</button>
+                    <button type="button" class="m-tab active" onclick="switchTab(0,this)">Geral</button>
+                    <button type="button" class="m-tab" onclick="switchTab(1,this)">Fornecedor</button>
+                    <button type="button" class="m-tab" onclick="switchTab(2,this)">Itens</button>
+                    <button type="button" class="m-tab" onclick="switchTab(3,this)">Entrega</button>
+                    <button type="button" class="m-tab" onclick="switchTab(4,this)">Pagamento</button>
                 </div>
 
                 <form class="m-form" onsubmit="handleSubmit(event)">
                     <input type="hidden" id="editId" value="${cfg.editId}">
 
                     <div class="m-pane active" data-pane="0">
-                        <label>Número da Ordem *</label>
-                        <input type="text" id="numeroOrdem" value="${escHtml(cfg.numeroOrdem)}" required>
-                        <label>Responsável</label>
-                        <input type="text" id="responsavel" value="${escHtml(cfg.responsavel || '')}" readonly>
-                        <label>Data da Ordem *</label>
-                        <input type="date" id="dataOrdem" value="${escHtml(cfg.dataOrdem || '')}" required>
+                        <div>
+                            <label>Número da Ordem *</label>
+                            <input type="text" id="numeroOrdem" value="${escHtml(cfg.numeroOrdem)}" required>
+                        </div>
+                        <div>
+                            <label>Responsável</label>
+                            <input type="text" id="responsavel" value="${escHtml(cfg.responsavel || '')}" readonly>
+                        </div>
+                        <div>
+                            <label>Data da Ordem *</label>
+                            <input type="date" id="dataOrdem" value="${escHtml(cfg.dataOrdem || '')}" required>
+                        </div>
                     </div>
 
                     <div class="m-pane" data-pane="1">
-                        <label>Razão Social *</label>
-                        <input type="text" id="razaoSocial" value="${o ? escHtml(o.razao_social) : ''}" required>
-                        <label>Nome Fantasia</label>
-                        <input type="text" id="nomeFantasia" value="${o ? escHtml(o.nome_fantasia || '') : ''}">
-                        <label>CNPJ *</label>
-                        <input type="text" id="cnpj" value="${o ? escHtml(o.cnpj || '') : ''}" required>
-                        <label>Endereço</label>
-                        <input type="text" id="enderecoFornecedor" value="${o ? escHtml(o.endereco_fornecedor || '') : ''}">
-                        <label>Contato</label>
-                        <input type="text" id="contato" value="${o ? escHtml(o.contato || '') : ''}">
-                        <label>Telefone</label>
-                        <input type="text" id="telefone" value="${o ? escHtml(o.telefone || '') : ''}">
-                        <label>E-mail</label>
-                        <input type="email" id="email" value="${o ? escHtml(o.email || '') : ''}">
+                        <div>
+                            <label>Razão Social *</label>
+                            <input type="text" id="razaoSocial" value="${o ? escHtml(o.razao_social) : ''}" required>
+                        </div>
+                        <div>
+                            <label>Nome Fantasia</label>
+                            <input type="text" id="nomeFantasia" value="${o ? escHtml(o.nome_fantasia || '') : ''}">
+                        </div>
+                        <div>
+                            <label>CNPJ *</label>
+                            <input type="text" id="cnpj" value="${o ? escHtml(o.cnpj || '') : ''}" required>
+                        </div>
+                        <div>
+                            <label>Endereço</label>
+                            <input type="text" id="enderecoFornecedor" value="${o ? escHtml(o.endereco_fornecedor || '') : ''}">
+                        </div>
+                        <div>
+                            <label>Contato</label>
+                            <input type="text" id="contato" value="${o ? escHtml(o.contato || '') : ''}">
+                        </div>
+                        <div>
+                            <label>Telefone</label>
+                            <input type="text" id="telefone" value="${o ? escHtml(o.telefone || '') : ''}">
+                        </div>
+                        <div>
+                            <label>E-mail</label>
+                            <input type="email" id="email" value="${o ? escHtml(o.email || '') : ''}">
+                        </div>
                     </div>
 
                     <div class="m-pane" data-pane="2">
-                        <button type="button" class="m-btn blue" onclick="addItem()" style="width:100%; margin-bottom:0.75rem;">+ Adicionar Item</button>
+                        <button type="button" class="m-btn blue" onclick="addItem()" style="width:100%; margin-bottom:0.5rem;">+ Adicionar Item</button>
                         <div id="itemsBody"></div>
-                        <label>Valor Total</label>
-                        <input type="text" id="valorTotalOrdem" readonly value="${o ? escHtml(o.valor_total || 'R$ 0,00') : 'R$ 0,00'}">
-                        <label>Frete</label>
-                        <input type="text" id="frete" value="${o ? escHtml(o.frete || 'CIF') : 'CIF'}">
+                        <div>
+                            <label>Valor Total</label>
+                            <input type="text" id="valorTotalOrdem" readonly value="${o ? escHtml(o.valor_total || 'R$ 0,00') : 'R$ 0,00'}">
+                        </div>
+                        <div>
+                            <label>Frete</label>
+                            <input type="text" id="frete" value="${o ? escHtml(o.frete || 'CIF') : 'CIF'}">
+                        </div>
                     </div>
 
                     <div class="m-pane" data-pane="3">
-                        <label>Local de Entrega</label>
-                        <input type="text" id="localEntrega" value="${o ? escHtml(o.local_entrega || '') : 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318'}">
-                        <label>Prazo de Entrega</label>
-                        <input type="text" id="prazoEntrega" value="${o ? escHtml(o.prazo_entrega || 'IMEDIATO') : 'IMEDIATO'}">
-                        <label>Transporte</label>
-                        <input type="text" id="transporte" value="${o ? escHtml(o.transporte || 'FORNECEDOR') : 'FORNECEDOR'}">
+                        <div>
+                            <label>Local de Entrega</label>
+                            <input type="text" id="localEntrega" value="${o ? escHtml(o.local_entrega || '') : 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318'}">
+                        </div>
+                        <div>
+                            <label>Prazo de Entrega</label>
+                            <input type="text" id="prazoEntrega" value="${o ? escHtml(o.prazo_entrega || 'IMEDIATO') : 'IMEDIATO'}">
+                        </div>
+                        <div>
+                            <label>Transporte</label>
+                            <input type="text" id="transporte" value="${o ? escHtml(o.transporte || 'FORNECEDOR') : 'FORNECEDOR'}">
+                        </div>
                     </div>
 
                     <div class="m-pane" data-pane="4">
-                        <label>Forma de Pagamento *</label>
-                        <input type="text" id="formaPagamento" value="${o ? escHtml(o.forma_pagamento || '') : ''}" required>
-                        <label>Prazo de Pagamento *</label>
-                        <input type="text" id="prazoPagamento" value="${o ? escHtml(o.prazo_pagamento || '') : ''}" required>
-                        <label>Dados Bancários</label>
-                        <textarea id="dadosBancarios" rows="3">${o ? escHtml(o.dados_bancarios || '') : ''}</textarea>
+                        <div>
+                            <label>Forma de Pagamento *</label>
+                            <input type="text" id="formaPagamento" value="${o ? escHtml(o.forma_pagamento || '') : ''}" required>
+                        </div>
+                        <div>
+                            <label>Prazo de Pagamento *</label>
+                            <input type="text" id="prazoPagamento" value="${o ? escHtml(o.prazo_pagamento || '') : ''}" required>
+                        </div>
+                        <div>
+                            <label>Dados Bancários</label>
+                            <textarea id="dadosBancarios" rows="3">${o ? escHtml(o.dados_bancarios || '') : ''}</textarea>
+                        </div>
                     </div>
 
                     <div class="m-form-actions">
@@ -503,8 +526,8 @@ function openFormModal(cfg) {
     if (o && Array.isArray(o.items) && o.items.length) {
         o.items.forEach(it => {
             addItem();
-            const row = document.querySelectorAll('#itemsBody .m-item-row');
-            const last = row[row.length - 1];
+            const rows = document.querySelectorAll('#itemsBody .m-item-row');
+            const last = rows[rows.length - 1];
             if (!last) return;
             last.querySelector('.it-espec').value = toUpperCase(it.especificacao || '');
             last.querySelector('.it-qtd').value = it.quantidade || 1;
@@ -538,32 +561,35 @@ function addItem() {
     itemCounter++;
     const root = document.getElementById('itemsBody');
     if (!root) return;
+
     const div = document.createElement('div');
     div.className = 'm-item-row';
     div.innerHTML = `
-        <div class="full"><strong>Item ${itemCounter}</strong></div>
-        <div class="full">
-            <label>Especificação</label>
-            <input type="text" class="it-espec" placeholder="Descrição">
-        </div>
-        <div>
-            <label>QTD</label>
-            <input type="number" class="it-qtd" min="0" step="0.01" value="1" oninput="recalcItem(this)">
-        </div>
-        <div>
-            <label>Unidade</label>
-            <input type="text" class="it-unid" value="UN">
-        </div>
-        <div>
-            <label>Valor UN</label>
-            <input type="number" class="it-valor" min="0" step="0.01" value="0" oninput="recalcItem(this)">
-        </div>
-        <div>
-            <label>Total</label>
-            <input type="text" class="it-total" readonly value="R$ 0,00">
-        </div>
-        <div class="full">
-            <button type="button" class="m-btn del" onclick="this.closest('.m-item-row').remove(); recalcTotal();" style="width:100%;">Remover</button>
+        <div class="m-item-row-title">Item ${itemCounter}</div>
+        <div class="m-item-grid">
+            <div class="full">
+                <label>Especificação</label>
+                <input type="text" class="it-espec" placeholder="Descrição">
+            </div>
+            <div>
+                <label>QTD</label>
+                <input type="number" class="it-qtd" min="0" step="0.01" value="1" oninput="recalcItem(this)">
+            </div>
+            <div>
+                <label>Unidade</label>
+                <input type="text" class="it-unid" value="UN">
+            </div>
+            <div>
+                <label>Valor UN</label>
+                <input type="number" class="it-valor" min="0" step="0.01" value="0" oninput="recalcItem(this)">
+            </div>
+            <div>
+                <label>Total</label>
+                <input type="text" class="it-total" readonly value="R$ 0,00">
+            </div>
+            <div class="full">
+                <button type="button" class="m-btn del" onclick="this.closest('.m-item-row').remove(); recalcTotal();" style="width:100%;">Remover item</button>
+            </div>
         </div>
     `;
     root.appendChild(div);
@@ -571,6 +597,7 @@ function addItem() {
 
 function recalcItem(input) {
     const row = input.closest('.m-item-row');
+    if (!row) return;
     const qtd = parseFloat(row.querySelector('.it-qtd').value) || 0;
     const vlr = parseFloat(row.querySelector('.it-valor').value) || 0;
     row.querySelector('.it-total').value = formatCurrency(qtd * vlr);
@@ -731,18 +758,22 @@ function abrirDuplicar() {
                     <h2>Duplicar Ordem</h2>
                     <button class="m-close" onclick="fecharDuplicar()">✕</button>
                 </div>
-                <label style="font-size:0.78rem; font-weight:600; text-transform:uppercase;">Número da ordem</label>
-                <input type="text" id="numeroDuplicar" placeholder="Ex: 1250" style="margin-top:0.35rem; padding:0.85rem 1rem; border:1.5px solid var(--border); border-radius:12px; background:var(--input-bg); font-size:1rem; width:100%;">
-                <div id="duplicarErro" style="color:#EF4444; font-size:0.85rem; margin-top:0.5rem; display:none;"></div>
-                <div class="m-form-actions centered" style="margin-top:1.25rem;">
-                    <button class="m-btn secondary" onclick="fecharDuplicar()">Cancelar</button>
-                    <button class="m-btn primary" onclick="confirmarDuplicar()">Confirmar</button>
+                <div class="m-form">
+                    <div>
+                        <label>Número da ordem</label>
+                        <input type="text" id="numeroDuplicar" placeholder="Ex: 1250">
+                    </div>
+                    <div id="duplicarErro" style="color:#EF4444; font-size:0.85rem; display:none;"></div>
+                    <div class="m-form-actions centered">
+                        <button type="button" class="m-btn secondary" onclick="fecharDuplicar()">Cancelar</button>
+                        <button type="button" class="m-btn primary" onclick="confirmarDuplicar()">Confirmar</button>
+                    </div>
                 </div>
             </div>
         </div>
     `;
     document.body.appendChild(host);
-    document.getElementById('numeroDuplicar').focus();
+    setTimeout(() => document.getElementById('numeroDuplicar')?.focus(), 50);
 }
 function fecharDuplicar() { document.getElementById('duplicarHost')?.remove(); }
 
