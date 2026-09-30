@@ -193,7 +193,6 @@ module.exports = function (supabase, supabaseAdmin) {
             }
 
             const responsavel = nomeResponsavel(req.user);
-            console.log('[PRECOS POST] usuario:', req.user.username, '| nome:', req.user.name, '| gravando vendedor:', responsavel);
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
@@ -224,7 +223,7 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR (atualiza responsável com quem está editando) ───
+    // ─── ATUALIZAR (atualiza responsável com quem editou) ───
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -259,7 +258,6 @@ module.exports = function (supabase, supabaseAdmin) {
             }
 
             const responsavel = nomeResponsavel(req.user);
-            console.log('[PRECOS PUT] usuario:', req.user.username, '| nome:', req.user.name, '| gravando vendedor:', responsavel);
 
             const { data, error } = await supabaseAdmin
                 .from('precos')
