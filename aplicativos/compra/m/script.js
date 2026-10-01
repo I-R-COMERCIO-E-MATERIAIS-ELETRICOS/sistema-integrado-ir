@@ -17,6 +17,7 @@ let ultimoNumeroGlobal = 0;
 
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
+// ─── AUTH ───────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -59,6 +60,7 @@ function showDenied(msg) {
     `;
 }
 
+// ─── HELPERS ────────────────────────────────────────────────
 function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
 
 function detectResponsavelFromUser(name) {
@@ -98,9 +100,12 @@ function showToast(msg, type) {
     }, 3000);
 }
 
+// ─── INIT ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
+
+    initCarousel();
 
     await fetchSessionUser();
     await carregarTudo();
@@ -136,6 +141,110 @@ async function carregarTudo() {
     }
 }
 
+// ─── CARROSSEL DE DASHBOARDS ────────────────────────────────
+const CAROUSEL_VISIBLE = 3; // dashboards por vez
+let carouselIndex = 0;
+let carouselCardsCount = 0;
+let touchStartX = 0;
+let touchDeltaX = 0;
+let isDragging = false;
+
+function initCarousel() {
+    const track = document.getElementById('dashTrack');
+    const dots  = document.getElementById('dashDots');
+    if (!track || !dots) return;
+
+    carouselCardsCount = track.children.length;
+    renderDots();
+    updateCarouselPosition(0);
+
+    // Toque (touch)
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchmove',  onTouchMove,  { passive: true });
+    track.addEventListener('touchend',   onTouchEnd,   { passive: true });
+
+    // Mouse (fallback para teste no desktop)
+    track.addEventListener('mousedown', onTouchStart);
+    window.addEventListener('mousemove', onTouchMove);
+    window.addEventListener('mouseup',   onTouchEnd);
+
+    window.addEventListener('resize', () => updateCarouselPosition(carouselIndex));
+}
+
+function renderDots() {
+    const dots = document.getElementById('dashDots');
+    if (!dots) return;
+    const total = carouselCardsCount;
+    dots.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+        const d = document.createElement('span');
+        d.className = 'm-carousel-dot';
+        dots.appendChild(d);
+    }
+}
+
+function updateCarouselPosition(idx) {
+    const track = document.getElementById('dashTrack');
+    if (!track) return;
+
+    const total = carouselCardsCount;
+    if (total === 0) return;
+
+    // Loop infinito: se passar do último, volta ao primeiro; se for antes do primeiro, vai ao último.
+    if (idx >= total) idx = 0;
+    if (idx < 0) idx = total - 1;
+    carouselIndex = idx;
+
+    // Como mostramos 3 por vez, e temos N cards, o "índice" define qual card fica
+    // alinhado à esquerda. Se idx + VISIBLE > N, ele empurra o track pra mostrar
+    // o último grupo.
+    const card = track.children[0];
+    if (!card) return;
+    const cardWidth = card.getBoundingClientRect().width;
+    const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 0) || 0;
+
+    let offset = idx * (cardWidth + gap);
+    const maxOffset = Math.max(0, (total - CAROUSEL_VISIBLE) * (cardWidth + gap));
+    if (offset > maxOffset) offset = maxOffset;
+
+    track.style.transform = `translateX(-${offset}px)`;
+
+    // Atualiza os dots
+    document.querySelectorAll('.m-carousel-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === carouselIndex);
+    });
+}
+
+function onTouchStart(e) {
+    const p = e.touches ? e.touches[0] : e;
+    touchStartX = p.clientX;
+    touchDeltaX = 0;
+    isDragging = true;
+}
+
+function onTouchMove(e) {
+    if (!isDragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    touchDeltaX = p.clientX - touchStartX;
+}
+
+function onTouchEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const threshold = 40; // px mínimos pra considerar "swipe"
+    if (touchDeltaX > threshold) {
+        // deslizou pra direita -> vai pro anterior
+        updateCarouselPosition(carouselIndex - 1);
+    } else if (touchDeltaX < -threshold) {
+        // deslizou pra esquerda -> vai pro próximo
+        updateCarouselPosition(carouselIndex + 1);
+    }
+    touchStartX = 0;
+    touchDeltaX = 0;
+}
+
+// ─── FETCH ──────────────────────────────────────────────────
 async function loadOrdens() {
     try {
         const res = await fetch(`${API_URL}/ordens`, { headers: getHeaders(), cache: 'no-cache' });
@@ -200,18 +309,19 @@ function mesclarCacheFornecedores(lista) {
 }
 
 async function syncData() {
-    const btns = document.querySelectorAll('.m-sync-btn');
-    btns.forEach(b => b.classList.add('spinning'));
+    const btn = document.getElementById('syncBtn');
+    if (btn) btn.classList.add('spinning');
     try {
         await carregarTudo();
         showToast('Dados sincronizados', 'success');
     } catch {
         showToast('Erro ao sincronizar', 'error');
     } finally {
-        setTimeout(() => btns.forEach(b => b.classList.remove('spinning')), 600);
+        setTimeout(() => btn && btn.classList.remove('spinning'), 600);
     }
 }
 
+// ─── RENDER ─────────────────────────────────────────────────
 function updateDisplay() {
     updateStats();
     updateList();
@@ -221,13 +331,22 @@ function updateDisplay() {
 
 function updateStats() {
     const fechadas = ordens.filter(o => o.status === 'fechada').length;
-    const abertas = ordens.filter(o => o.status === 'aberta').length;
+    const abertas  = ordens.filter(o => o.status === 'aberta').length;
+
+    let total = 0;
+    ordens.forEach(o => {
+        const v = (o.valor_total || '0').replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+        total += parseFloat(v) || 0;
+    });
+
     const t = document.getElementById('m-total');
     const f = document.getElementById('m-fechadas');
     const a = document.getElementById('m-abertas');
+    const v = document.getElementById('m-valor');
     if (t) t.textContent = ordens.length;
     if (f) f.textContent = fechadas;
     if (a) a.textContent = abertas;
+    if (v) v.textContent = formatCurrency(total);
 }
 
 function updateList() {
@@ -303,6 +422,7 @@ function updateAuditBtn() {
     btn.style.display = currentUserIsAdmin ? 'flex' : 'none';
 }
 
+// ─── VISUALIZAR ─────────────────────────────────────────────
 function viewOrdem(id) {
     const o = ordens.find(x => String(x.id) === String(id));
     if (!o) return;
@@ -367,6 +487,7 @@ function viewOrdem(id) {
 
 function closeView() { document.getElementById('viewModalHost')?.remove(); }
 
+// ─── FORM ───────────────────────────────────────────────────
 function toggleForm() {
     editingId = null;
     currentTab = 0;
