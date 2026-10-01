@@ -33,63 +33,53 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     const admin  = supabaseAdmin || supabase;
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
-    console.log('[compra][init] módulo de compra carregado');
-
-    // ─── AUTH ───────────────────────────────────────────────
     async function requireAuth(req, res, next) {
         const auth  = req.headers['authorization'];
         const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
         const sessionToken = bearer || req.headers['x-session-token'];
-
-        console.log('[compra][auth]', req.method, req.originalUrl,
-            '| token recebido:', sessionToken ? 'SIM' : 'NÃO',
-            '| origem:', bearer ? 'Bearer' : (req.headers['x-session-token'] ? 'X-Session-Token' : 'nenhuma'));
-
         if (!sessionToken) return res.status(401).json({ error: 'Não autenticado' });
 
         let profile = null;
         const payload = verifyToken(sessionToken, SESSION_SECRET);
         if (payload && payload.uid) {
-            console.log('[compra][auth] token JWT válido, buscando profile', payload.uid);
-            const { data, error } = await admin
+            const { data } = await admin
                 .from('profiles')
                 .select('id, username, name, sector, is_admin, is_active, apps')
                 .eq('id', payload.uid)
                 .single();
-            if (error) console.log('[compra][auth] erro profiles:', error.message);
             profile = data;
-        } else {
-            console.log('[compra][auth] token não é JWT, tentando active_sessions');
         }
 
         if (!profile) {
-            const { data: sess, error } = await admin
+            const { data: sess } = await admin
                 .from('active_sessions')
                 .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
                 .eq('session_token', sessionToken)
                 .eq('is_active', true)
                 .gt('expires_at', new Date().toISOString())
                 .single();
-            if (error) console.log('[compra][auth] erro active_sessions:', error.message);
             if (sess && sess.users) profile = sess.users;
         }
 
         if (!profile || !profile.is_active) {
-            console.log('[compra][auth] ✗ sem profile ativo');
             return res.status(401).json({ error: 'Sessão inválida' });
         }
-
-        console.log('[compra][auth] ✓ usuário:', profile.username, '| is_admin:', profile.is_admin, '| apps:', JSON.stringify(profile.apps));
 
         if (!profile.is_admin) {
             const apps = Array.isArray(profile.apps) ? profile.apps : [];
             if (!apps.includes('compra') && !apps.includes('compras')) {
-                console.log('[compra][auth] ✗ usuário sem app "compra"');
                 return res.status(403).json({ error: 'Sem acesso ao módulo' });
             }
         }
 
         req.user = profile;
+        next();
+    }
+
+    async function requireAdmin(req, res, next) {
+        if (!req.user || !req.user.is_admin) {
+            return res.status(403).json({ error: 'Apenas administradores' });
+        }
         next();
     }
 
@@ -106,10 +96,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     }
 
     function audit(req, action, targetId, details) {
-        if (typeof logActivity !== 'function') {
-            console.log('[compra][audit] logActivity não é função, pulando');
-            return;
-        }
+        if (typeof logActivity !== 'function') return;
         try {
             logActivity(admin, req, {
                 action,
@@ -123,19 +110,30 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
-    // ─── ÚLTIMO NÚMERO ──────────────────────────────────────
+    // ─── AUDITORIA ──────────────────────────────────────────
+    router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
+        try {
+            const { data, error } = await admin
+                .from('activity_logs')
+                .select('*')
+                .eq('module', 'compra')
+                .order('created_at', { ascending: false })
+                .limit(500);
+            if (error) throw error;
+            res.json(data || []);
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
     router.get('/ordens/ultimo-numero', requireAuth, async (req, res) => {
         try {
-            console.log('[compra][GET /ordens/ultimo-numero]');
             const { data, error } = await admin
                 .from('ordens_compra')
                 .select('numero_ordem')
                 .order('numero_ordem', { ascending: false })
                 .limit(1);
-            if (error) {
-                console.log('[compra][GET /ordens/ultimo-numero] erro:', error.message);
-                throw error;
-            }
+            if (error) throw error;
             const ultimo = data && data[0] ? parseInt(data[0].numero_ordem) || 0 : 0;
             res.json({ ultimoNumero: ultimo });
         } catch (e) {
@@ -143,10 +141,8 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── BUSCAR POR NÚMERO ──────────────────────────────────
     router.get('/ordens/numero/:numero', requireAuth, async (req, res) => {
         try {
-            console.log('[compra][GET /ordens/numero]', req.params.numero);
             const { data, error } = await admin
                 .from('ordens_compra')
                 .select('*')
@@ -160,12 +156,9 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── LISTAR ─────────────────────────────────────────────
     router.get('/ordens', requireAuth, async (req, res) => {
         try {
             const { mes, ano } = req.query;
-            console.log('[compra][GET /ordens] mes:', mes, 'ano:', ano);
-
             let q = admin.from('ordens_compra').select('*');
 
             if (mes !== undefined && ano !== undefined) {
@@ -177,19 +170,13 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             }
 
             const { data, error } = await q.order('numero_ordem', { ascending: true });
-            if (error) {
-                console.log('[compra][GET /ordens] erro:', error.message);
-                throw error;
-            }
-            console.log('[compra][GET /ordens] ✓ retornando', (data || []).length, 'linhas');
+            if (error) throw error;
             res.json(data || []);
         } catch (e) {
-            console.error('[compra][GET /ordens] catch:', e);
             res.status(500).json({ error: e.message });
         }
     });
 
-    // ─── CRIAR ──────────────────────────────────────────────
     router.post('/ordens', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -199,17 +186,12 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
             const responsavel = nomeResponsavel(req.user);
             if (!body.responsavel && responsavel) body.responsavel = responsavel;
 
-            console.log('[compra][POST /ordens] numero:', body.numero_ordem, '| responsavel:', body.responsavel);
-
             const { data, error } = await admin
                 .from('ordens_compra')
                 .insert(body)
                 .select()
                 .single();
-            if (error) {
-                console.log('[compra][POST /ordens] erro:', error.message);
-                throw error;
-            }
+            if (error) throw error;
 
             await notificar(`Ordem de Nº ${data.numero_ordem} aberta`);
             audit(req, 'create', data.id, { numero: data.numero_ordem });
@@ -221,7 +203,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ATUALIZAR ──────────────────────────────────────────
     router.put('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -252,7 +233,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── EXCLUIR ────────────────────────────────────────────
     router.delete('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const { data: ordem, error: fe } = await admin
@@ -278,7 +258,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ALTERAR STATUS ─────────────────────────────────────
     router.patch('/ordens/:id/status', requireAuth, async (req, res) => {
         try {
             const { status } = req.body || {};
@@ -301,10 +280,8 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── FORNECEDORES ÚNICOS ────────────────────────────────
     router.get('/fornecedores', requireAuth, async (req, res) => {
         try {
-            console.log('[compra][GET /fornecedores]');
             const { data, error } = await admin
                 .from('ordens_compra')
                 .select('razao_social, nome_fantasia, cnpj, endereco_fornecedor, site, contato, telefone, email')
@@ -316,7 +293,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 const key = (f.razao_social || '').trim().toUpperCase();
                 if (key && !unique.has(key)) unique.set(key, f);
             }
-            console.log('[compra][GET /fornecedores] ✓', unique.size, 'fornecedores únicos');
             res.json(Array.from(unique.values()));
         } catch (e) {
             res.status(500).json({ error: e.message });
