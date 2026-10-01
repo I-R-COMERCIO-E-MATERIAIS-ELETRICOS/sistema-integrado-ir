@@ -4,10 +4,9 @@
 
 const API_URL = window.location.origin + '/api';
 
-console.log('[compra-front] script carregado');
-
 let accessToken = null;
 let currentUserName = null;
+let currentUserIsAdmin = false;
 
 let ordens = [];
 let currentMonth = new Date();
@@ -27,12 +26,9 @@ function resolveToken() {
     if (fromUrl) {
         sessionStorage.setItem('irToken', fromUrl);
         window.history.replaceState({}, '', window.location.pathname);
-        console.log('[compra-front] token vindo da URL');
         return fromUrl;
     }
-    const t = sessionStorage.getItem('irToken');
-    console.log('[compra-front] token vindo do sessionStorage:', t ? 'SIM' : 'NÃO');
-    return t;
+    return sessionStorage.getItem('irToken');
 }
 
 function getHeaders() {
@@ -49,30 +45,24 @@ function showDenied(msg) {
             window.parent.postMessage({ type: 'ir-session-expired', reason: msg || 'sem-acesso' }, '*');
         }
     } catch (e) {}
-
     document.documentElement.style.overflow = 'hidden';
     document.body.innerHTML = `
-        <div style="
-            position: fixed; inset: 0;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            background: #F4F5F7; color: #111;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            text-align: center; padding: 2rem; z-index: 2147483647;
-        ">
-            <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;">${msg || 'SEM ACESSO'}</h1>
-            <p style="color: #5B6470; margin-bottom: 2rem; font-size: 0.95rem;">Você não tem permissão para acessar este módulo.</p>
+        <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F4F5F7;color:#111;font-family:'Inter',system-ui,sans-serif;text-align:center;padding:2rem;z-index:2147483647;">
+            <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:.75rem;">${msg || 'SEM ACESSO'}</h1>
+            <p style="color:#5B6470;font-size:.95rem;">Você não tem permissão para acessar este módulo.</p>
         </div>
     `;
 }
 
 function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
+
 function parseFloatLocale(str) {
     if (typeof str !== 'string') return NaN;
     const c = str.replace(/\s+/g, '').replace(',', '.');
     const n = parseFloat(c);
     return isNaN(n) ? NaN : n;
 }
+
 function detectResponsavelFromUser(name) {
     if (!name) return null;
     const u = name.trim().toUpperCase();
@@ -81,18 +71,22 @@ function detectResponsavelFromUser(name) {
     }
     return null;
 }
+
 function formatCurrency(v) {
     const n = parseFloat(v);
     return isNaN(n) ? 'R$ 0,00' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
 function formatDate(d) {
     if (!d) return '-';
     const dt = new Date(d + 'T00:00:00');
     return isNaN(dt.getTime()) ? '-' : dt.toLocaleDateString('pt-BR');
 }
+
 function escHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
 function showToast(msg, type) {
     type = type || 'success';
     document.querySelectorAll('.floating-message').forEach(m => m.remove());
@@ -108,13 +102,8 @@ function showToast(msg, type) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[compra-front] DOMContentLoaded');
     accessToken = resolveToken();
-    if (!accessToken) {
-        console.log('[compra-front] ✗ sem token');
-        showDenied('SESSÃO EXPIRADA');
-        return;
-    }
+    if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
 
     await fetchSessionUser();
     updateMonthDisplay();
@@ -125,25 +114,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchSessionUser() {
     try {
         const res = await fetch('/api/portal/modules', { headers: getHeaders() });
-        console.log('[compra-front] /api/portal/modules status:', res.status);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.user) currentUserName = data.user.name || data.user.username || null;
-        console.log('[compra-front] usuário:', currentUserName);
-    } catch (e) {
-        console.log('[compra-front] erro fetchSessionUser:', e.message);
-    }
+        if (data.user) {
+            currentUserName = data.user.name || data.user.username || null;
+            currentUserIsAdmin = !!data.user.is_admin;
+        }
+    } catch (e) {}
 }
 
 async function carregarTudo() {
-    console.log('[compra-front] carregarTudo início');
     try {
         await loadOrdens();
         await loadUltimoNumero();
         await loadFornecedoresGlobal();
-        console.log('[compra-front] carregarTudo fim ✓');
     } catch (err) {
-        console.error('[compra-front] carregarTudo erro:', err);
+        console.error('[compra] carregarTudo:', err);
     } finally {
         try {
             if (window.parent && window.parent !== window) {
@@ -160,45 +146,27 @@ async function loadOrdens() {
 
     const mes = currentMonth.getMonth();
     const ano = currentMonth.getFullYear();
-    const url = `${API_URL}/ordens?mes=${mes}&ano=${ano}`;
-
-    console.log('[compra-front] GET', url);
 
     try {
-        const res = await fetch(url, {
+        const res = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
             method: 'GET',
             headers: getHeaders(),
             cache: 'no-cache',
             signal
         });
-        console.log('[compra-front] /ordens status:', res.status);
 
-        if (res.status === 401 || res.status === 403) {
-            console.log('[compra-front] ✗ sem acesso');
-            showDenied('SEM ACESSO');
-            return;
-        }
-        if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            console.log('[compra-front] ✗ erro HTTP:', res.status, txt.slice(0, 300));
-            throw new Error('Erro ' + res.status);
-        }
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (!res.ok) throw new Error('Erro ' + res.status);
 
         const data = await res.json();
-        console.log('[compra-front] /ordens retornou', Array.isArray(data) ? data.length : 'não-array', 'itens');
-
-        if (mes !== currentMonth.getMonth() || ano !== currentMonth.getFullYear()) {
-            console.log('[compra-front] mês mudou durante o fetch, descartando');
-            return;
-        }
+        if (mes !== currentMonth.getMonth() || ano !== currentMonth.getFullYear()) return;
 
         ordens = Array.isArray(data) ? data : [];
         mesclarCacheFornecedores(ordens);
         updateDisplay();
-        console.log('[compra-front] render concluído com', ordens.length, 'ordens');
     } catch (err) {
         if (err.name === 'AbortError') return;
-        console.error('[compra-front] loadOrdens erro:', err);
+        console.error('[compra] loadOrdens:', err);
     } finally {
         currentFetchController = null;
     }
@@ -207,23 +175,17 @@ async function loadOrdens() {
 async function loadUltimoNumero() {
     try {
         const res = await fetch(`${API_URL}/ordens/ultimo-numero`, { headers: getHeaders(), cache: 'no-cache' });
-        console.log('[compra-front] /ordens/ultimo-numero status:', res.status);
         if (!res.ok) return;
         const data = await res.json();
         ultimoNumeroGlobal = data.ultimoNumero || 0;
-        console.log('[compra-front] último número:', ultimoNumeroGlobal);
-    } catch (e) {
-        console.log('[compra-front] erro loadUltimoNumero:', e.message);
-    }
+    } catch (e) {}
 }
 
 async function loadFornecedoresGlobal() {
     try {
         const res = await fetch(`${API_URL}/fornecedores`, { headers: getHeaders(), cache: 'no-cache' });
-        console.log('[compra-front] /fornecedores status:', res.status);
         if (!res.ok) return;
         const lista = await res.json();
-        console.log('[compra-front] /fornecedores retornou', Array.isArray(lista) ? lista.length : 'não-array');
         lista.forEach(f => {
             const razao = (f.razao_social || '').trim().toUpperCase();
             if (razao && !fornecedoresCache[razao]) {
@@ -239,9 +201,7 @@ async function loadFornecedoresGlobal() {
                 };
             }
         });
-    } catch (e) {
-        console.log('[compra-front] erro loadFornecedoresGlobal:', e.message);
-    }
+    } catch (e) {}
 }
 
 function mesclarCacheFornecedores(lista) {
@@ -300,18 +260,13 @@ function setupFornecedorAutocomplete() {
 
         box = document.createElement('div');
         box.id = 'fornecedorSuggestions';
-        box.style.cssText = `
-            position: absolute; z-index: 1000; background: var(--bg-card);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 260px;
-            overflow-y: auto; width: 100%; margin-top: 4px; left: 0;
-        `;
+        box.style.cssText = `position:absolute;z-index:1000;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:260px;overflow-y:auto;width:100%;margin-top:4px;left:0;`;
         list.forEach(f => {
             const item = document.createElement('div');
-            item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);';
+            item.style.cssText = 'padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border-color);';
             item.innerHTML = `
-                <div style="font-weight: 600; font-size: 0.88rem;">${escHtml(f.razaoSocial)}</div>
-                <div style="font-size: 0.78rem; color: var(--text-secondary);">${escHtml(f.cnpj)}${f.nomeFantasia ? ' · ' + escHtml(f.nomeFantasia) : ''}</div>
+                <div style="font-weight:600;font-size:.88rem;">${escHtml(f.razaoSocial)}</div>
+                <div style="font-size:.78rem;color:var(--text-secondary);">${escHtml(f.cnpj)}${f.nomeFantasia ? ' · ' + escHtml(f.nomeFantasia) : ''}</div>
             `;
             item.addEventListener('click', () => preencherDadosFornecedor(f));
             box.appendChild(item);
@@ -365,11 +320,18 @@ function updateDisplay() {
     updateDashboard();
     updateTable();
     updateResponsaveisFilter();
+    updateAuditBtn();
+}
+
+function updateAuditBtn() {
+    const btn = document.getElementById('auditBtn');
+    if (!btn) return;
+    btn.style.display = currentUserIsAdmin ? 'inline-flex' : 'none';
 }
 
 function updateDashboard() {
     const totalFechadas = ordens.filter(o => o.status === 'fechada').length;
-    const totalAbertas = ordens.filter(o => o.status === 'aberta').length;
+    const totalAbertas  = ordens.filter(o => o.status === 'aberta').length;
 
     document.getElementById('totalOrdens').textContent = ordens.length;
     document.getElementById('totalFechadas').textContent = totalFechadas;
@@ -407,7 +369,7 @@ function updateTable() {
         return;
     }
 
-    lista.sort((a, b) => parseInt(a.numero_ordem) - parseInt(b.numero_ordem));
+    lista.sort((a, b) => parseInt(b.numero_ordem || 0) - parseInt(a.numero_ordem || 0));
 
     c.innerHTML = lista.map(o => `
         <tr class="${o.status === 'fechada' ? 'row-fechada' : ''}" onclick="handleRowClick(event, '${o.id}')">
@@ -476,7 +438,6 @@ function viewOrdem(id) {
             ${o.nome_fantasia ? `<p><strong>Nome Fantasia:</strong> ${escHtml(toUpperCase(o.nome_fantasia))}</p>` : ''}
             <p><strong>CNPJ:</strong> ${escHtml(o.cnpj)}</p>
             ${o.endereco_fornecedor ? `<p><strong>Endereço:</strong> ${escHtml(toUpperCase(o.endereco_fornecedor))}</p>` : ''}
-            ${o.site ? `<p><strong>Site:</strong> ${escHtml(o.site)}</p>` : ''}
             ${o.contato ? `<p><strong>Contato:</strong> ${escHtml(toUpperCase(o.contato))}</p>` : ''}
             ${o.telefone ? `<p><strong>Telefone:</strong> ${escHtml(o.telefone)}</p>` : ''}
             ${o.email ? `<p><strong>E-mail:</strong> ${escHtml(o.email)}</p>` : ''}
@@ -1151,4 +1112,100 @@ function generatePDF(id) {
 
     doc.save(`OC-${o.numero_ordem}.pdf`);
     showToast(`Ordem Nº ${o.numero_ordem} emitida`, 'success');
+}
+
+// ─── AUDITORIA (PDF) ────────────────────────────────────────
+async function abrirAuditoria() {
+    if (!currentUserIsAdmin) return showToast('Apenas administradores', 'error');
+
+    try {
+        const res = await fetch(`${API_URL}/ordens/auditoria`, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        const logs = await res.json();
+        gerarPDFAuditoria(Array.isArray(logs) ? logs : []);
+    } catch (err) {
+        showToast('Erro ao buscar atividades: ' + err.message, 'error');
+    }
+}
+
+function gerarPDFAuditoria(logs) {
+    if (!window.jspdf) return showToast('Biblioteca PDF não carregada', 'error');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth  = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 20;
+
+    const agora = new Date();
+    const emissao = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('RELATÓRIO DE ATIVIDADES', pageWidth / 2, y, { align: 'center' }); y += 8;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text('Módulo: Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Responsável pela emissão: ${currentUserName || '—'}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+
+    const grupos = {};
+    logs.forEach(l => {
+        const d = new Date(l.created_at);
+        const dia = isNaN(d) ? 'Sem data' : d.toLocaleDateString('pt-BR');
+        if (!grupos[dia]) grupos[dia] = [];
+        grupos[dia].push(l);
+    });
+
+    const dias = Object.keys(grupos).sort((a, b) => {
+        const pa = a.split('/').reverse().join('-');
+        const pb = b.split('/').reverse().join('-');
+        return pb.localeCompare(pa);
+    });
+
+    dias.forEach(dia => {
+        if (y > pageHeight - 40) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(255, 82, 29);
+        doc.text(dia, margin, y); y += 6;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+
+        grupos[dia].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        grupos[dia].forEach(l => {
+            if (y > pageHeight - 20) { doc.addPage(); y = 20; }
+            const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const nome = l.username || '—';
+            const acao = traduzirAcao(l.action);
+            const ordem = l.target_code || '—';
+            doc.text(`${hora}  ·  ${nome} ${acao} a Ordem de Compra Nº ${ordem}`, margin + 4, y);
+            y += 5;
+        });
+
+        y += 6;
+    });
+
+    if (!dias.length) {
+        doc.setFontSize(11);
+        doc.text('Nenhuma atividade registrada.', margin, y);
+    }
+
+    const nome = `atividades-compra-${agora.toISOString().slice(0,10)}.pdf`;
+    doc.save(nome);
+    showToast('Relatório gerado', 'success');
+}
+
+function traduzirAcao(a) {
+    switch (a) {
+        case 'create': return 'registrou';
+        case 'update': return 'atualizou';
+        case 'delete': return 'excluiu';
+        case 'status': return 'alterou o status d';
+        default: return a || '—';
+    }
 }
