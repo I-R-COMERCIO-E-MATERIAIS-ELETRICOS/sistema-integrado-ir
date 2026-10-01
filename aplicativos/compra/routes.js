@@ -110,13 +110,19 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
-    // ─── AUDITORIA ──────────────────────────────────────────
+    // ─── AUDITORIA (por responsável) ────────────────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
+            const responsavel = (req.query.responsavel || '').trim();
+            if (!responsavel) {
+                return res.status(400).json({ error: 'Selecione um responsável' });
+            }
+
             const { data, error } = await admin
                 .from('activity_logs')
                 .select('*')
                 .eq('module', 'compra')
+                .eq('username', responsavel)
                 .order('created_at', { ascending: false })
                 .limit(500);
             if (error) throw error;
