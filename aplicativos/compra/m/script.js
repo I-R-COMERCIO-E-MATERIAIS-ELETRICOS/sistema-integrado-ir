@@ -127,6 +127,7 @@ async function carregarTudo() {
     } catch (e) {
         console.error('[compra m] carregarTudo:', e);
     } finally {
+        updateAuditBtn();
         try {
             if (window.parent && window.parent !== window) {
                 window.parent.postMessage({ type: 'ir-module-ready', module: 'compra' }, '*');
@@ -199,15 +200,15 @@ function mesclarCacheFornecedores(lista) {
 }
 
 async function syncData() {
-    const btn = document.querySelector('.m-sync-btn');
-    if (btn) btn.classList.add('spinning');
+    const btns = document.querySelectorAll('.m-sync-btn');
+    btns.forEach(b => b.classList.add('spinning'));
     try {
         await carregarTudo();
         showToast('Dados sincronizados', 'success');
     } catch {
         showToast('Erro ao sincronizar', 'error');
     } finally {
-        setTimeout(() => btn && btn.classList.remove('spinning'), 600);
+        setTimeout(() => btns.forEach(b => b.classList.remove('spinning')), 600);
     }
 }
 
