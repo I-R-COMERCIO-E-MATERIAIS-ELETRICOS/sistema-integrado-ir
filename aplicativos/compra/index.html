@@ -27,6 +27,16 @@
                 <h1>Ordens de Compra</h1>
             </div>
             <div class="header-actions">
+                <button id="auditBtn" onclick="abrirAuditoria()" class="btn-secondary-header" style="display:none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="8" y1="13" x2="16" y2="13"></line>
+                        <line x1="8" y1="17" x2="16" y2="17"></line>
+                        <line x1="8" y1="9" x2="10" y2="9"></line>
+                    </svg>
+                    Atividades
+                </button>
                 <button onclick="abrirModalDuplicar()" class="btn-secondary-header">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -98,96 +108,4 @@
             <div class="search-bar">
                 <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <input type="text" id="search" placeholder="Buscar por Nº, fornecedor ou responsável..." oninput="filterOrdens()">
-
-                <select id="filterResponsavel" class="search-select" onchange="filterOrdens()">
-                    <option value="">Responsável</option>
-                </select>
-
-                <select id="filterStatus" class="search-select" onchange="filterOrdens()">
-                    <option value="">Todos os Status</option>
-                    <option value="aberta">Aberta</option>
-                    <option value="fechada">Fechada</option>
-                </select>
-
-                <div class="month-navigation-inline">
-                    <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <div class="month-display-inline">
-                        <span id="currentMonth">Carregando...</span>
-                    </div>
-                    <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </div>
-
-                <button class="icon-btn" id="syncBtn" onclick="syncData()" title="Sincronizar">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 4v6h-6"/>
-                        <path d="M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
-                        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="card table-card">
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 40px; text-align: center;">✓</th>
-                            <th>Nº Ordem</th>
-                            <th>Responsável</th>
-                            <th>Fornecedor</th>
-                            <th>Data</th>
-                            <th>Valor Total</th>
-                            <th>Status</th>
-                            <th style="text-align: center;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordensContainer"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL DE VISUALIZAÇÃO -->
-<div class="modal-overlay" id="infoModal">
-    <div class="modal-content large">
-        <div class="modal-header">
-            <h3 class="modal-title">Ordem Nº <span id="modalNumero"></span></h3>
-            <button class="close-modal" onclick="closeInfoModal()">✕</button>
-        </div>
-        <div class="tabs-container">
-            <div class="tabs-nav">
-                <button class="tab-btn active" onclick="switchInfoTab('info-tab-geral', this)">Geral</button>
-                <button class="tab-btn" onclick="switchInfoTab('info-tab-fornecedor', this)">Fornecedor</button>
-                <button class="tab-btn" onclick="switchInfoTab('info-tab-pedido', this)">Pedido</button>
-                <button class="tab-btn" onclick="switchInfoTab('info-tab-entrega', this)">Entrega</button>
-                <button class="tab-btn" onclick="switchInfoTab('info-tab-pagamento', this)">Pagamento</button>
-            </div>
-            <div class="tab-content active" id="info-tab-geral"></div>
-            <div class="tab-content" id="info-tab-fornecedor"></div>
-            <div class="tab-content" id="info-tab-pedido"></div>
-            <div class="tab-content" id="info-tab-entrega"></div>
-            <div class="tab-content" id="info-tab-pagamento"></div>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="secondary" onclick="closeInfoModal()">Fechar</button>
-        </div>
-    </div>
-</div>
-
-<script src="/compra/script.js"></script>
-</body>
-</html>
+                    <path d="m21 21-4.35-4.35"></
