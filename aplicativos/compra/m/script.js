@@ -9,6 +9,7 @@ let currentUserName = null;
 let currentUserIsAdmin = false;
 
 let ordens = [];
+let currentMonth = new Date();
 let editingId = null;
 let itemCounter = 0;
 let currentTab = 0;
@@ -106,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
 
     initCarousel();
+    updateMonthDisplay();
 
     await fetchSessionUser();
     await carregarTudo();
@@ -141,77 +143,59 @@ async function carregarTudo() {
     }
 }
 
-// ─── CARROSSEL DE DASHBOARDS ────────────────────────────────
-const CAROUSEL_VISIBLE = 3; // dashboards por vez
-let carouselIndex = 0;
-let carouselCardsCount = 0;
+// ─── CARROSSEL DE DASHBOARDS (paginação real, 3 por página) ─
+const CAROUSEL_VISIBLE = 3;
+let carouselPage = 0;
+let carouselTotalPages = 1;
 let touchStartX = 0;
 let touchDeltaX = 0;
 let isDragging = false;
 
 function initCarousel() {
     const track = document.getElementById('dashTrack');
-    const dots  = document.getElementById('dashDots');
-    if (!track || !dots) return;
+    if (!track) return;
 
-    carouselCardsCount = track.children.length;
+    const totalCards = track.children.length;
+    carouselTotalPages = Math.max(1, Math.ceil(totalCards / CAROUSEL_VISIBLE));
+
     renderDots();
     updateCarouselPosition(0);
 
-    // Toque (touch)
     track.addEventListener('touchstart', onTouchStart, { passive: true });
     track.addEventListener('touchmove',  onTouchMove,  { passive: true });
     track.addEventListener('touchend',   onTouchEnd,   { passive: true });
 
-    // Mouse (fallback para teste no desktop)
     track.addEventListener('mousedown', onTouchStart);
     window.addEventListener('mousemove', onTouchMove);
     window.addEventListener('mouseup',   onTouchEnd);
 
-    window.addEventListener('resize', () => updateCarouselPosition(carouselIndex));
+    window.addEventListener('resize', () => updateCarouselPosition(carouselPage));
 }
 
 function renderDots() {
     const dots = document.getElementById('dashDots');
     if (!dots) return;
-    const total = carouselCardsCount;
     dots.innerHTML = '';
-    for (let i = 0; i < total; i++) {
+    for (let i = 0; i < carouselTotalPages; i++) {
         const d = document.createElement('span');
         d.className = 'm-carousel-dot';
         dots.appendChild(d);
     }
 }
 
-function updateCarouselPosition(idx) {
+function updateCarouselPosition(page) {
     const track = document.getElementById('dashTrack');
     if (!track) return;
 
-    const total = carouselCardsCount;
-    if (total === 0) return;
+    if (page >= carouselTotalPages) page = 0;
+    if (page < 0) page = carouselTotalPages - 1;
+    carouselPage = page;
 
-    // Loop infinito: se passar do último, volta ao primeiro; se for antes do primeiro, vai ao último.
-    if (idx >= total) idx = 0;
-    if (idx < 0) idx = total - 1;
-    carouselIndex = idx;
+    const offset = page * 100;
+    track.style.transform = `translateX(-${offset}%)`;
 
-    // Como mostramos 3 por vez, e temos N cards, o "índice" define qual card fica
-    // alinhado à esquerda. Se idx + VISIBLE > N, ele empurra o track pra mostrar
-    // o último grupo.
-    const card = track.children[0];
-    if (!card) return;
-    const cardWidth = card.getBoundingClientRect().width;
-    const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || 0) || 0;
-
-    let offset = idx * (cardWidth + gap);
-    const maxOffset = Math.max(0, (total - CAROUSEL_VISIBLE) * (cardWidth + gap));
-    if (offset > maxOffset) offset = maxOffset;
-
-    track.style.transform = `translateX(-${offset}px)`;
-
-    // Atualiza os dots
     document.querySelectorAll('.m-carousel-dot').forEach((d, i) => {
-        d.classList.toggle('active', i === carouselIndex);
+        d.classList.toggle('active', i === carouselPage);
     });
 }
 
@@ -232,22 +216,39 @@ function onTouchEnd() {
     if (!isDragging) return;
     isDragging = false;
 
-    const threshold = 40; // px mínimos pra considerar "swipe"
+    const threshold = 40;
     if (touchDeltaX > threshold) {
-        // deslizou pra direita -> vai pro anterior
-        updateCarouselPosition(carouselIndex - 1);
+        updateCarouselPosition(carouselPage - 1);
     } else if (touchDeltaX < -threshold) {
-        // deslizou pra esquerda -> vai pro próximo
-        updateCarouselPosition(carouselIndex + 1);
+        updateCarouselPosition(carouselPage + 1);
     }
     touchStartX = 0;
     touchDeltaX = 0;
 }
 
+// ─── MÊS ────────────────────────────────────────────────────
+function changeMonth(direction) {
+    currentMonth.setMonth(currentMonth.getMonth() + direction);
+    ordens = [];
+    updateMonthDisplay();
+    const root = document.getElementById('ordensList');
+    if (root) root.innerHTML = '';
+    loadOrdens();
+}
+
+function updateMonthDisplay() {
+    const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const el = document.getElementById('currentMonth');
+    if (el) el.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+}
+
 // ─── FETCH ──────────────────────────────────────────────────
 async function loadOrdens() {
+    const mes = currentMonth.getMonth();
+    const ano = currentMonth.getFullYear();
     try {
-        const res = await fetch(`${API_URL}/ordens`, { headers: getHeaders(), cache: 'no-cache' });
+        const res = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, { headers: getHeaders(), cache: 'no-cache' });
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         const data = await res.json();
@@ -890,18 +891,30 @@ async function confirmarDuplicar() {
 async function abrirAuditoria() {
     if (!currentUserIsAdmin) return showToast('Apenas administradores', 'error');
 
+    const responsavel = document.getElementById('filterResponsavel')?.value || '';
+    if (!responsavel) {
+        showToast('Selecione um responsável', 'error');
+        return;
+    }
+
     try {
-        const res = await fetch(`${API_URL}/ordens/auditoria`, { headers: getHeaders() });
+        const url = `${API_URL}/ordens/auditoria?responsavel=${encodeURIComponent(responsavel)}`;
+        const res = await fetch(url, { headers: getHeaders() });
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (res.status === 400) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Selecione um responsável', 'error');
+            return;
+        }
         if (!res.ok) throw new Error('Erro ' + res.status);
         const logs = await res.json();
-        gerarPDFAuditoria(Array.isArray(logs) ? logs : []);
+        gerarPDFAuditoria(Array.isArray(logs) ? logs : [], responsavel);
     } catch (err) {
         showToast('Erro ao buscar atividades: ' + err.message, 'error');
     }
 }
 
-function gerarPDFAuditoria(logs) {
+function gerarPDFAuditoria(logs, responsavel) {
     if (!window.jspdf) return showToast('Biblioteca PDF não carregada', 'error');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -919,8 +932,9 @@ function gerarPDFAuditoria(logs) {
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('Módulo: Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Responsável: ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
     doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Responsável pela emissão: ${currentUserName || '—'}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+    doc.text(`Emitido por: ${currentUserName || '—'}`, pageWidth / 2, y, { align: 'center' }); y += 12;
 
     const grupos = {};
     logs.forEach(l => {
@@ -967,7 +981,7 @@ function gerarPDFAuditoria(logs) {
         doc.text('Nenhuma atividade registrada.', margin, y);
     }
 
-    const nome = `atividades-compra-${agora.toISOString().slice(0,10)}.pdf`;
+    const nome = `atividades-compra-${responsavel.toLowerCase()}-${agora.toISOString().slice(0,10)}.pdf`;
     doc.save(nome);
     showToast('Relatório gerado', 'success');
 }
