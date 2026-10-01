@@ -110,7 +110,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
-    // ─── AUDITORIA (por responsável) ────────────────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
             const responsavel = (req.query.responsavel || '').trim();
