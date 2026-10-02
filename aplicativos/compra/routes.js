@@ -95,7 +95,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         catch (e) { console.error('[compra] notificação:', e.message); }
     }
 
-    // Agora com await — garante que o registro chega no banco antes da resposta.
     async function audit(req, action, targetId, details) {
         if (typeof logActivity !== 'function') return;
         try {
@@ -111,7 +110,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
-    // ─── AUDITORIA (por responsável) ────────────────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
             const responsavel = (req.query.responsavel || '').trim().toUpperCase();
@@ -200,7 +198,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .single();
             if (error) throw error;
 
-            // Espera os dois antes de responder
             await Promise.all([
                 notificar(`Ordem de Nº ${data.numero_ordem} aberta`),
                 audit(req, 'create', data.id, { numero: data.numero_ordem })
