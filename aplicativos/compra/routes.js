@@ -110,6 +110,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
+    // ─── AUDITORIA (por responsável) ────────────────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
             const responsavel = (req.query.responsavel || '').trim();
@@ -131,6 +132,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── ÚLTIMO NÚMERO ──────────────────────────────────────
     router.get('/ordens/ultimo-numero', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
@@ -146,6 +148,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── BUSCAR POR NÚMERO ──────────────────────────────────
     router.get('/ordens/numero/:numero', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
@@ -161,6 +164,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── LISTAR ─────────────────────────────────────────────
     router.get('/ordens', requireAuth, async (req, res) => {
         try {
             const { mes, ano } = req.query;
@@ -182,6 +186,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── CRIAR ──────────────────────────────────────────────
     router.post('/ordens', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -208,6 +213,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── ATUALIZAR ──────────────────────────────────────────
     router.put('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -238,6 +244,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── EXCLUIR ────────────────────────────────────────────
     router.delete('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const { data: ordem, error: fe } = await admin
@@ -263,6 +270,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── ALTERAR STATUS ─────────────────────────────────────
     router.patch('/ordens/:id/status', requireAuth, async (req, res) => {
         try {
             const { status } = req.body || {};
@@ -285,6 +293,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
+    // ─── FORNECEDORES ÚNICOS ────────────────────────────────
     router.get('/fornecedores', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
