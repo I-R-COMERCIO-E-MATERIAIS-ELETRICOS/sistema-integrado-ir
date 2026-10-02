@@ -99,7 +99,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
-    // ─── AUDITORIA (por responsável + mês/ano) ──────────────
     router.get('/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
             const responsavel = (req.query.responsavel || '').trim().toUpperCase();
@@ -132,7 +131,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── LISTAR ─────────────────────────────────────────────
     router.get('/', requireAuth, async (req, res) => {
         try {
             const page  = Math.max(1, parseInt(req.query.page)  || 1);
@@ -177,7 +175,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── BUSCAR POR ID ──────────────────────────────────────
     router.get('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -197,7 +194,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── CRIAR ──────────────────────────────────────────────
     router.post('/', requireAuth, async (req, res) => {
         try {
             const { nome, representante, email, telefones, celulares, regioes, estados } = req.body || {};
@@ -235,7 +231,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ATUALIZAR ──────────────────────────────────────────
     router.put('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
@@ -279,7 +274,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── EXCLUIR ────────────────────────────────────────────
     router.delete('/:id', requireAuth, async (req, res) => {
         try {
             const id = req.params.id;
