@@ -642,3 +642,350 @@ function addItem() {
         </div>
     `;
     root.appendChild(div);
+}
+
+function recalcItem(input) {
+    const row = input.closest('.m-item-row');
+    if (!row) return;
+    const qtd = parseFloat(row.querySelector('.it-qtd').value) || 0;
+    const vlr = parseFloat(row.querySelector('.it-valor').value) || 0;
+    row.querySelector('.it-total').value = formatCurrency(qtd * vlr);
+    recalcTotal();
+}
+
+function recalcTotal() {
+    let sum = 0;
+    document.querySelectorAll('#itemsBody .it-total').forEach(i => {
+        const v = i.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+        sum += parseFloat(v) || 0;
+    });
+    const out = document.getElementById('valorTotalOrdem');
+    if (out) out.value = formatCurrency(sum);
+}
+
+async function handleSubmit(e) {
+    e.preventDefault();
+
+    const items = [];
+    document.querySelectorAll('#itemsBody .m-item-row').forEach((row, i) => {
+        const espec = row.querySelector('.it-espec')?.value || '';
+        if (!espec.trim()) return;
+        items.push({
+            item: i + 1,
+            especificacao: toUpperCase(espec),
+            quantidade: parseFloat(row.querySelector('.it-qtd').value) || 0,
+            unidade: toUpperCase(row.querySelector('.it-unid').value),
+            valorUnitario: parseFloat(row.querySelector('.it-valor').value) || 0,
+            ipi: '',
+            st: '',
+            valorTotal: row.querySelector('.it-total').value
+        });
+    });
+
+    const payload = {
+        numeroOrdem: document.getElementById('numeroOrdem').value.trim(),
+        responsavel: toUpperCase(document.getElementById('responsavel').value),
+        dataOrdem: document.getElementById('dataOrdem').value,
+        razaoSocial: toUpperCase(document.getElementById('razaoSocial').value),
+        nomeFantasia: toUpperCase(document.getElementById('nomeFantasia').value),
+        cnpj: document.getElementById('cnpj').value,
+        enderecoFornecedor: toUpperCase(document.getElementById('enderecoFornecedor').value),
+        contato: toUpperCase(document.getElementById('contato').value),
+        telefone: document.getElementById('telefone').value,
+        email: document.getElementById('email').value,
+        items,
+        valorTotal: document.getElementById('valorTotalOrdem').value,
+        frete: toUpperCase(document.getElementById('frete').value),
+        localEntrega: toUpperCase(document.getElementById('localEntrega').value),
+        prazoEntrega: toUpperCase(document.getElementById('prazoEntrega').value),
+        transporte: toUpperCase(document.getElementById('transporte').value),
+        formaPagamento: toUpperCase(document.getElementById('formaPagamento').value),
+        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
+        dadosBancarios: toUpperCase(document.getElementById('dadosBancarios').value),
+        status: 'aberta'
+    };
+
+    const btn = document.getElementById('btnSave');
+    if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
+
+    try {
+        const url = editingId ? `${API_URL}/ordens/${editingId}` : `${API_URL}/ordens`;
+        const method = editingId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(payload) });
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erro ' + res.status);
+        }
+
+        const saved = await res.json();
+        showToast(editingId ? `Ordem Nº ${saved.numero_ordem} atualizada` : `Ordem Nº ${saved.numero_ordem} criada`, 'success');
+        closeForm(false);
+        await carregarTudo();
+    } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    }
+}
+
+async function toggleStatus(id) {
+    const o = ordens.find(x => String(x.id) === String(id));
+    if (!o) return;
+
+    const novo = o.status === 'aberta' ? 'fechada' : 'aberta';
+    const old = o.status;
+    o.status = novo;
+    updateDisplay();
+
+    try {
+        const res = await fetch(`${API_URL}/ordens/${id}/status`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ status: novo })
+        });
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        const data = await res.json();
+        const i = ordens.findIndex(x => String(x.id) === String(id));
+        if (i !== -1) ordens[i] = data;
+        showToast(`Ordem Nº ${o.numero_ordem} ${novo === 'fechada' ? 'fechada' : 'reaberta'}`, novo === 'fechada' ? 'success' : 'error');
+    } catch {
+        o.status = old;
+        updateDisplay();
+        showToast('Erro ao alterar status', 'error');
+    }
+}
+
+function deleteOrdem(id) {
+    const o = ordens.find(x => String(x.id) === String(id));
+    if (!o) return;
+    document.getElementById('deleteModalHost')?.remove();
+    const host = document.createElement('div');
+    host.id = 'deleteModalHost';
+    host.innerHTML = `
+        <div class="m-modal-overlay" id="deleteModal">
+            <div class="m-modal">
+                <div class="m-modal-header">
+                    <h2>Excluir Ordem</h2>
+                    <button class="m-close" onclick="closeDelete()">✕</button>
+                </div>
+                <p class="m-confirm-msg">Excluir a ordem Nº ${escHtml(o.numero_ordem)}?</p>
+                <div class="m-form-actions centered">
+                    <button class="m-btn secondary" onclick="closeDelete()">Não</button>
+                    <button class="m-btn del" onclick="confirmDelete('${o.id}')">Sim</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(host);
+}
+
+function closeDelete() { document.getElementById('deleteModalHost')?.remove(); }
+
+async function confirmDelete(id) {
+    closeDelete();
+    try {
+        const res = await fetch(`${API_URL}/ordens/${id}`, { method: 'DELETE', headers: getHeaders() });
+        if (!res.ok && res.status !== 204) throw new Error('Erro ' + res.status);
+        showToast('Ordem excluída', 'success');
+        await carregarTudo();
+    } catch {
+        showToast('Erro ao excluir', 'error');
+    }
+}
+
+function abrirDuplicar() {
+    document.getElementById('duplicarHost')?.remove();
+    const host = document.createElement('div');
+    host.id = 'duplicarHost';
+    host.innerHTML = `
+        <div class="m-modal-overlay" id="duplicarModal">
+            <div class="m-modal">
+                <div class="m-modal-header">
+                    <h2>Duplicar Ordem</h2>
+                    <button class="m-close" onclick="fecharDuplicar()">✕</button>
+                </div>
+                <div class="m-form">
+                    <div><label>Número da ordem</label><input type="text" id="numeroDuplicar" placeholder="Ex: 1250"></div>
+                    <div id="duplicarErro" style="color:#EF4444; font-size:0.85rem; display:none;"></div>
+                    <div class="m-form-actions centered">
+                        <button type="button" class="m-btn secondary" onclick="fecharDuplicar()">Cancelar</button>
+                        <button type="button" class="m-btn primary" onclick="confirmarDuplicar()">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(host);
+    setTimeout(() => document.getElementById('numeroDuplicar')?.focus(), 50);
+}
+
+function fecharDuplicar() { document.getElementById('duplicarHost')?.remove(); }
+
+async function confirmarDuplicar() {
+    const numero = document.getElementById('numeroDuplicar')?.value.trim();
+    if (!numero) return;
+
+    try {
+        const res = await fetch(`${API_URL}/ordens/numero/${numero}`, { headers: getHeaders() });
+        if (res.status === 404) {
+            const e = document.getElementById('duplicarErro');
+            if (e) { e.style.display = 'block'; e.textContent = 'Esta ordem ainda não existe.'; }
+            return;
+        }
+        if (!res.ok) throw new Error('Erro ' + res.status);
+
+        const o = await res.json();
+        fecharDuplicar();
+
+        const hoje = new Date().toISOString().split('T')[0];
+        const nova = {
+            numeroOrdem: o.numero_ordem,
+            responsavel: o.responsavel || '',
+            dataOrdem: hoje,
+            razaoSocial: o.razao_social || '',
+            nomeFantasia: o.nome_fantasia || '',
+            cnpj: o.cnpj || '',
+            enderecoFornecedor: o.endereco_fornecedor || '',
+            contato: o.contato || '',
+            telefone: o.telefone || '',
+            email: o.email || '',
+            items: (o.items || []).map(it => ({
+                item: it.item, especificacao: it.especificacao, quantidade: it.quantidade,
+                unidade: it.unidade, valorUnitario: it.valorUnitario || 0,
+                ipi: it.ipi || '', st: it.st || '', valorTotal: it.valorTotal || 'R$ 0,00'
+            })),
+            valorTotal: o.valor_total || 'R$ 0,00',
+            frete: o.frete || 'CIF',
+            localEntrega: o.local_entrega || '',
+            prazoEntrega: o.prazo_entrega || 'IMEDIATO',
+            transporte: o.transporte || 'FORNECEDOR',
+            formaPagamento: o.forma_pagamento || '',
+            prazoPagamento: o.prazo_pagamento || '',
+            dadosBancarios: o.dados_bancarios || '',
+            status: 'aberta'
+        };
+
+        const criar = await fetch(`${API_URL}/ordens`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(nova)
+        });
+        if (!criar.ok) throw new Error('Erro ' + criar.status);
+        const salva = await criar.json();
+        showToast(`Ordem Nº ${salva.numero_ordem} duplicada`, 'success');
+        await carregarTudo();
+    } catch (err) {
+        showToast('Erro ao duplicar: ' + err.message, 'error');
+    }
+}
+
+// ─── AUDITORIA (PDF) ────────────────────────────────────────
+async function abrirAuditoria() {
+    if (!currentUserIsAdmin) return showToast('Apenas administradores', 'error');
+
+    const responsavel = document.getElementById('filterResponsavel')?.value || '';
+    if (!responsavel) {
+        showToast('Selecione um responsável', 'error');
+        return;
+    }
+
+    try {
+        const url = `${API_URL}/ordens/auditoria?responsavel=${encodeURIComponent(responsavel)}`;
+        const res = await fetch(url, { headers: getHeaders() });
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (res.status === 400) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.error || 'Selecione um responsável', 'error');
+            return;
+        }
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        const logs = await res.json();
+        gerarPDFAuditoria(Array.isArray(logs) ? logs : [], responsavel);
+    } catch (err) {
+        showToast('Erro ao buscar atividades: ' + err.message, 'error');
+    }
+}
+
+function gerarPDFAuditoria(logs, responsavel) {
+    if (!window.jspdf) return showToast('Biblioteca PDF não carregada', 'error');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth  = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 20;
+
+    const agora = new Date();
+    const emissao = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('RELATÓRIO DE ATIVIDADES', pageWidth / 2, y, { align: 'center' }); y += 8;
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text('Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Atividades de ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+
+    const grupos = {};
+    logs.forEach(l => {
+        const d = new Date(l.created_at);
+        const dia = isNaN(d) ? 'Sem data' : d.toLocaleDateString('pt-BR');
+        if (!grupos[dia]) grupos[dia] = [];
+        grupos[dia].push(l);
+    });
+
+    const dias = Object.keys(grupos).sort((a, b) => {
+        const pa = a.split('/').reverse().join('-');
+        const pb = b.split('/').reverse().join('-');
+        return pb.localeCompare(pa);
+    });
+
+    dias.forEach(dia => {
+        if (y > pageHeight - 40) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(255, 82, 29);
+        doc.text(dia, margin, y); y += 6;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+
+        grupos[dia].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        grupos[dia].forEach(l => {
+            if (y > pageHeight - 20) { doc.addPage(); y = 20; }
+            const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const nome = l.username || '—';
+            const ordem = l.target_code || '—';
+            const acao = traduzirAcao(l.action);
+            doc.text(`${hora}  ·  ${nome} ${acao} ${ordem}`, margin + 4, y);
+            y += 5;
+        });
+
+        y += 6;
+    });
+
+    if (!dias.length) {
+        doc.setFontSize(11);
+        doc.text('Nenhuma atividade registrada.', margin, y);
+    }
+
+    const nome = `atividades-compra-${responsavel.toLowerCase()}-${agora.toISOString().slice(0,10)}.pdf`;
+    doc.save(nome);
+    showToast('Relatório gerado', 'success');
+}
+
+function traduzirAcao(a) {
+    switch (a) {
+        case 'create': return 'ABRIU A ORDEM DE COMPRA';
+        case 'update': return 'ATUALIZOU A ORDEM DE COMPRA';
+        case 'delete': return 'EXCLUIU A ORDEM DE COMPRA';
+        case 'status': return 'ALTEROU O STATUS DA ORDEM DE COMPRA';
+        default: return a || '';
+    }
+}
