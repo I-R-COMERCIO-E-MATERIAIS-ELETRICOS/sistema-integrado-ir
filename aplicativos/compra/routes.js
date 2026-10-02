@@ -110,6 +110,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     }
 
+    // ─── AUDITORIA (por responsável + mês/ano) ──────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
             const responsavel = (req.query.responsavel || '').trim().toUpperCase();
@@ -117,11 +118,23 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 return res.status(400).json({ error: 'Selecione um responsável' });
             }
 
+            const mes = parseInt(req.query.mes, 10);
+            const ano = parseInt(req.query.ano, 10);
+            if (isNaN(mes) || isNaN(ano)) {
+                return res.status(400).json({ error: 'Mês/ano inválidos' });
+            }
+
+            // intervalo do mês
+            const start = new Date(Date.UTC(ano, mes, 1, 0, 0, 0));
+            const end   = new Date(Date.UTC(ano, mes + 1, 1, 0, 0, 0));
+
             const { data, error } = await admin
                 .from('activity_logs')
                 .select('*')
                 .eq('module', 'compra')
                 .eq('username', responsavel)
+                .gte('created_at', start.toISOString())
+                .lt('created_at', end.toISOString())
                 .order('created_at', { ascending: false })
                 .limit(500);
             if (error) throw error;
