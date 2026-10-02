@@ -1129,8 +1129,11 @@ async function abrirAuditoria() {
         return;
     }
 
+    const mes = currentMonth.getMonth();
+    const ano = currentMonth.getFullYear();
+
     try {
-        const url = `${API_URL}/ordens/auditoria?responsavel=${encodeURIComponent(responsavel)}`;
+        const url = `${API_URL}/ordens/auditoria?responsavel=${encodeURIComponent(responsavel)}&mes=${mes}&ano=${ano}`;
         const res = await fetch(url, { headers: getHeaders() });
 
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
@@ -1149,17 +1152,17 @@ async function abrirAuditoria() {
         const logs = await res.json();
 
         if (!Array.isArray(logs) || logs.length === 0) {
-            showToast(`Nenhuma atividade registrada para ${responsavel}`, 'error');
+            showToast(`Nenhuma atividade de ${responsavel} neste mês`, 'error');
             return;
         }
 
-        gerarPDFAuditoria(logs, responsavel);
+        gerarPDFAuditoria(logs, responsavel, mes, ano);
     } catch (err) {
         showToast('Erro ao buscar atividades: ' + err.message, 'error');
     }
 }
 
-function gerarPDFAuditoria(logs, responsavel) {
+function gerarPDFAuditoria(logs, responsavel, mes, ano) {
     if (!window.jspdf) return showToast('Biblioteca PDF não carregada', 'error');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -1167,6 +1170,10 @@ function gerarPDFAuditoria(logs, responsavel) {
     const pageWidth  = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     let y = 20;
+
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesNome = meses[mes] || '';
 
     const agora = new Date();
     const emissao = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -1179,6 +1186,7 @@ function gerarPDFAuditoria(logs, responsavel) {
     doc.setFont(undefined, 'normal');
     doc.text('Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
     doc.text(`Atividades de ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Período: ${mesNome} ${ano}`, pageWidth / 2, y, { align: 'center' }); y += 5;
     doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 12;
 
     const grupos = {};
@@ -1226,7 +1234,7 @@ function gerarPDFAuditoria(logs, responsavel) {
         doc.text('Nenhuma atividade registrada.', margin, y);
     }
 
-    const nome = `atividades-compra-${responsavel.toLowerCase()}-${agora.toISOString().slice(0,10)}.pdf`;
+    const nome = `atividades-compra-${responsavel.toLowerCase()}-${mesNome.toLowerCase()}-${ano}.pdf`;
     doc.save(nome);
     showToast('Relatório gerado', 'success');
 }
