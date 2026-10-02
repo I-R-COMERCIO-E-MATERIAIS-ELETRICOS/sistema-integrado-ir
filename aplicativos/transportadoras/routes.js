@@ -72,4 +72,149 @@ module.exports = function (supabase, supabaseAdmin) {
 
     router.get('/', requireAuth, async (req, res) => {
         try {
-            const page  = Math.max(1, parseInt
+            const page  = Math.max(1, parseInt(req.query.page)  || 1);
+            const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 500), 500);
+            const from  = (page - 1) * limit;
+            const to    = from + limit - 1;
+            const search = (req.query.search || '').trim();
+
+            let query = admin
+                .from('transportadoras')
+                .select('*', { count: 'exact' })
+                .order('nome', { ascending: true })
+                .range(from, to);
+
+            if (search) {
+                const s = search.replace(/[%_\\]/g, '\\$&');
+                query = query.or(
+                    `nome.ilike.%${s}%,representante.ilike.%${s}%,email.ilike.%${s}%`
+                );
+            }
+
+            const { data, error, count } = await query;
+            if (error) throw error;
+
+            if (req.query.page) {
+                return res.json({ data: data || [], total: count || 0, page, limit });
+            }
+            res.json(data || []);
+        } catch (err) {
+            console.error('GET /transportadoras:', err.message);
+            res.status(500).json({ error: 'Erro ao listar transportadoras' });
+        }
+    });
+
+    router.get('/:id', requireAuth, async (req, res) => {
+        try {
+            const id = req.params.id;
+            if (!id || id === 'undefined' || id === 'null') {
+                return res.status(400).json({ error: 'ID inválido' });
+            }
+            const { data, error } = await admin
+                .from('transportadoras')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
+            if (error) throw error;
+            if (!data) return res.status(404).json({ error: 'Transportadora não encontrada' });
+            res.json(data);
+        } catch (err) {
+            res.status(500).json({ error: 'Erro ao buscar transportadora' });
+        }
+    });
+
+    router.post('/', requireAuth, async (req, res) => {
+        try {
+            const { nome, representante, email, telefones, celulares, regioes, estados } = req.body || {};
+            if (!nome) {
+                return res.status(400).json({ error: 'Nome é obrigatório' });
+            }
+
+            const { data, error } = await admin
+                .from('transportadoras')
+                .insert([{
+                    nome:          toUpperCase(nome).trim(),
+                    representante: toUpperCase(representante || '').trim(),
+                    email:         toLowerCase(email || '').trim(),
+                    telefones:     Array.isArray(telefones) ? telefones : [],
+                    celulares:     Array.isArray(celulares) ? celulares : [],
+                    regioes:       Array.isArray(regioes)   ? regioes.map(toUpperCase) : [],
+                    estados:       Array.isArray(estados)   ? estados.map(toUpperCase) : [],
+                    timestamp:     new Date().toISOString()
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            res.status(201).json(data);
+        } catch (err) {
+            console.error('POST /transportadoras:', err.message);
+            res.status(500).json({ error: 'Erro ao criar transportadora' });
+        }
+    });
+
+    router.put('/:id', requireAuth, async (req, res) => {
+        try {
+            const id = req.params.id;
+            if (!id || id === 'undefined' || id === 'null') {
+                return res.status(400).json({ error: 'ID inválido' });
+            }
+
+            const { nome, representante, email, telefones, celulares, regioes, estados } = req.body || {};
+            if (!nome) {
+                return res.status(400).json({ error: 'Nome é obrigatório' });
+            }
+
+            const { data, error } = await admin
+                .from('transportadoras')
+                .update({
+                    nome:          toUpperCase(nome).trim(),
+                    representante: toUpperCase(representante || '').trim(),
+                    email:         toLowerCase(email || '').trim(),
+                    telefones:     Array.isArray(telefones) ? telefones : [],
+                    celulares:     Array.isArray(celulares) ? celulares : [],
+                    regioes:       Array.isArray(regioes)   ? regioes.map(toUpperCase) : [],
+                    estados:       Array.isArray(estados)   ? estados.map(toUpperCase) : []
+                })
+                .eq('id', id)
+                .select()
+                .maybeSingle();
+
+            if (error) throw error;
+            if (!data) return res.status(404).json({ error: 'Transportadora não encontrada' });
+            res.json(data);
+        } catch (err) {
+            console.error('PUT /transportadoras/:id:', err.message);
+            res.status(500).json({ error: 'Erro ao atualizar transportadora' });
+        }
+    });
+
+    router.delete('/:id', requireAuth, async (req, res) => {
+        try {
+            const id = req.params.id;
+            if (!id || id === 'undefined' || id === 'null') {
+                return res.status(400).json({ error: 'ID inválido' });
+            }
+
+            const { data: existing } = await admin
+                .from('transportadoras')
+                .select('id')
+                .eq('id', id)
+                .maybeSingle();
+            if (!existing) return res.status(404).json({ error: 'Transportadora não encontrada' });
+
+            const { error } = await admin
+                .from('transportadoras')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+
+            res.json({ success: true });
+        } catch (err) {
+            console.error('DELETE /transportadoras/:id:', err.message);
+            res.status(500).json({ error: 'Erro ao excluir transportadora' });
+        }
+    });
+
+    return router;
+};
