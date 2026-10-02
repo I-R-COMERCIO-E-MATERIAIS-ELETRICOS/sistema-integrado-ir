@@ -52,12 +52,13 @@ app.get('/health', async (req, res) => {
 });
 
 // ─── APIs ───────────────────────────────────────────────────
-app.use('/api/auth',       require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
-app.use('/api/portal',     require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
-app.use('/api/usuarios',   require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
-app.use('/api/licitacoes', require('./aplicativos/licitacoes/routes')(supabase, supabaseAdmin));
-app.use('/api/precos',     require('./aplicativos/precos/routes')(supabase, supabaseAdmin));
-app.use('/api',            require('./aplicativos/compra/routes')(supabase, supabaseAdmin, logActivity));
+app.use('/api/auth',            require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal',          require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+app.use('/api/usuarios',        require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
+app.use('/api/licitacoes',      require('./aplicativos/licitacoes/routes')(supabase, supabaseAdmin));
+app.use('/api/precos',          require('./aplicativos/precos/routes')(supabase, supabaseAdmin));
+app.use('/api',                 require('./aplicativos/compra/routes')(supabase, supabaseAdmin, logActivity));
+app.use('/api/transportadoras', require('./aplicativos/transportadoras/routes')(supabase, supabaseAdmin, logActivity));
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────
 const MODULES = [
@@ -67,6 +68,7 @@ const MODULES = [
     'licitacoes',
     'precos',
     'compra',
+    'transportadoras',
     'tutorial'
 ];
 
