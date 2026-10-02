@@ -22,12 +22,18 @@ function verifyToken(token, secret) {
 function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
 function toLowerCase(v) { return v ? String(v).toLowerCase() : ''; }
 
+function nomeResponsavel(user) {
+    if (!user) return null;
+    const nome = (user.name || '').trim();
+    if (nome) return nome;
+    return (user.username || '').trim() || null;
+}
+
 module.exports = function (supabase, supabaseAdmin, logActivity) {
     const router = express.Router();
     const admin  = supabaseAdmin || supabase;
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
-    // ─── AUTH ───────────────────────────────────────────────
     async function requireAuth(req, res, next) {
         const auth = req.headers['authorization'];
         const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -130,10 +136,12 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     router.get('/', requireAuth, async (req, res) => {
         try {
             const page  = Math.max(1, parseInt(req.query.page)  || 1);
-            const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 100), 500);
+            const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 200), 500);
             const from  = (page - 1) * limit;
             const to    = from + limit - 1;
             const search = (req.query.search || '').trim();
+            const mes = req.query.mes !== undefined ? parseInt(req.query.mes, 10) : null;
+            const ano = req.query.ano !== undefined ? parseInt(req.query.ano, 10) : null;
 
             let query = admin
                 .from('transportadoras')
@@ -146,6 +154,14 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 query = query.or(
                     `nome.ilike.%${s}%,representante.ilike.%${s}%,email.ilike.%${s}%`
                 );
+            }
+
+            if (mes !== null && ano !== null && !isNaN(mes) && !isNaN(ano)) {
+                const start = new Date(Date.UTC(ano, mes, 1, 0, 0, 0));
+                const end   = new Date(Date.UTC(ano, mes + 1, 1, 0, 0, 0));
+                query = query
+                    .gte('timestamp', start.toISOString())
+                    .lt('timestamp', end.toISOString());
             }
 
             const { data, error, count } = await query;
@@ -186,20 +202,23 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         try {
             const { nome, representante, email, telefones, celulares, regioes, estados } = req.body || {};
 
-            if (!nome || !email) {
-                return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+            if (!nome) {
+                return res.status(400).json({ error: 'Nome é obrigatório' });
             }
+
+            const responsavel = nomeResponsavel(req.user);
 
             const { data, error } = await admin
                 .from('transportadoras')
                 .insert([{
                     nome:          toUpperCase(nome).trim(),
                     representante: toUpperCase(representante || '').trim(),
-                    email:         toLowerCase(email).trim(),
+                    email:         toLowerCase(email || '').trim(),
                     telefones:     Array.isArray(telefones) ? telefones : [],
                     celulares:     Array.isArray(celulares) ? celulares : [],
                     regioes:       Array.isArray(regioes)   ? regioes.map(toUpperCase) : [],
                     estados:       Array.isArray(estados)   ? estados.map(toUpperCase) : [],
+                    responsavel:   responsavel,
                     timestamp:     new Date().toISOString()
                 }])
                 .select()
@@ -226,20 +245,23 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
 
             const { nome, representante, email, telefones, celulares, regioes, estados } = req.body || {};
 
-            if (!nome || !email) {
-                return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+            if (!nome) {
+                return res.status(400).json({ error: 'Nome é obrigatório' });
             }
+
+            const responsavel = nomeResponsavel(req.user);
 
             const { data, error } = await admin
                 .from('transportadoras')
                 .update({
                     nome:          toUpperCase(nome).trim(),
                     representante: toUpperCase(representante || '').trim(),
-                    email:         toLowerCase(email).trim(),
+                    email:         toLowerCase(email || '').trim(),
                     telefones:     Array.isArray(telefones) ? telefones : [],
                     celulares:     Array.isArray(celulares) ? celulares : [],
                     regioes:       Array.isArray(regioes)   ? regioes.map(toUpperCase) : [],
-                    estados:       Array.isArray(estados)   ? estados.map(toUpperCase) : []
+                    estados:       Array.isArray(estados)   ? estados.map(toUpperCase) : [],
+                    responsavel:   responsavel
                 })
                 .eq('id', id)
                 .select()
