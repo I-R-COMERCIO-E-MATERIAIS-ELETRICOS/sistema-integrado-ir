@@ -331,4 +331,219 @@ function editTransportadora(id) {
     renderEstadosSelectors(t.estados || []);
     currentTab = 0;
     switchTab('tab-geral');
-   
+    updateNavButtons();
+    document.getElementById('formModal').classList.add('show');
+}
+
+function parseArray(str) {
+    if (!str || !str.trim()) return [];
+    return str.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+}
+
+async function saveTransportadora() {
+    const nome  = document.getElementById('nome').value.trim();
+    const email = document.getElementById('email').value.trim();
+
+    if (!nome || !email) {
+        showMessage('Nome e e-mail são obrigatórios!', 'error');
+        return;
+    }
+
+    const payload = {
+        nome: nome.toUpperCase(),
+        representante: document.getElementById('representante').value.trim().toUpperCase(),
+        email: email.toLowerCase(),
+        telefones: parseArray(document.getElementById('telefones').value),
+        celulares: parseArray(document.getElementById('celulares').value),
+        regioes: getSelectedRegioes(),
+        estados: getSelectedEstados()
+    };
+
+    const btn = document.getElementById('btnSave');
+    btn.disabled = true;
+
+    try {
+        const url = editingId
+            ? `${API_URL}/transportadoras/${editingId}`
+            : `${API_URL}/transportadoras`;
+        const method = editingId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 401 || response.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (!response.ok) throw new Error('Erro ao salvar');
+
+        await carregarTudo();
+        closeFormModal(false);
+        showMessage(editingId ? `${payload.nome} atualizada` : `${payload.nome} registrada`, 'success');
+    } catch (e) {
+        showMessage('Erro ao salvar transportadora!', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ─── EXCLUSÃO ───────────────────────────────────────────────
+function deleteTransportadora(id, nome) {
+    pendingDeleteId = id;
+    document.getElementById('deleteModalMessage').textContent =
+        `Tem certeza que deseja excluir a transportadora "${nome}"?`;
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    const newBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+    newBtn.onclick = confirmDelete;
+    document.getElementById('deleteModal').classList.add('show');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('show');
+    pendingDeleteId = null;
+}
+
+async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    try {
+        const response = await fetch(`${API_URL}/transportadoras/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+        if (!response.ok) throw new Error('Erro ao excluir');
+        const nome = transportadoras.find(t => String(t.id) === String(id))?.nome || 'Transportadora';
+        await carregarTudo();
+        closeDeleteModal();
+        showMessage(`${nome} excluída`, 'error');
+    } catch (e) {
+        closeDeleteModal();
+        showMessage('Erro ao excluir transportadora!', 'error');
+    }
+}
+
+// ─── AUDITORIA (PDF) ────────────────────────────────────────
+async function abrirAuditoria() {
+    if (!currentUserIsAdmin) return showMessage('Apenas administradores', 'error');
+
+    const responsavel = document.getElementById('filterResponsavel')?.value || '';
+    if (!responsavel) {
+        showMessage('Selecione um responsável', 'error');
+        return;
+    }
+
+    const mes = currentMonth.getMonth();
+    const ano = currentMonth.getFullYear();
+
+    try {
+        const url = `${API_URL}/transportadoras/auditoria?responsavel=${encodeURIComponent(responsavel)}&mes=${mes}&ano=${ano}`;
+        const res = await fetch(url, { headers: getHeaders() });
+
+        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+        if (res.status === 400) {
+            const err = await res.json().catch(() => ({}));
+            showMessage(err.error || 'Selecione um responsável', 'error');
+            return;
+        }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erro ' + res.status);
+        }
+
+        const logs = await res.json();
+        if (!Array.isArray(logs) || logs.length === 0) {
+            showMessage(`Nenhuma atividade de ${responsavel} neste mês`, 'error');
+            return;
+        }
+
+        gerarPDFAuditoria(logs, responsavel, mes, ano);
+    } catch (err) {
+        showMessage('Erro ao buscar atividades: ' + err.message, 'error');
+    }
+}
+
+function gerarPDFAuditoria(logs, responsavel, mes, ano) {
+    if (!window.jspdf) return showMessage('Biblioteca PDF não carregada', 'error');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let y = 20;
+
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesNome = meses[mes] || '';
+
+    const agora = new Date();
+    const emissao = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('RELATÓRIO DE ATIVIDADES', pageWidth / 2, y, { align: 'center' }); y += 8;
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text('Transportadoras', pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Atividades de ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Período: ${mesNome} ${ano}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+
+    const grupos = {};
+    logs.forEach(l => {
+        const d = new Date(l.created_at);
+        const dia = isNaN(d) ? 'Sem data' : d.toLocaleDateString('pt-BR');
+        if (!grupos[dia]) grupos[dia] = [];
+        grupos[dia].push(l);
+    });
+
+    const dias = Object.keys(grupos).sort((a, b) => {
+        const pa = a.split('/').reverse().join('-');
+        const pb = b.split('/').reverse().join('-');
+        return pb.localeCompare(pa);
+    });
+
+    dias.forEach(dia => {
+        if (y > pageHeight - 40) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(dia, margin, y); y += 6;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+
+        grupos[dia].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        grupos[dia].forEach(l => {
+            if (y > pageHeight - 20) { doc.addPage(); y = 20; }
+            const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const nome = l.username || '—';
+            const alvo = l.target_code || '—';
+            const acao = traduzirAcao(l.action);
+            doc.text(`${hora}  ·  ${nome} ${acao} ${alvo}`, margin + 4, y);
+            y += 5;
+        });
+
+        y += 6;
+    });
+
+    if (!dias.length) {
+        doc.setFontSize(11);
+        doc.text('Nenhuma atividade registrada.', margin, y);
+    }
+
+    const nome = `atividades-transportadoras-${responsavel.toLowerCase()}-${mesNome.toLowerCase()}-${ano}.pdf`;
+    doc.save(nome);
+    showMessage('Relatório gerado', 'success');
+}
+
+function traduzirAcao(a) {
+    switch (a) {
+        case 'create': return 'CADASTROU A TRANSPORTADORA';
+        case 'update': return 'ATUALIZOU A TRANSPORTADORA';
+        case 'delete': return 'EXCLUIU A TRANSPORTADORA';
+        default: return a || '';
+    }
+}
