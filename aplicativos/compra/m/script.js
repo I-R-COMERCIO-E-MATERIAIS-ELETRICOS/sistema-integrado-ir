@@ -967,9 +967,11 @@ function gerarPDFAuditoria(logs, responsavel, mes, ano) {
 
     dias.forEach(dia => {
         if (y > pageHeight - 40) { doc.addPage(); y = 20; }
+
+        // Subtítulo do dia: PRETO e NEGRITO
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(255, 82, 29);
+        doc.setTextColor(0, 0, 0);
         doc.text(dia, margin, y); y += 6;
 
         doc.setTextColor(0, 0, 0);
