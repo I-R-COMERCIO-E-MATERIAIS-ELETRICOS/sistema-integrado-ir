@@ -3,13 +3,10 @@
 // ============================================================
 
 const API_URL = window.location.origin + '/api';
-const MODULE  = 'transportadoras';
 
 let transportadoras = [];
-let currentMonth = new Date();
 let editingId = null;
 let currentTab = 0;
-let currentUserIsAdmin = false;
 let accessToken = null;
 let pendingDeleteId = null;
 
@@ -73,46 +70,21 @@ function showToast(msg, type) {
     }, 3000);
 }
 
-function changeMonth(direction) {
-    currentMonth.setMonth(currentMonth.getMonth() + direction);
-    updateMonthDisplay();
-    loadTransportadoras();
-}
-
-function updateMonthDisplay() {
-    const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const el = document.getElementById('currentMonth');
-    if (el) el.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
 
-    updateMonthDisplay();
-    await fetchSessionUser();
     await carregarTudo();
     setInterval(() => carregarTudo(), 30000);
 });
-
-async function fetchSessionUser() {
-    try {
-        const res = await fetch('/api/portal/modules', { headers: getHeaders() });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.user) currentUserIsAdmin = !!data.user.is_admin;
-    } catch (e) {}
-}
 
 async function carregarTudo() {
     try {
         await loadTransportadoras();
     } finally {
-        updateAuditBtn();
         try {
             if (window.parent && window.parent !== window) {
-                window.parent.postMessage({ type: 'ir-module-ready', module: MODULE }, '*');
+                window.parent.postMessage({ type: 'ir-module-ready', module: 'transportadoras' }, '*');
             }
         } catch (e) {}
     }
@@ -120,15 +92,12 @@ async function carregarTudo() {
 
 async function loadTransportadoras() {
     try {
-        const mes = currentMonth.getMonth();
-        const ano = currentMonth.getFullYear();
-        const res = await fetch(`${API_URL}/transportadoras?mes=${mes}&ano=${ano}`, { headers: getHeaders(), cache: 'no-cache' });
+        const res = await fetch(`${API_URL}/transportadoras`, { headers: getHeaders(), cache: 'no-cache' });
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         const data = await res.json();
         transportadoras = Array.isArray(data) ? data : [];
         renderList();
-        updateResponsaveisFilter();
     } catch (e) {
         showToast('Erro ao carregar transportadoras', 'error');
     }
@@ -147,12 +116,6 @@ async function syncData() {
     }
 }
 
-function updateAuditBtn() {
-    const btn = document.getElementById('auditBtn');
-    if (!btn) return;
-    btn.style.display = currentUserIsAdmin ? 'flex' : 'none';
-}
-
 function filterTransportadoras() { renderList(); }
 
 function renderList() {
@@ -160,7 +123,6 @@ function renderList() {
     if (!root) return;
 
     const search = (document.getElementById('search')?.value || '').toLowerCase().trim();
-    const resp = document.getElementById('filterResponsavel')?.value || '';
 
     let lista = [...transportadoras];
     if (search) {
@@ -172,7 +134,6 @@ function renderList() {
             (t.estados || []).join(' ').toLowerCase().includes(search)
         );
     }
-    if (resp) lista = lista.filter(t => t.responsavel === resp);
 
     if (!lista.length) {
         root.innerHTML = '<div class="m-empty">Nenhuma transportadora encontrada</div>';
@@ -192,7 +153,6 @@ function renderList() {
                 <div class="m-row"><span>E-mail</span><strong>${escapeHtml(t.email || '—')}</strong></div>
                 <div class="m-row"><span>Telefone</span><strong>${escapeHtml((t.telefones || []).join(', ') || '—')}</strong></div>
                 <div class="m-row"><span>Celular</span><strong>${escapeHtml((t.celulares || []).join(', ') || '—')}</strong></div>
-                <div class="m-row"><span>Responsável</span><strong>${escapeHtml(t.responsavel || '—')}</strong></div>
             </div>
             <div class="m-card-actions">
                 <button class="m-btn edit" onclick="event.stopPropagation();editTransportadora('${t.id}')">Editar</button>
@@ -202,29 +162,10 @@ function renderList() {
     `).join('');
 }
 
-function updateResponsaveisFilter() {
-    const s = document.getElementById('filterResponsavel');
-    if (!s) return;
-    const cur = s.value;
-    const set = new Set();
-    transportadoras.forEach(t => { if (t.responsavel && t.responsavel.trim()) set.add(t.responsavel.trim()); });
-    s.innerHTML = '<option value="">Responsável</option>';
-    Array.from(set).sort().forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r; opt.textContent = toUpperCase(r);
-        s.appendChild(opt);
-    });
-    s.value = cur;
-}
-
 function toggleForm() {
     editingId = null;
     currentTab = 0;
-    openFormModal({
-        title: 'Nova Transportadora',
-        editId: '',
-        dados: null
-    });
+    openFormModal({ title: 'Nova Transportadora', editId: '', dados: null });
 }
 
 function editTransportadora(id) {
@@ -232,11 +173,7 @@ function editTransportadora(id) {
     if (!t) return showToast('Transportadora não encontrada', 'error');
     editingId = id;
     currentTab = 0;
-    openFormModal({
-        title: 'Editar Transportadora',
-        editId: id,
-        dados: t
-    });
+    openFormModal({ title: 'Editar Transportadora', editId: id, dados: t });
 }
 
 function openFormModal(cfg) {
@@ -435,130 +372,5 @@ async function confirmDelete() {
         await carregarTudo();
     } catch {
         showToast('Erro ao excluir', 'error');
-    }
-}
-
-// ─── AUDITORIA (PDF) ────────────────────────────────────────
-async function abrirAuditoria() {
-    if (!currentUserIsAdmin) return showToast('Apenas administradores', 'error');
-
-    const responsavel = document.getElementById('filterResponsavel')?.value || '';
-    if (!responsavel) {
-        showToast('Selecione um responsável', 'error');
-        return;
-    }
-
-    const mes = currentMonth.getMonth();
-    const ano = currentMonth.getFullYear();
-
-    try {
-        const url = `${API_URL}/transportadoras/auditoria?responsavel=${encodeURIComponent(responsavel)}&mes=${mes}&ano=${ano}`;
-        const res = await fetch(url, { headers: getHeaders() });
-
-        if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
-        if (res.status === 400) {
-            const err = await res.json().catch(() => ({}));
-            showToast(err.error || 'Selecione um responsável', 'error');
-            return;
-        }
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || 'Erro ' + res.status);
-        }
-
-        const logs = await res.json();
-        if (!Array.isArray(logs) || logs.length === 0) {
-            showToast(`Nenhuma atividade de ${responsavel} neste mês`, 'error');
-            return;
-        }
-
-        gerarPDFAuditoria(logs, responsavel, mes, ano);
-    } catch (err) {
-        showToast('Erro ao buscar atividades: ' + err.message, 'error');
-    }
-}
-
-function gerarPDFAuditoria(logs, responsavel, mes, ano) {
-    if (!window.jspdf) return showToast('Biblioteca PDF não carregada', 'error');
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const margin = 15;
-    const pageWidth  = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    let y = 20;
-
-    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const mesNome = meses[mes] || '';
-
-    const agora = new Date();
-    const emissao = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.text('RELATÓRIO DE ATIVIDADES', pageWidth / 2, y, { align: 'center' }); y += 8;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text('Transportadoras', pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Atividades de ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Período: ${mesNome} ${ano}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 12;
-
-    const grupos = {};
-    logs.forEach(l => {
-        const d = new Date(l.created_at);
-        const dia = isNaN(d) ? 'Sem data' : d.toLocaleDateString('pt-BR');
-        if (!grupos[dia]) grupos[dia] = [];
-        grupos[dia].push(l);
-    });
-
-    const dias = Object.keys(grupos).sort((a, b) => {
-        const pa = a.split('/').reverse().join('-');
-        const pb = b.split('/').reverse().join('-');
-        return pb.localeCompare(pa);
-    });
-
-    dias.forEach(dia => {
-        if (y > pageHeight - 40) { doc.addPage(); y = 20; }
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(dia, margin, y); y += 6;
-
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-
-        grupos[dia].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-        grupos[dia].forEach(l => {
-            if (y > pageHeight - 20) { doc.addPage(); y = 20; }
-            const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const nome = l.username || '—';
-            const alvo = l.target_code || '—';
-            const acao = traduzirAcao(l.action);
-            doc.text(`${hora}  ·  ${nome} ${acao} ${alvo}`, margin + 4, y);
-            y += 5;
-        });
-
-        y += 6;
-    });
-
-    if (!dias.length) {
-        doc.setFontSize(11);
-        doc.text('Nenhuma atividade registrada.', margin, y);
-    }
-
-    const nome = `atividades-transportadoras-${responsavel.toLowerCase()}-${mesNome.toLowerCase()}-${ano}.pdf`;
-    doc.save(nome);
-    showToast('Relatório gerado', 'success');
-}
-
-function traduzirAcao(a) {
-    switch (a) {
-        case 'create': return 'CADASTROU A TRANSPORTADORA';
-        case 'update': return 'ATUALIZOU A TRANSPORTADORA';
-        case 'delete': return 'EXCLUIU A TRANSPORTADORA';
-        default: return a || '';
     }
 }
