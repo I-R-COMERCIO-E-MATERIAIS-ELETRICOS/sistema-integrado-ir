@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/transportadoras/styles.css">
-    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script>
     (function () {
         const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
@@ -45,36 +44,6 @@
                 </svg>
                 <input type="text" id="search" placeholder="Buscar por nome, representante, e-mail, região ou estado..." oninput="filterTransportadoras()">
 
-                <select id="filterResponsavel" class="search-select" onchange="filterTransportadoras()">
-                    <option value="">Responsável</option>
-                </select>
-
-                <div class="month-navigation-inline">
-                    <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <div class="month-display-inline">
-                        <span id="currentMonth">Carregando...</span>
-                    </div>
-                    <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </div>
-
-                <button class="icon-btn" id="auditBtn" onclick="abrirAuditoria()" title="Relatório de atividades" style="display:none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="8" y1="13" x2="16" y2="13"></line>
-                        <line x1="8" y1="17" x2="16" y2="17"></line>
-                        <line x1="8" y1="9" x2="10" y2="9"></line>
-                    </svg>
-                </button>
-
                 <button class="icon-btn" id="syncBtn" onclick="syncData()" title="Sincronizar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M23 4v6h-6"/>
@@ -96,7 +65,6 @@
                             <th>Telefone</th>
                             <th>Celular</th>
                             <th>E-mail</th>
-                            <th>Responsável</th>
                             <th style="text-align: center;">Ações</th>
                         </tr>
                     </thead>
