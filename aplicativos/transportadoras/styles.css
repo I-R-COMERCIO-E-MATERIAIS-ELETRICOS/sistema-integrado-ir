@@ -127,7 +127,6 @@ tbody tr:hover { background: var(--table-hover); }
 .action-btn.edit { background: var(--btn-edit); }
 .action-btn.delete { background: var(--btn-delete); }
 
-/* FORM */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; margin-bottom: 1.5rem; }
 .form-group { margin-bottom: 1rem; }
 label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary); font-size: 0.9rem; }
