@@ -44,7 +44,6 @@ function showDenied(msg) {
             window.parent.postMessage({ type: 'ir-session-expired', reason: msg || 'sem-acesso' }, '*');
         }
     } catch (e) {}
-
     document.documentElement.style.overflow = 'hidden';
     document.body.innerHTML = `
         <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F4F5F7;color:#111;font-family:'Inter',system-ui,sans-serif;text-align:center;padding:2rem;z-index:2147483647;">
@@ -121,7 +120,9 @@ async function carregarTudo() {
 
 async function loadTransportadoras() {
     try {
-        const res = await fetch(`${API_URL}/transportadoras`, { headers: getHeaders(), cache: 'no-cache' });
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const res = await fetch(`${API_URL}/transportadoras?mes=${mes}&ano=${ano}`, { headers: getHeaders(), cache: 'no-cache' });
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
         if (!res.ok) throw new Error('Erro ' + res.status);
         const data = await res.json();
@@ -159,6 +160,7 @@ function renderList() {
     if (!root) return;
 
     const search = (document.getElementById('search')?.value || '').toLowerCase().trim();
+    const resp = document.getElementById('filterResponsavel')?.value || '';
 
     let lista = [...transportadoras];
     if (search) {
@@ -170,6 +172,7 @@ function renderList() {
             (t.estados || []).join(' ').toLowerCase().includes(search)
         );
     }
+    if (resp) lista = lista.filter(t => t.responsavel === resp);
 
     if (!lista.length) {
         root.innerHTML = '<div class="m-empty">Nenhuma transportadora encontrada</div>';
@@ -189,6 +192,7 @@ function renderList() {
                 <div class="m-row"><span>E-mail</span><strong>${escapeHtml(t.email || '—')}</strong></div>
                 <div class="m-row"><span>Telefone</span><strong>${escapeHtml((t.telefones || []).join(', ') || '—')}</strong></div>
                 <div class="m-row"><span>Celular</span><strong>${escapeHtml((t.celulares || []).join(', ') || '—')}</strong></div>
+                <div class="m-row"><span>Responsável</span><strong>${escapeHtml(t.responsavel || '—')}</strong></div>
             </div>
             <div class="m-card-actions">
                 <button class="m-btn edit" onclick="event.stopPropagation();editTransportadora('${t.id}')">Editar</button>
@@ -203,7 +207,7 @@ function updateResponsaveisFilter() {
     if (!s) return;
     const cur = s.value;
     const set = new Set();
-    transportadoras.forEach(t => { if (t.created_by_name) set.add(t.created_by_name); });
+    transportadoras.forEach(t => { if (t.responsavel && t.responsavel.trim()) set.add(t.responsavel.trim()); });
     s.innerHTML = '<option value="">Responsável</option>';
     Array.from(set).sort().forEach(r => {
         const opt = document.createElement('option');
@@ -213,7 +217,6 @@ function updateResponsaveisFilter() {
     s.value = cur;
 }
 
-// ─── FORM ───────────────────────────────────────────────────
 function toggleForm() {
     editingId = null;
     currentTab = 0;
@@ -260,7 +263,7 @@ function openFormModal(cfg) {
                     <div class="m-pane active" data-pane="0">
                         <div><label>Nome *</label><input type="text" id="nome" value="${t ? escapeHtml(t.nome) : ''}" required></div>
                         <div><label>Representante</label><input type="text" id="representante" value="${t ? escapeHtml(t.representante || '') : ''}"></div>
-                        <div><label>E-mail *</label><input type="email" id="email" value="${t ? escapeHtml(t.email || '') : ''}" required></div>
+                        <div><label>E-mail</label><input type="email" id="email" value="${t ? escapeHtml(t.email || '') : ''}"></div>
                         <div><label>Telefones (separe por vírgula)</label><input type="text" id="telefones" value="${t ? escapeHtml((t.telefones || []).join(', ')) : ''}"></div>
                         <div><label>Celulares (separe por vírgula)</label><input type="text" id="celulares" value="${t ? escapeHtml((t.celulares || []).join(', ')) : ''}"></div>
                     </div>
@@ -352,18 +355,16 @@ function parseArray(str) {
 async function handleSubmit(e) {
     e.preventDefault();
 
-    const nome  = document.getElementById('nome').value.trim();
-    const email = document.getElementById('email').value.trim();
-
-    if (!nome || !email) {
-        showToast('Nome e e-mail são obrigatórios', 'error');
+    const nome = document.getElementById('nome').value.trim();
+    if (!nome) {
+        showToast('Nome é obrigatório', 'error');
         return;
     }
 
     const payload = {
         nome: nome.toUpperCase(),
         representante: document.getElementById('representante').value.trim().toUpperCase(),
-        email: email.toLowerCase(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
         telefones: parseArray(document.getElementById('telefones').value),
         celulares: parseArray(document.getElementById('celulares').value),
         regioes: getSelectedRegioes(),
@@ -394,7 +395,6 @@ async function handleSubmit(e) {
     }
 }
 
-// ─── EXCLUSÃO ───────────────────────────────────────────────
 function deleteTransportadora(id, nome) {
     pendingDeleteId = id;
     document.getElementById('deleteHost')?.remove();
