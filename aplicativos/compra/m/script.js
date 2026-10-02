@@ -18,7 +18,6 @@ let ultimoNumeroGlobal = 0;
 
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
-// ─── AUTH ───────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -61,7 +60,6 @@ function showDenied(msg) {
     `;
 }
 
-// ─── HELPERS ────────────────────────────────────────────────
 function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
 
 function detectResponsavelFromUser(name) {
@@ -101,7 +99,6 @@ function showToast(msg, type) {
     }, 3000);
 }
 
-// ─── INIT ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -143,7 +140,7 @@ async function carregarTudo() {
     }
 }
 
-// ─── CARROSSEL DE DASHBOARDS (paginação real, 3 por página) ─
+// ─── CARROSSEL ──────────────────────────────────────────────
 const CAROUSEL_VISIBLE = 3;
 let carouselPage = 0;
 let carouselTotalPages = 1;
@@ -322,7 +319,6 @@ async function syncData() {
     }
 }
 
-// ─── RENDER ─────────────────────────────────────────────────
 function updateDisplay() {
     updateStats();
     updateList();
@@ -423,7 +419,6 @@ function updateAuditBtn() {
     btn.style.display = currentUserIsAdmin ? 'flex' : 'none';
 }
 
-// ─── VISUALIZAR ─────────────────────────────────────────────
 function viewOrdem(id) {
     const o = ordens.find(x => String(x.id) === String(id));
     if (!o) return;
@@ -488,7 +483,6 @@ function viewOrdem(id) {
 
 function closeView() { document.getElementById('viewModalHost')?.remove(); }
 
-// ─── FORM ───────────────────────────────────────────────────
 function toggleForm() {
     editingId = null;
     currentTab = 0;
@@ -929,12 +923,12 @@ function gerarPDFAuditoria(logs, responsavel) {
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.text('RELATÓRIO DE ATIVIDADES', pageWidth / 2, y, { align: 'center' }); y += 8;
+
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text('Módulo: Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Responsável: ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-    doc.text(`Emitido por: ${currentUserName || '—'}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+    doc.text('Ordens de Compra', pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Atividades de ${responsavel}`, pageWidth / 2, y, { align: 'center' }); y += 5;
+    doc.text(`Emitido em: ${emissao}`, pageWidth / 2, y, { align: 'center' }); y += 12;
 
     const grupos = {};
     logs.forEach(l => {
@@ -967,9 +961,9 @@ function gerarPDFAuditoria(logs, responsavel) {
             if (y > pageHeight - 20) { doc.addPage(); y = 20; }
             const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const nome = l.username || '—';
-            const acao = traduzirAcao(l.action);
             const ordem = l.target_code || '—';
-            doc.text(`${hora}  ·  ${nome} ${acao} a Ordem de Compra Nº ${ordem}`, margin + 4, y);
+            const acao = traduzirAcao(l.action);
+            doc.text(`${hora}  ·  ${nome} ${acao} ${ordem}`, margin + 4, y);
             y += 5;
         });
 
@@ -988,10 +982,10 @@ function gerarPDFAuditoria(logs, responsavel) {
 
 function traduzirAcao(a) {
     switch (a) {
-        case 'create': return 'registrou';
-        case 'update': return 'atualizou';
-        case 'delete': return 'excluiu';
-        case 'status': return 'alterou o status d';
-        default: return a || '—';
+        case 'create': return 'ABRIU A ORDEM DE COMPRA';
+        case 'update': return 'ATUALIZOU A ORDEM DE COMPRA';
+        case 'delete': return 'EXCLUIU A ORDEM DE COMPRA';
+        case 'status': return 'ALTEROU O STATUS DA ORDEM DE COMPRA';
+        default: return a || '';
     }
 }
