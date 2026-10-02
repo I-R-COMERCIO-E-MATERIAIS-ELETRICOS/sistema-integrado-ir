@@ -9,9 +9,7 @@ let transportadoras = [];
 let currentMonth = new Date();
 let editingId = null;
 let currentTab = 0;
-let currentUser = null;
 let currentUserIsAdmin = false;
-let currentUserName = null;
 let accessToken = null;
 let pendingDeleteId = null;
 
@@ -22,7 +20,6 @@ const ESTADOS_LISTA = [
     'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
 ];
 
-// ─── AUTH ───────────────────────────────────────────────────
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
     const fromUrl = p.get('access_token');
@@ -48,7 +45,6 @@ function showDenied(msg) {
             window.parent.postMessage({ type: 'ir-session-expired', reason: msg || 'sem-acesso' }, '*');
         }
     } catch (e) {}
-
     document.documentElement.style.overflow = 'hidden';
     document.body.innerHTML = `
         <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F4F5F7;color:#111;font-family:'Inter',system-ui,sans-serif;text-align:center;padding:2rem;z-index:2147483647;">
@@ -58,13 +54,13 @@ function showDenied(msg) {
     `;
 }
 
-// ─── HELPERS ────────────────────────────────────────────────
+function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
+
 function escapeHtml(str) {
     return String(str || '').replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
 }
-function toUpperCase(v) { return v ? String(v).toUpperCase() : ''; }
 
 function showMessage(message, type) {
     type = type || 'success';
@@ -92,7 +88,6 @@ function updateMonthDisplay() {
     if (el) el.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 }
 
-// ─── INIT ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
@@ -108,11 +103,7 @@ async function fetchSessionUser() {
         const res = await fetch('/api/portal/modules', { headers: getHeaders() });
         if (!res.ok) return;
         const data = await res.json();
-        if (data.user) {
-            currentUser = data.user;
-            currentUserName = data.user.name || data.user.username || null;
-            currentUserIsAdmin = !!data.user.is_admin;
-        }
+        if (data.user) currentUserIsAdmin = !!data.user.is_admin;
     } catch (e) {}
 }
 
@@ -131,7 +122,9 @@ async function carregarTudo() {
 
 async function loadTransportadoras() {
     try {
-        const res = await fetch(`${API_URL}/transportadoras`, {
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const res = await fetch(`${API_URL}/transportadoras?mes=${mes}&ano=${ano}`, {
             headers: getHeaders(),
             cache: 'no-cache'
         });
@@ -142,7 +135,7 @@ async function loadTransportadoras() {
         renderTable();
         updateResponsaveisFilter();
     } catch (e) {
-        // silencioso
+        console.error('[transportadoras] load:', e);
     }
 }
 
@@ -167,7 +160,6 @@ function updateAuditBtn() {
     btn.style.display = currentUserIsAdmin ? 'inline-flex' : 'none';
 }
 
-// ─── FILTRO E TABELA ────────────────────────────────────────
 function filterTransportadoras() { renderTable(); }
 
 function renderTable() {
@@ -175,7 +167,7 @@ function renderTable() {
     if (!container) return;
 
     const search = (document.getElementById('search')?.value || '').toLowerCase();
-    const resp = document.getElementById('filterResponsavel')?.value || '';
+    const resp   = document.getElementById('filterResponsavel')?.value || '';
 
     let filtered = transportadoras;
     if (search) {
@@ -187,9 +179,12 @@ function renderTable() {
             (t.estados || []).join(' ').toLowerCase().includes(search)
         );
     }
+    if (resp) {
+        filtered = filtered.filter(t => t.responsavel === resp);
+    }
 
     if (!filtered.length) {
-        container.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;">Nenhuma transportadora encontrada</td></tr>`;
+        container.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhuma transportadora encontrada</td></tr>`;
         return;
     }
 
@@ -199,7 +194,8 @@ function renderTable() {
             <td>${escapeHtml(t.representante || '-')}</td>
             <td>${escapeHtml((t.telefones || []).join(', ') || '-')}</td>
             <td>${escapeHtml((t.celulares || []).join(', ') || '-')}</td>
-            <td>${escapeHtml(t.email)}</td>
+            <td>${escapeHtml(t.email || '-')}</td>
+            <td>${escapeHtml(t.responsavel || '—')}</td>
             <td class="actions-cell" style="text-align:center;">
                 <div class="actions">
                     <button onclick="editTransportadora('${t.id}')" class="action-btn edit">Editar</button>
@@ -215,7 +211,7 @@ function updateResponsaveisFilter() {
     if (!select) return;
     const set = new Set();
     transportadoras.forEach(t => {
-        if (t.created_by_name) set.add(t.created_by_name);
+        if (t.responsavel && t.responsavel.trim()) set.add(t.responsavel.trim());
     });
     const current = select.value;
     select.innerHTML = '<option value="">Responsável</option>';
@@ -227,7 +223,6 @@ function updateResponsaveisFilter() {
     select.value = current;
 }
 
-// ─── ABAS ───────────────────────────────────────────────────
 function switchTab(tabId) {
     const i = tabs.indexOf(tabId);
     if (i !== -1) currentTab = i;
@@ -248,7 +243,6 @@ function updateNavButtons() {
     if (next) next.style.display = currentTab === tabs.length - 1 ? 'none' : 'inline-flex';
 }
 
-// ─── FORM ───────────────────────────────────────────────────
 function openFormModal() {
     editingId = null;
     document.getElementById('formTitle').textContent = 'Nova Transportadora';
@@ -341,18 +335,16 @@ function parseArray(str) {
 }
 
 async function saveTransportadora() {
-    const nome  = document.getElementById('nome').value.trim();
-    const email = document.getElementById('email').value.trim();
-
-    if (!nome || !email) {
-        showMessage('Nome e e-mail são obrigatórios!', 'error');
+    const nome = document.getElementById('nome').value.trim();
+    if (!nome) {
+        showMessage('Nome é obrigatório!', 'error');
         return;
     }
 
     const payload = {
         nome: nome.toUpperCase(),
         representante: document.getElementById('representante').value.trim().toUpperCase(),
-        email: email.toLowerCase(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
         telefones: parseArray(document.getElementById('telefones').value),
         celulares: parseArray(document.getElementById('celulares').value),
         regioes: getSelectedRegioes(),
@@ -387,7 +379,6 @@ async function saveTransportadora() {
     }
 }
 
-// ─── EXCLUSÃO ───────────────────────────────────────────────
 function deleteTransportadora(id, nome) {
     pendingDeleteId = id;
     document.getElementById('deleteModalMessage').textContent =
@@ -468,7 +459,7 @@ function gerarPDFAuditoria(logs, responsavel, mes, ano) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const margin = 15;
-    const pageWidth = doc.internal.pageSize.width;
+    const pageWidth  = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     let y = 20;
 
