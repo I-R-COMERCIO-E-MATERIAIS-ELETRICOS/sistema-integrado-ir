@@ -894,15 +894,28 @@ async function abrirAuditoria() {
     try {
         const url = `${API_URL}/ordens/auditoria?responsavel=${encodeURIComponent(responsavel)}`;
         const res = await fetch(url, { headers: getHeaders() });
+
         if (res.status === 401 || res.status === 403) { showDenied('SEM ACESSO'); return; }
+
         if (res.status === 400) {
             const err = await res.json().catch(() => ({}));
             showToast(err.error || 'Selecione um responsável', 'error');
             return;
         }
-        if (!res.ok) throw new Error('Erro ' + res.status);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Erro ' + res.status);
+        }
+
         const logs = await res.json();
-        gerarPDFAuditoria(Array.isArray(logs) ? logs : [], responsavel);
+
+        if (!Array.isArray(logs) || logs.length === 0) {
+            showToast(`Nenhuma atividade registrada para ${responsavel}`, 'error');
+            return;
+        }
+
+        gerarPDFAuditoria(logs, responsavel);
     } catch (err) {
         showToast('Erro ao buscar atividades: ' + err.message, 'error');
     }
