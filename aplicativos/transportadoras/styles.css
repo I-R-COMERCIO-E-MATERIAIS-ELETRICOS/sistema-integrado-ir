@@ -68,27 +68,6 @@ h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
 }
 .search-bar input::placeholder { color: var(--text-secondary); }
 
-.search-select {
-    background: var(--input-bg); color: var(--text-primary);
-    border: 1px solid var(--border-color); border-radius: 8px;
-    padding: 0.5rem 0.75rem; font-size: 0.85rem;
-    max-width: 180px; flex-shrink: 0; cursor: pointer;
-}
-.month-navigation-inline {
-    display: flex; align-items: center; gap: 0.25rem;
-    background: var(--input-bg); padding: 0.35rem;
-    border-radius: 8px; border: 1px solid var(--border-color);
-    height: 36px; min-width: 160px;
-}
-.month-nav-arrow {
-    background: transparent; border: none;
-    color: var(--text-secondary); cursor: pointer;
-    padding: 0.3rem; border-radius: 4px;
-    display: flex; align-items: center; justify-content: center;
-}
-.month-nav-arrow:hover { background: rgba(0,0,0,0.05); color: var(--text-primary); }
-.month-display-inline { padding: 0 0.5rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap; flex: 1; text-align: center; }
-
 .icon-btn {
     background: transparent; border: none; cursor: pointer;
     color: var(--text-secondary); padding: 0.5rem; border-radius: 6px;
@@ -115,7 +94,7 @@ tbody tr { background: var(--bg-card); transition: background 0.2s ease; }
 tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
 
-.actions-cell { white-space: nowrap; min-width: 240px; }
+.actions-cell { white-space: nowrap; min-width: 200px; }
 .actions { display: flex; gap: 8px; justify-content: center; }
 .action-btn {
     padding: 7px 14px; font-size: 0.82rem; margin: 0;
@@ -249,33 +228,4 @@ button.cancel-close { background: #EF4444; }
 
 .modal-delete { position: relative; padding: 2.5rem 2rem 2rem; max-width: 500px !important; }
 .modal-delete .close-modal { position: absolute; top: 1rem; right: 1rem; }
-.modal-message-delete {
-    margin: 2rem 0 2.5rem; color: var(--text-primary);
-    font-size: 1.25rem; line-height: 1.6; text-align: center; font-weight: 500;
-}
-.modal-actions-no-border { border-top: none !important; padding-top: 0 !important; justify-content: center !important; }
-
-@media (max-width: 1366px) {
-    .container { padding: 1.5rem 1.5rem 4rem; max-width: 100%; }
-    h1 { font-size: 1.75rem; }
-    th, td { padding: 12px 14px; font-size: 0.86rem; }
-    .modal-content { padding: 1.75rem; max-width: 92%; }
-    .search-select { max-width: 150px; font-size: 0.82rem; }
-}
-@media (max-width: 1024px) {
-    .container { padding: 1.25rem 1rem 3rem; }
-    h1 { font-size: 1.5rem; }
-    .btn-new-order-header { padding: 0.55rem 1.1rem; font-size: 0.85rem; }
-}
-@media (max-width: 768px) {
-    .container { padding: 1rem 0.75rem 4rem; }
-    .header { flex-direction: column; align-items: stretch; }
-    .header-actions { width: 100%; }
-    .btn-new-order-header { flex: 1; }
-    .search-bar { flex-direction: column; align-items: stretch; }
-    .search-bar input { width: 100%; }
-    .search-select { max-width: 100%; }
-    .month-navigation-inline { width: 100%; }
-    .modal-actions { flex-direction: column-reverse; }
-    .modal-actions button { width: 100%; }
-}
+.mod
