@@ -95,10 +95,11 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         catch (e) { console.error('[compra] notificação:', e.message); }
     }
 
-    function audit(req, action, targetId, details) {
+    // Agora com await — garante que o registro chega no banco antes da resposta.
+    async function audit(req, action, targetId, details) {
         if (typeof logActivity !== 'function') return;
         try {
-            logActivity(admin, req, {
+            await logActivity(admin, req, {
                 action,
                 module: 'compra',
                 target_id: targetId,
@@ -113,7 +114,7 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     // ─── AUDITORIA (por responsável) ────────────────────────
     router.get('/ordens/auditoria', requireAuth, requireAdmin, async (req, res) => {
         try {
-            const responsavel = (req.query.responsavel || '').trim();
+            const responsavel = (req.query.responsavel || '').trim().toUpperCase();
             if (!responsavel) {
                 return res.status(400).json({ error: 'Selecione um responsável' });
             }
@@ -132,7 +133,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ÚLTIMO NÚMERO ──────────────────────────────────────
     router.get('/ordens/ultimo-numero', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
@@ -148,7 +148,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── BUSCAR POR NÚMERO ──────────────────────────────────
     router.get('/ordens/numero/:numero', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
@@ -164,7 +163,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── LISTAR ─────────────────────────────────────────────
     router.get('/ordens', requireAuth, async (req, res) => {
         try {
             const { mes, ano } = req.query;
@@ -186,7 +184,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── CRIAR ──────────────────────────────────────────────
     router.post('/ordens', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -203,8 +200,11 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .single();
             if (error) throw error;
 
-            await notificar(`Ordem de Nº ${data.numero_ordem} aberta`);
-            audit(req, 'create', data.id, { numero: data.numero_ordem });
+            // Espera os dois antes de responder
+            await Promise.all([
+                notificar(`Ordem de Nº ${data.numero_ordem} aberta`),
+                audit(req, 'create', data.id, { numero: data.numero_ordem })
+            ]);
 
             res.status(201).json(data);
         } catch (e) {
@@ -213,7 +213,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ATUALIZAR ──────────────────────────────────────────
     router.put('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const body = toSnakeCase(req.body);
@@ -234,8 +233,10 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .single();
             if (error) throw error;
 
-            await notificar(`Ordem de Nº ${old.numero_ordem} atualizada`);
-            audit(req, 'update', data.id, { numero: data.numero_ordem });
+            await Promise.all([
+                notificar(`Ordem de Nº ${old.numero_ordem} atualizada`),
+                audit(req, 'update', data.id, { numero: data.numero_ordem })
+            ]);
 
             res.json(data);
         } catch (e) {
@@ -244,7 +245,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── EXCLUIR ────────────────────────────────────────────
     router.delete('/ordens/:id', requireAuth, async (req, res) => {
         try {
             const { data: ordem, error: fe } = await admin
@@ -260,8 +260,10 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .eq('id', req.params.id);
             if (error) throw error;
 
-            await notificar(`Ordem de Nº ${ordem.numero_ordem} excluída`);
-            audit(req, 'delete', req.params.id, { numero: ordem.numero_ordem });
+            await Promise.all([
+                notificar(`Ordem de Nº ${ordem.numero_ordem} excluída`),
+                audit(req, 'delete', req.params.id, { numero: ordem.numero_ordem })
+            ]);
 
             res.status(204).end();
         } catch (e) {
@@ -270,7 +272,6 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
         }
     });
 
-    // ─── ALTERAR STATUS ─────────────────────────────────────
     router.patch('/ordens/:id/status', requireAuth, async (req, res) => {
         try {
             const { status } = req.body || {};
@@ -286,14 +287,13 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
                 .single();
             if (error) throw error;
 
-            audit(req, 'status', data.id, { numero: data.numero_ordem, status });
+            await audit(req, 'status', data.id, { numero: data.numero_ordem, status });
             res.json(data);
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
     });
 
-    // ─── FORNECEDORES ÚNICOS ────────────────────────────────
     router.get('/fornecedores', requireAuth, async (req, res) => {
         try {
             const { data, error } = await admin
