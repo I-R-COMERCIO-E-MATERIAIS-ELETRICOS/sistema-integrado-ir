@@ -4,10 +4,10 @@ const crypto = require('crypto');
 function verifyToken(token, secret) {
     if (!token || typeof token !== 'string' || !token.includes('.')) return null;
     const [body, sig] = token.split('.');
-    const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-    const a = Buffer.from(sig), b = Buffer.from(expected);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
     try {
+        const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+        const a = Buffer.from(sig), b = Buffer.from(expected);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
         const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
         if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
         return payload;
@@ -17,7 +17,7 @@ function verifyToken(token, secret) {
 module.exports = function (supabase, supabaseAdmin) {
     const router = express.Router();
     const admin = supabaseAdmin || supabase;
-    const SESSION_SECRET = process.env.SESSION_SECRET;
+    const SESSION_SECRET = process.env.SESSION_SECRET || 'ir-default-session-secret';
 
     const ALL_MODULES = [
         { id: 'usuarios',        name: 'Usuários',                url: '/usuarios',        available: true, adminOnly: true },
@@ -36,20 +36,25 @@ module.exports = function (supabase, supabaseAdmin) {
     ];
 
     async function requireAuth(req, res, next) {
-        const auth = req.headers['authorization'];
-        const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
-        const payload = verifyToken(token, SESSION_SECRET);
-        if (!payload) return res.status(401).json({ error: 'Sessão inválida' });
+        try {
+            const auth = req.headers['authorization'];
+            const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
+            const payload = verifyToken(token, SESSION_SECRET);
+            if (!payload) return res.status(401).json({ error: 'Sessão inválida' });
 
-        const { data: profile } = await admin
-            .from('profiles')
-            .select('id, code, username, name, sector, is_admin, is_active, apps')
-            .eq('id', payload.uid)
-            .single();
+            const { data: profile } = await admin
+                .from('profiles')
+                .select('id, code, username, name, sector, is_admin, is_active, apps')
+                .eq('id', payload.uid)
+                .single();
 
-        if (!profile || !profile.is_active) return res.status(401).json({ error: 'Sessão inválida' });
-        req.user = profile;
-        next();
+            if (!profile || !profile.is_active) return res.status(401).json({ error: 'Sessão inválida' });
+            req.user = profile;
+            next();
+        } catch (e) {
+            console.error('[portal requireAuth]', e.message);
+            return res.status(500).json({ error: 'Erro interno de autenticação' });
+        }
     }
 
     router.get('/modules', requireAuth, (req, res) => {
