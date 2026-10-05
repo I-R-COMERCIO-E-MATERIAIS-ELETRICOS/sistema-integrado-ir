@@ -5,194 +5,99 @@ const path = require('path');
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 
-process.on('unhandledRejection', (reason) => {
-    console.error('[unhandledRejection]', reason && reason.message ? reason.message : reason);
-});
-process.on('uncaughtException', (err) => {
-    console.error('[uncaughtException]', err && err.message ? err.message : err);
-});
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error('❌ Faltam SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY');
+if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+    console.error('❌ Variáveis de ambiente do Supabase não configuradas');
+    process.exit(1);
+}
+if (!process.env.SESSION_SECRET) {
+    console.error('❌ SESSION_SECRET não configurado');
     process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-console.log('✅ Supabase conectado');
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+});
+
+const logActivity = require('./aplicativos/shared/logActivity');
 
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/i;
+app.use('/imagens', express.static(path.join(__dirname, 'aplicativos', 'imagens')));
 
-async function verificarAutenticacao(req, res, next) {
-    if (req.path === '/' || req.path === '/health' || req.path === '/api/health' ||
-        req.path === '/api/supabase-config' || req.path === '/api/verify-session' ||
-        req.path.startsWith('/api/portal/') ||
-        req.path.startsWith('/api/cotacoes/health') ||
-        STATIC_EXTENSIONS.test(req.path)) {
-        return next();
-    }
-    const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
-    if (!sessionToken) {
-        if (req.headers.accept && req.headers.accept.includes('text/html'))
-            return res.redirect('/portal?redirect=' + encodeURIComponent(req.path));
-        return res.status(401).json({ error: 'Não autenticado' });
-    }
+app.get('/health', async (req, res) => {
     try {
-        const { data: session, error } = await supabase
-            .from('active_sessions')
-            .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
-            .eq('session_token', sessionToken)
-            .eq('is_active', true)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-        if (error || !session || !session.users || !session.users.is_active)
-            return res.status(401).json({ error: 'Sessão inválida' });
-        req.user = session.users;
-        req.session = session;
-        req.sessionToken = sessionToken;
-        next();
-    } catch (e) {
-        return res.status(500).json({ error: 'Erro ao verificar sessão' });
-    }
-}
-
-app.get('/health', (req, res) => res.json({ status: 'ok', supabase: true, ts: new Date().toISOString() }));
-app.get('/api/health', (req, res) => res.json({ status: 'ok', supabase: true, ts: new Date().toISOString() }));
-
-app.get('/api/supabase-config', (req, res) => {
-    const url = process.env.SUPABASE_URL;
-    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
-    if (!url || !anonKey) return res.status(500).json({ error: 'Configuração incompleta' });
-    res.json({ url, anonKey });
-});
-
-const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamento','frete','receber','vendas','pagar','lucro','licitacoes','estoque'];
-const APPS_ROOT = path.join(__dirname, 'aplicativos');
-
-console.log('📂 Módulos em:', APPS_ROOT);
-
-APPS.forEach(appName => {
-    const appPath = path.join(APPS_ROOT, appName);
-    if (fs.existsSync(appPath)) {
-        app.use(`/${appName}/assets`, express.static(appPath));
-        app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
-        app.get(`/${appName}/`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
-        app.use(`/${appName}`, express.static(appPath, { index: false, dotfiles: 'deny' }));
-        console.log(`✅ Servindo /${appName}`);
-    } else {
-        console.log(`⚠️  Pasta não encontrada: ${appPath}`);
+        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        res.json({
+            status: error ? 'unhealthy' : 'healthy',
+            database: error ? 'disconnected' : 'connected',
+            timestamp: new Date().toISOString()
+        });
+    } catch {
+        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
     }
 });
 
-app.use((req, res, next) => {
-    if (!STATIC_EXTENSIONS.test(req.path)) return next();
-    const referer = req.get('Referer') || '';
-    let matchedApp = null;
-    for (const appName of APPS) if (referer.includes(`/${appName}`)) { matchedApp = appName; break; }
-    if (!matchedApp) return next();
-    const filePath = path.join(APPS_ROOT, matchedApp, req.path.replace(/^\//, ''));
-    if (fs.existsSync(filePath)) return res.sendFile(filePath);
-    next();
-});
+// ─── APIs ───────────────────────────────────────────────────
+app.use('/api/auth',            require('./aplicativos/login-e-autenticacao/routes')(supabase, supabaseAdmin));
+app.use('/api/portal',          require('./aplicativos/portal/routes')(supabase, supabaseAdmin));
+app.use('/api/usuarios',        require('./aplicativos/usuarios/routes')(supabase, supabaseAdmin));
+app.use('/api/licitacoes',      require('./aplicativos/licitacoes/routes')(supabase, supabaseAdmin));
+app.use('/api/precos',          require('./aplicativos/precos/routes')(supabase, supabaseAdmin));
+app.use('/api',                 require('./aplicativos/compra/routes')(supabase, supabaseAdmin, logActivity));
+app.use('/api/transportadoras', require('./aplicativos/transportadoras/routes')(supabase, supabaseAdmin, logActivity));
 
-app.get('/', (req, res) => {
-    const p = path.join(APPS_ROOT, 'portal', 'index.html');
-    if (fs.existsSync(p)) return res.sendFile(p);
-    res.json({ message: 'I.R. Comércio', apps: APPS.filter(a => fs.existsSync(path.join(APPS_ROOT, a))) });
-});
+// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────
+const MODULES = [
+    'login-e-autenticacao',
+    'portal',
+    'usuarios',
+    'licitacoes',
+    'precos',
+    'compra',
+    'transportadoras',
+    'tutorial'
+];
 
-app.post('/api/verify-session', async (req, res) => {
-    try {
-        const { sessionToken } = req.body || {};
-        if (!sessionToken) return res.json({ valid: false });
-        const { data: session, error } = await supabase
-            .from('active_sessions')
-            .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
-            .eq('session_token', sessionToken)
-            .eq('is_active', true)
-            .gt('expires_at', new Date().toISOString())
-            .single();
-        if (error || !session || !session.users || !session.users.is_active) return res.json({ valid: false });
-        res.json({ valid: true, session: session.users });
-    } catch { res.status(500).json({ valid: false }); }
-});
+MODULES.forEach(name => {
+    const dir = path.join(__dirname, 'aplicativos', name);
+    if (!fs.existsSync(dir)) return;
 
-function mount(relPath, mountPath, nome) {
-    try {
-        const mod = require(relPath);
-        if (typeof mod === 'function') {
-            app.use(mountPath, mod(supabase));
-            console.log(`✅ Rota ${mountPath}`);
-        } else {
-            console.log(`⚠️  ${nome}: export não é função`);
-        }
-    } catch (e) {
-        console.log(`⚠️  ${nome} não carregado: ${e.message}`);
+    app.get(`/${name}`,  (req, res) => res.sendFile(path.join(dir, 'index.html')));
+    app.get(`/${name}/`, (req, res) => res.sendFile(path.join(dir, 'index.html')));
+
+    const mDir = path.join(dir, 'm');
+    if (fs.existsSync(mDir)) {
+        app.get(`/${name}/m`,  (req, res) => res.sendFile(path.join(mDir, 'index.html')));
+        app.get(`/${name}/m/`, (req, res) => res.sendFile(path.join(mDir, 'index.html')));
     }
-}
 
-mount('./aplicativos/portal/routes',          '/api/portal',          'portal');
-mount('./aplicativos/cotacoes/routes',        '/api/cotacoes',        'cotacoes');
-mount('./aplicativos/precos/routes',          '/api/precos',          'precos');
-mount('./aplicativos/transportadoras/routes', '/api/transportadoras', 'transportadoras');
-mount('./aplicativos/faturamento/routes',     '/api/pedidos',         'faturamento');
-mount('./aplicativos/frete/routes',           '/api/fretes',          'frete');
-mount('./aplicativos/receber/routes',         '/api/receber',         'receber');
-mount('./aplicativos/vendas/routes',          '/api/vendas',          'vendas');
-mount('./aplicativos/compra/routes',          '/api',                 'compra');
-mount('./aplicativos/lucro/routes',           '/api',                 'lucro');
-mount('./aplicativos/pagar/routes',           '/api',                 'pagar');
-
-app.use('/api', verificarAutenticacao);
-
-app.post('/api/notifications', async (req, res) => {
-    try {
-        const { message } = req.body || {};
-        if (!message) return res.status(400).json({ error: 'Mensagem inválida' });
-        const { data, error } = await supabase.from('compranotifications').insert({ message }).select().single();
-        if (error) throw error;
-        res.status(201).json({ id: data.id });
-    } catch { res.status(500).json({ error: 'Erro interno' }); }
-});
-app.get('/api/notifications', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('compranotifications').select('*').order('created_at', { ascending: false }).limit(50);
-        if (error) throw error;
-        res.json(data || []);
-    } catch { res.status(500).json({ error: 'Erro' }); }
+    app.use(`/${name}`, express.static(dir, { index: false, dotfiles: 'deny' }));
 });
 
-app.get('/api/estoque', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('estoque').select('*').order('codigo');
-        if (error) throw error;
-        res.json(data || []);
-    } catch { res.status(500).json({ error: 'Erro' }); }
-});
+app.get('/', (req, res) =>
+    res.sendFile(path.join(__dirname, 'aplicativos', 'login-e-autenticacao', 'index.html'))
+);
 
-app.use((err, req, res, next) => {
-    console.error('Erro:', err.message);
-    if (res.headersSent) return next(err);
-    res.status(500).json({ error: 'Erro interno' });
-});
-
-app.use((req, res) => {
-    res.status(404).json({ error: '404 - Rota não encontrada', path: req.path });
+app.use((req, res) => res.status(404).json({ error: '404 - Rota não encontrada' }));
+app.use((error, req, res, next) => {
+    console.error('Erro interno:', error.message);
+    res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n✅ Servidor rodando na porta ${PORT}\n`);
+    console.log(`\n✅ I.R. Comércio — Servidor rodando na porta ${PORT}`);
 });
