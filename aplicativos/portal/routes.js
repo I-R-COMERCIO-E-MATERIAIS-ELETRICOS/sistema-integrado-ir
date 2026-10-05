@@ -16,6 +16,7 @@ function verifyToken(token, secret) {
 
 module.exports = function (supabase, supabaseAdmin) {
     const router = express.Router();
+    const admin = supabaseAdmin || supabase;
     const SESSION_SECRET = process.env.SESSION_SECRET;
 
     const ALL_MODULES = [
@@ -40,7 +41,7 @@ module.exports = function (supabase, supabaseAdmin) {
         const payload = verifyToken(token, SESSION_SECRET);
         if (!payload) return res.status(401).json({ error: 'Sessão inválida' });
 
-        const { data: profile } = await supabaseAdmin
+        const { data: profile } = await admin
             .from('profiles')
             .select('id, code, username, name, sector, is_admin, is_active, apps')
             .eq('id', payload.uid)
