@@ -5,6 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 
+process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', reason && reason.message ? reason.message : reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err && err.message ? err.message : err);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -127,7 +134,7 @@ function mount(relPath, mountPath, nome) {
     try {
         const mod = require(relPath);
         if (typeof mod === 'function') {
-            app.use(mountPath, mod(supabase, supabase));
+            app.use(mountPath, mod(supabase));
             console.log(`✅ Rota ${mountPath}`);
         } else {
             console.log(`⚠️  ${nome}: export não é função`);
