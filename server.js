@@ -3,24 +3,21 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let supabase = null;
-try {
-    const { createClient } = require('@supabase/supabase-js');
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (supabaseUrl && supabaseKey) {
-        supabase = createClient(supabaseUrl, supabaseKey);
-        console.log('✅ Supabase client criado');
-    } else {
-        console.log('⚠️  SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente');
-    }
-} catch (e) {
-    console.log('⚠️  Falha ao criar Supabase client:', e.message);
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('❌ Faltam SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY');
+    process.exit(1);
 }
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+console.log('✅ Supabase conectado');
 
 app.use(cors({
     origin: '*',
@@ -40,8 +37,6 @@ async function verificarAutenticacao(req, res, next) {
         STATIC_EXTENSIONS.test(req.path)) {
         return next();
     }
-    if (!supabase) return res.status(503).json({ error: 'Banco não configurado' });
-
     const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
     if (!sessionToken) {
         if (req.headers.accept && req.headers.accept.includes('text/html'))
@@ -67,12 +62,8 @@ async function verificarAutenticacao(req, res, next) {
     }
 }
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
-});
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
-});
+app.get('/health', (req, res) => res.json({ status: 'ok', supabase: true, ts: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', supabase: true, ts: new Date().toISOString() }));
 
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
@@ -84,7 +75,7 @@ app.get('/api/supabase-config', (req, res) => {
 const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamento','frete','receber','vendas','pagar','lucro','licitacoes','estoque'];
 const APPS_ROOT = path.join(__dirname, 'aplicativos');
 
-console.log('📂 Procurando módulos em:', APPS_ROOT);
+console.log('📂 Módulos em:', APPS_ROOT);
 
 APPS.forEach(appName => {
     const appPath = path.join(APPS_ROOT, appName);
@@ -119,7 +110,7 @@ app.get('/', (req, res) => {
 app.post('/api/verify-session', async (req, res) => {
     try {
         const { sessionToken } = req.body || {};
-        if (!sessionToken || !supabase) return res.json({ valid: false });
+        if (!sessionToken) return res.json({ valid: false });
         const { data: session, error } = await supabase
             .from('active_sessions')
             .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
@@ -132,15 +123,12 @@ app.post('/api/verify-session', async (req, res) => {
     } catch { res.status(500).json({ valid: false }); }
 });
 
-// ─── CARREGADOR — UM argumento, como era antes ───────────────────────────────
 function mount(relPath, mountPath, nome) {
     try {
         const mod = require(relPath);
-        if (typeof mod === 'function' && supabase) {
-            app.use(mountPath, mod(supabase));
+        if (typeof mod === 'function') {
+            app.use(mountPath, mod(supabase, supabase));
             console.log(`✅ Rota ${mountPath}`);
-        } else if (typeof mod === 'function') {
-            console.log(`⚠️  ${nome}: supabase ausente, rota ignorada`);
         } else {
             console.log(`⚠️  ${nome}: export não é função`);
         }
@@ -166,7 +154,7 @@ app.use('/api', verificarAutenticacao);
 app.post('/api/notifications', async (req, res) => {
     try {
         const { message } = req.body || {};
-        if (!message || !supabase) return res.status(400).json({ error: 'Mensagem inválida' });
+        if (!message) return res.status(400).json({ error: 'Mensagem inválida' });
         const { data, error } = await supabase.from('compranotifications').insert({ message }).select().single();
         if (error) throw error;
         res.status(201).json({ id: data.id });
@@ -174,7 +162,6 @@ app.post('/api/notifications', async (req, res) => {
 });
 app.get('/api/notifications', async (req, res) => {
     try {
-        if (!supabase) return res.json([]);
         const { data, error } = await supabase.from('compranotifications').select('*').order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
         res.json(data || []);
@@ -183,7 +170,6 @@ app.get('/api/notifications', async (req, res) => {
 
 app.get('/api/estoque', async (req, res) => {
     try {
-        if (!supabase) return res.json([]);
         const { data, error } = await supabase.from('estoque').select('*').order('codigo');
         if (error) throw error;
         res.json(data || []);
