@@ -3,25 +3,38 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Supabase não configurado (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)');
-    process.exit(1);
+// ─── SUPABASE ────────────────────────────────────────────────────────────────
+let supabase = null;
+try {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && supabaseKey) {
+        supabase = createClient(supabaseUrl, supabaseKey);
+        console.log('✅ Supabase client criado');
+    } else {
+        console.log('⚠️  SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente — seguindo mesmo assim');
+    }
+} catch (e) {
+    console.log('⚠️  Falha ao criar Supabase client:', e.message);
 }
-const supabase = createClient(supabaseUrl, supabaseKey);
 
-app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'], allowedHeaders: ['Content-Type','Authorization','X-Session-Token'] }));
+// ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/i;
 
+// ─── AUTENTICAÇÃO (não estoura se supabase for null) ─────────────────────────
 async function verificarAutenticacao(req, res, next) {
     if (req.path === '/' || req.path === '/health' || req.path === '/api/health' ||
         req.path === '/api/supabase-config' || req.path === '/api/verify-session' ||
@@ -30,6 +43,8 @@ async function verificarAutenticacao(req, res, next) {
         STATIC_EXTENSIONS.test(req.path)) {
         return next();
     }
+    if (!supabase) return res.status(503).json({ error: 'Banco não configurado' });
+
     const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
     if (!sessionToken) {
         if (req.headers.accept && req.headers.accept.includes('text/html'))
@@ -50,24 +65,20 @@ async function verificarAutenticacao(req, res, next) {
         req.session = session;
         req.sessionToken = sessionToken;
         next();
-    } catch (error) {
-        return res.status(500).json({ error: 'Erro ao verificar autenticação' });
+    } catch (e) {
+        return res.status(500).json({ error: 'Erro ao verificar sessão' });
     }
 }
 
-app.get('/health', async (req, res) => {
-    try {
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
-    } catch { res.json({ status: 'unhealthy', timestamp: new Date().toISOString() }); }
+// ─── HEALTH ───────────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
 });
-app.get('/api/health', async (req, res) => {
-    try {
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
-    } catch { res.json({ status: 'unhealthy', timestamp: new Date().toISOString() }); }
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
 });
 
+// ─── SUPABASE CONFIG (para o frontend) ───────────────────────────────────────
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
@@ -75,10 +86,15 @@ app.get('/api/supabase-config', (req, res) => {
     res.json({ url, anonKey });
 });
 
+// ─── ESTÁTICOS DOS MÓDULOS ────────────────────────────────────────────────────
 const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamento','frete','receber','vendas','pagar','lucro','licitacoes','estoque'];
+const APPS_ROOT = path.join(__dirname, 'aplicativos');
+
+console.log('📂 Procurando módulos em:', APPS_ROOT);
+console.log('📂 __dirname é:', __dirname);
 
 APPS.forEach(appName => {
-    const appPath = path.join(__dirname, 'aplicativos', appName);
+    const appPath = path.join(APPS_ROOT, appName);
     if (fs.existsSync(appPath)) {
         app.use(`/${appName}/assets`, express.static(appPath));
         app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
@@ -90,47 +106,30 @@ APPS.forEach(appName => {
     }
 });
 
+// Fallback de assets
 app.use((req, res, next) => {
     if (!STATIC_EXTENSIONS.test(req.path)) return next();
     const referer = req.get('Referer') || '';
     let matchedApp = null;
     for (const appName of APPS) if (referer.includes(`/${appName}`)) { matchedApp = appName; break; }
     if (!matchedApp) return next();
-    const filePath = path.join(__dirname, 'aplicativos', matchedApp, req.path.replace(/^\//, ''));
+    const filePath = path.join(APPS_ROOT, matchedApp, req.path.replace(/^\//, ''));
     if (fs.existsSync(filePath)) return res.sendFile(filePath);
     next();
 });
 
+// ─── RAIZ → PORTAL ────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-    const p = path.join(__dirname, 'aplicativos', 'portal', 'index.html');
-    if (fs.existsSync(p)) res.sendFile(p);
-    else res.json({ message: 'I.R. Comércio', apps: APPS.map(a => `/${a}`) });
+    const p = path.join(APPS_ROOT, 'portal', 'index.html');
+    if (fs.existsSync(p)) return res.sendFile(p);
+    res.json({ message: 'I.R. Comércio', apps: APPS.filter(a => fs.existsSync(path.join(APPS_ROOT, a))) });
 });
 
-// Carrega módulos em try/catch para não crashar se algum não existir
-function carregarModulo(relPath, mountPath, nome) {
-    try {
-        const mod = require(relPath);
-        app.use(mountPath, mod(supabase));
-        console.log(`✅ Rota ${mountPath}`);
-    } catch (e) {
-        console.log(`⚠️  ${nome} não carregado: ${e.message}`);
-    }
-}
-
-carregarModulo('./aplicativos/portal/routes',         '/api/portal',         'portal');
-carregarModulo('./aplicativos/cotacoes/routes',       '/api/cotacoes',       'cotacoes');
-carregarModulo('./aplicativos/precos/routes',         '/api/precos',         'precos');
-carregarModulo('./aplicativos/transportadoras/routes','/api/transportadoras','transportadoras');
-carregarModulo('./aplicativos/faturamento/routes',    '/api/pedidos',        'faturamento');
-carregarModulo('./aplicativos/frete/routes',          '/api/fretes',         'frete');
-carregarModulo('./aplicativos/receber/routes',        '/api/receber',        'receber');
-carregarModulo('./aplicativos/vendas/routes',         '/api/vendas',         'vendas');
-
+// ─── VERIFY-SESSION (público, para os módulos) ───────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
     try {
-        const { sessionToken } = req.body;
-        if (!sessionToken) return res.json({ valid: false });
+        const { sessionToken } = req.body || {};
+        if (!sessionToken || !supabase) return res.json({ valid: false });
         const { data: session, error } = await supabase
             .from('active_sessions')
             .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
@@ -143,31 +142,43 @@ app.post('/api/verify-session', async (req, res) => {
     } catch { res.status(500).json({ valid: false }); }
 });
 
-// Aplica auth nas rotas /api restantes (menos as já montadas acima)
+// ─── CARREGADOR DE MÓDULOS (à prova de bala) ────────────────────────────────
+function mount(relPath, mountPath, nome) {
+    try {
+        const mod = require(relPath);
+        if (typeof mod === 'function' && supabase) {
+            app.use(mountPath, mod(supabase));
+            console.log(`✅ Rota ${mountPath}`);
+        } else if (typeof mod === 'function') {
+            console.log(`⚠️  ${nome}: supabase ausente, rota ignorada`);
+        } else {
+            console.log(`⚠️  ${nome}: export não é função`);
+        }
+    } catch (e) {
+        console.log(`⚠️  ${nome} não carregado: ${e.message}`);
+    }
+}
+
+mount('./aplicativos/portal/routes',          '/api/portal',          'portal');
+mount('./aplicativos/cotacoes/routes',        '/api/cotacoes',        'cotacoes');
+mount('./aplicativos/precos/routes',          '/api/precos',          'precos');
+mount('./aplicativos/transportadoras/routes', '/api/transportadoras', 'transportadoras');
+mount('./aplicativos/faturamento/routes',     '/api/pedidos',         'faturamento');
+mount('./aplicativos/frete/routes',           '/api/fretes',          'frete');
+mount('./aplicativos/receber/routes',         '/api/receber',         'receber');
+mount('./aplicativos/vendas/routes',          '/api/vendas',          'vendas');
+mount('./aplicativos/compra/routes',          '/api',                 'compra');
+mount('./aplicativos/lucro/routes',           '/api',                 'lucro');
+mount('./aplicativos/pagar/routes',           '/api',                 'pagar');
+
+// ─── AUTH (aplicada só agora, depois de todos os mounts) ─────────────────────
 app.use('/api', verificarAutenticacao);
 
-try {
-    const compraRoutes = require('./aplicativos/compra/routes');
-    app.use('/api', compraRoutes(supabase));
-    console.log('✅ Rota /api (compra)');
-} catch (e) { console.log(`⚠️  compra não carregado: ${e.message}`); }
-
-try {
-    const lucroRoutes = require('./aplicativos/lucro/routes');
-    app.use('/api', lucroRoutes(supabase));
-    console.log('✅ Rota /api (lucro)');
-} catch (e) { console.log(`⚠️  lucro não carregado: ${e.message}`); }
-
-try {
-    const pagarRoutes = require('./aplicativos/pagar/routes');
-    app.use('/api', pagarRoutes(supabase));
-    console.log('✅ Rota /api (pagar)');
-} catch (e) { console.log(`⚠️  pagar não carregado: ${e.message}`); }
-
+// ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
 app.post('/api/notifications', async (req, res) => {
     try {
-        const { message } = req.body;
-        if (!message) return res.status(400).json({ error: 'Mensagem inválida' });
+        const { message } = req.body || {};
+        if (!message || !supabase) return res.status(400).json({ error: 'Mensagem inválida' });
         const { data, error } = await supabase.from('compranotifications').insert({ message }).select().single();
         if (error) throw error;
         res.status(201).json({ id: data.id });
@@ -175,23 +186,35 @@ app.post('/api/notifications', async (req, res) => {
 });
 app.get('/api/notifications', async (req, res) => {
     try {
+        if (!supabase) return res.json([]);
         const { data, error } = await supabase.from('compranotifications').select('*').order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
         res.json(data || []);
     } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
+// ─── ESTOQUE ──────────────────────────────────────────────────────────────────
 app.get('/api/estoque', async (req, res) => {
-    try { const { data, error } = await supabase.from('estoque').select('*').order('codigo'); if (error) throw error; res.json(data); }
-    catch { res.status(500).json({ error: 'Erro' }); }
+    try {
+        if (!supabase) return res.json([]);
+        const { data, error } = await supabase.from('estoque').select('*').order('codigo');
+        if (error) throw error;
+        res.json(data || []);
+    } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-app.use((req, res) => { res.status(404).json({ error: '404 - Rota não encontrada', path: req.path }); });
-app.use((error, req, res, next) => { console.error('Erro:', error.message); res.status(500).json({ error: 'Erro interno' }); });
+// ─── 404 ──────────────────────────────────────────────────────────────────────
+app.use((req, res) => {
+    res.status(404).json({ error: '404 - Rota não encontrada', path: req.path });
+});
 
+// ─── ERRO GLOBAL ──────────────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+    console.error('Erro:', err.message);
+    res.status(500).json({ error: 'Erro interno', message: err.message });
+});
+
+// ─── LISTEN ───────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n✅ Servidor rodando na porta ${PORT}`);
-    console.log(`✅ Supabase conectado\n`);
-    APPS.forEach(a => console.log(`  ${fs.existsSync(path.join(__dirname,'aplicativos',a)) ? '✅' : '⚠️ '} /${a}`));
-    console.log('');
+    console.log(`\n✅ Servidor rodando na porta ${PORT}\n`);
 });
