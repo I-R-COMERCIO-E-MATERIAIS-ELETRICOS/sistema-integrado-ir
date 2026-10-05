@@ -50,7 +50,7 @@ setInterval(() => {
     }
 }, 3600000);
 
-// ─── HEALTH CHECKS (públicos, antes da autenticação) ─────────────────────────
+// ─── HEALTH CHECKS ────────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
     try {
         const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
@@ -136,6 +136,7 @@ app.get('/api/supabase-config', (req, res) => {
 });
 
 // ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────────────────────
+// ATENÇÃO: pasta no repo é "aplicativos", não "apps"
 const APPS = [
     'portal', 'precos', 'compra', 'transportadoras', 'cotacoes',
     'faturamento', 'frete', 'receber', 'vendas',
@@ -143,7 +144,7 @@ const APPS = [
 ];
 
 APPS.forEach(appName => {
-    const appPath = path.join(__dirname, 'apps', appName);
+    const appPath = path.join(__dirname, 'aplicativos', appName);
     if (fs.existsSync(appPath)) {
         app.use(`/${appName}/assets`, express.static(appPath));
         app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
@@ -164,7 +165,7 @@ app.use((req, res, next) => {
         if (referer.includes(`/${appName}`)) { matchedApp = appName; break; }
     }
     if (!matchedApp) return next();
-    const appPath = path.join(__dirname, 'apps', matchedApp);
+    const appPath = path.join(__dirname, 'aplicativos', matchedApp);
     const fileName = req.path.replace(/^\//, '');
     const filePath = path.join(appPath, fileName);
     if (fs.existsSync(filePath)) {
@@ -175,13 +176,13 @@ app.use((req, res, next) => {
 
 // ─── ROTA RAIZ → PORTAL ───────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-    const portalPath = path.join(__dirname, 'apps', 'portal', 'index.html');
+    const portalPath = path.join(__dirname, 'aplicativos', 'portal', 'index.html');
     if (fs.existsSync(portalPath)) res.sendFile(portalPath);
     else res.json({ message: 'I.R. Comércio - Sistema Central', apps: APPS.map(a => `/${a}`) });
 });
 
 // ─── API DO PORTAL (sem autenticação central) ─────────────────────────────────
-const portalRoutes = require('./apps/portal/routes');
+const portalRoutes = require('./aplicativos/portal/routes');
 app.use('/api/portal', portalRoutes(supabase));
 
 // ─── ENDPOINT DE VERIFICAÇÃO DE SESSÃO (público) ──────────────────────────────
@@ -202,7 +203,7 @@ app.post('/api/verify-session', async (req, res) => {
 });
 
 // ─── API DE COTAÇÕES (ANTES do auth para permitir /health público) ───────────
-const cotacoesRoutes = require('./apps/cotacoes/routes');
+const cotacoesRoutes = require('./aplicativos/cotacoes/routes');
 app.use('/api/cotacoes', cotacoesRoutes(supabase));
 
 // ─── MIDDLEWARE DE AUTENTICAÇÃO (aplicado a TODAS as rotas /api daqui pra baixo)
@@ -227,39 +228,39 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 // ─── API DE PREÇOS ────────────────────────────────────────────────────────────
-const precosRoutes = require('./apps/precos/routes');
+const precosRoutes = require('./aplicativos/precos/routes');
 app.use('/api/precos', precosRoutes(supabase));
 
 // ─── API DE COMPRAS ───────────────────────────────────────────────────────────
-const compraRoutes = require('./apps/compra/routes');
+const compraRoutes = require('./aplicativos/compra/routes');
 app.use('/api', compraRoutes(supabase));
 
 // ─── API DE TRANSPORTADORAS ───────────────────────────────────────────────────
-const transportadorasRoutes = require('./apps/transportadoras/routes');
+const transportadorasRoutes = require('./aplicativos/transportadoras/routes');
 app.use('/api/transportadoras', transportadorasRoutes(supabase));
 
 // ─── API DE FATURAMENTO ───────────────────────────────────────────────────────
-const faturamentoRoutes = require('./apps/faturamento/routes');
+const faturamentoRoutes = require('./aplicativos/faturamento/routes');
 app.use('/api/pedidos', faturamentoRoutes(supabase));
 
 // ─── API DE CONTROLE DE FRETE ─────────────────────────────────────────────────
-const freteRoutes = require('./apps/frete/routes');
+const freteRoutes = require('./aplicativos/frete/routes');
 app.use('/api/fretes', freteRoutes(supabase));
 
 // ─── API DE CONTAS A RECEBER ──────────────────────────────────────────────────
-const receberRoutes = require('./apps/receber/routes');
+const receberRoutes = require('./aplicativos/receber/routes');
 app.use('/api/receber', receberRoutes(supabase));
 
 // ─── API DE VENDAS ────────────────────────────────────────────────────────────
-const vendasRoutes = require('./apps/vendas/routes');
+const vendasRoutes = require('./aplicativos/vendas/routes');
 app.use('/api/vendas', vendasRoutes(supabase));
 
 // ─── API DE LUCRO REAL ────────────────────────────────────────────────────────
-const lucroRoutes = require('./apps/lucro/routes');
+const lucroRoutes = require('./aplicativos/lucro/routes');
 app.use('/api', lucroRoutes(supabase));
 
 // ─── API DE CONTAS A PAGAR ────────────────────────────────────────────────────
-const contasPagarRoutes = require('./apps/pagar/routes');
+const contasPagarRoutes = require('./aplicativos/pagar/routes');
 app.use('/api', contasPagarRoutes(supabase));
 
 // ─── ROTA DE ESTOQUE ──────────────────────────────────────────────────────────
@@ -291,7 +292,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Database: Supabase conectado`);
     console.log(`✅ Autenticação: Ativa (via Supabase)\n`);
     APPS.forEach(appName => {
-        const appPath = path.join(__dirname, 'apps', appName);
+        const appPath = path.join(__dirname, 'aplicativos', appName);
         const status = fs.existsSync(appPath) ? '✅' : '⚠️ ';
         console.log(`  ${status} /${appName}`);
     });
