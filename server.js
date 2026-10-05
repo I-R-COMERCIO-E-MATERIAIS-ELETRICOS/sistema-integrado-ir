@@ -7,7 +7,6 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── SUPABASE ────────────────────────────────────────────────────────────────
 let supabase = null;
 try {
     const { createClient } = require('@supabase/supabase-js');
@@ -17,7 +16,7 @@ try {
         supabase = createClient(supabaseUrl, supabaseKey);
         console.log('✅ Supabase client criado');
     } else {
-        console.log('⚠️  SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente — seguindo mesmo assim');
+        console.log('⚠️  SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente');
     }
 } catch (e) {
     console.log('⚠️  Falha ao criar Supabase client:', e.message);
@@ -86,7 +85,6 @@ const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamen
 const APPS_ROOT = path.join(__dirname, 'aplicativos');
 
 console.log('📂 Procurando módulos em:', APPS_ROOT);
-console.log('📂 __dirname é:', __dirname);
 
 APPS.forEach(appName => {
     const appPath = path.join(APPS_ROOT, appName);
@@ -134,12 +132,12 @@ app.post('/api/verify-session', async (req, res) => {
     } catch { res.status(500).json({ valid: false }); }
 });
 
-// ─── CARREGADOR — AGORA PASSA (supabase, supabase) ──────────────────────────
+// ─── CARREGADOR — UM argumento, como era antes ───────────────────────────────
 function mount(relPath, mountPath, nome) {
     try {
         const mod = require(relPath);
         if (typeof mod === 'function' && supabase) {
-            app.use(mountPath, mod(supabase, supabase));   // ← CORRIGIDO
+            app.use(mountPath, mod(supabase));
             console.log(`✅ Rota ${mountPath}`);
         } else if (typeof mod === 'function') {
             console.log(`⚠️  ${nome}: supabase ausente, rota ignorada`);
@@ -192,25 +190,14 @@ app.get('/api/estoque', async (req, res) => {
     } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-// Handler de erro de verdade (pega erros de middleware síncronos também)
 app.use((err, req, res, next) => {
-    console.error('❌ Erro capturado:', err.message);
+    console.error('Erro:', err.message);
     if (res.headersSent) return next(err);
-    res.status(500).json({ error: 'Erro interno', message: err.message });
+    res.status(500).json({ error: 'Erro interno' });
 });
 
 app.use((req, res) => {
     res.status(404).json({ error: '404 - Rota não encontrada', path: req.path });
-});
-
-// ─── PROTEÇÃO CONTRA CRASH (rede de segurança) ──────────────────────────────
-process.on('uncaughtException', (err) => {
-    console.error('❌ uncaughtException:', err.message);
-    console.error(err.stack);
-    // NÃO dá process.exit() — deixa o servidor seguir vivo
-});
-process.on('unhandledRejection', (reason) => {
-    console.error('❌ unhandledRejection:', reason);
 });
 
 app.listen(PORT, '0.0.0.0', () => {
