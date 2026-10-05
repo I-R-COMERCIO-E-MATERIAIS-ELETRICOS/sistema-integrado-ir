@@ -5,32 +5,65 @@ module.exports = function (supabase) {
     function buildDateRange(mes, ano) {
         const m = parseInt(mes), y = parseInt(ano);
         if (isNaN(m) || isNaN(y)) return null;
-        const start = new Date(y, m, 1).toISOString();
-        const end = new Date(y, m + 1, 0, 23, 59, 59, 999).toISOString();
+        const start = new Date(Date.UTC(y, m, 1, 0, 0, 0)).toISOString();
+        const end   = new Date(Date.UTC(y, m + 1, 1, 0, 0, 0)).toISOString();
         return { start, end };
     }
+
+    // Health check público (não exige sessão)
+    router.get('/health', (req, res) => {
+        res.json({ status: 'ok', module: 'cotacoes', ts: new Date().toISOString() });
+    });
+
+    // Próximo código sequencial (usado ao abrir o form)
+    router.get('/ultimo-codigo', async (req, res) => {
+        try {
+            const { data, error } = await supabase
+                .from('cotacoes')
+                .select('codigo')
+                .order('codigo', { ascending: false })
+                .limit(1);
+            if (error) throw error;
+            const ultimo = data && data[0] ? parseInt(data[0].codigo) || 0 : 0;
+            res.json({ ultimoCodigo: ultimo });
+        } catch (err) {
+            res.status(500).json({ error: 'Erro ao buscar último código' });
+        }
+    });
 
     router.get('/', async (req, res) => {
         try {
             const { mes, ano, transportadora, responsavel, status } = req.query;
-            let query = supabase.from('cotacoes').select('*').order('timestamp', { ascending: false });
+            let query = supabase
+                .from('cotacoes')
+                .select('*')
+                .order('createdat', { ascending: false, nullsFirst: false });
+
             if (mes !== undefined && ano !== undefined) {
                 const range = buildDateRange(mes, ano);
-                if (range) query = query.gte('createdat', range.start).lte('createdat', range.end);
+                if (range) query = query.gte('createdat', range.start).lt('createdat', range.end);
             }
             if (transportadora) query = query.eq('transportadora', transportadora);
-            if (responsavel) query = query.eq('responsavel', responsavel);
-            if (status === 'aprovada') query = query.eq('"negocioFechado"', true);
-            if (status === 'reprovada') query = query.eq('"negocioFechado"', false);
+            if (responsavel)    query = query.eq('responsavel', responsavel);
+            if (status === 'aprovada')  query = query.eq('negocioFechado', true);
+            if (status === 'reprovada') query = query.eq('negocioFechado', false);
+
             const { data, error } = await query;
             if (error) throw error;
-            res.json(data);
-        } catch (err) { res.status(500).json({ error: 'Erro ao listar cotações' }); }
+            res.json(data || []);
+        } catch (err) {
+            console.error('GET /cotacoes:', err.message);
+            res.status(500).json({ error: 'Erro ao listar cotações' });
+        }
     });
 
     router.get('/:id', async (req, res) => {
         try {
-            const { data, error } = await supabase.from('cotacoes').select('*').eq('id', req.params.id).single();
+            const { data, error } = await supabase
+                .from('cotacoes')
+                .select('*')
+                .eq('id', req.params.id)
+                .maybeSingle();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Cotação não encontrada' });
             res.json(data);
@@ -40,13 +73,30 @@ module.exports = function (supabase) {
     router.post('/', async (req, res) => {
         try {
             const payload = { ...req.body };
+            // Remove id/codigo se vierem, pra deixar o banco gerar
+            delete payload.id;
+            delete payload.codigo;
+
             payload.createdat = payload.createdat || new Date().toISOString();
             payload.timestamp = payload.timestamp || new Date().toISOString();
             payload.updatedat = new Date().toISOString();
+
+            // Gera o próximo codigo
+            const { data: last } = await supabase
+                .from('cotacoes')
+                .select('codigo')
+                .order('codigo', { ascending: false })
+                .limit(1);
+            const proxCodigo = (last && last[0] ? parseInt(last[0].codigo) || 0 : 0) + 1;
+            payload.codigo = proxCodigo;
+
             const { data, error } = await supabase.from('cotacoes').insert([payload]).select().single();
             if (error) throw error;
             res.status(201).json(data);
-        } catch (err) { res.status(500).json({ error: 'Erro ao criar cotação' }); }
+        } catch (err) {
+            console.error('POST /cotacoes:', err.message);
+            res.status(500).json({ error: 'Erro ao criar cotação' });
+        }
     });
 
     router.put('/:id', async (req, res) => {
@@ -56,7 +106,13 @@ module.exports = function (supabase) {
             delete payload.id;
             delete payload.createdat;
             delete payload.codigo;
-            const { data, error } = await supabase.from('cotacoes').update(payload).eq('id', req.params.id).select().single();
+
+            const { data, error } = await supabase
+                .from('cotacoes')
+                .update(payload)
+                .eq('id', req.params.id)
+                .select()
+                .single();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Cotação não encontrada' });
             res.json(data);
@@ -69,7 +125,13 @@ module.exports = function (supabase) {
             payload.updatedat = new Date().toISOString();
             delete payload.id;
             delete payload.codigo;
-            const { data, error } = await supabase.from('cotacoes').update(payload).eq('id', req.params.id).select().single();
+
+            const { data, error } = await supabase
+                .from('cotacoes')
+                .update(payload)
+                .eq('id', req.params.id)
+                .select()
+                .single();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Cotação não encontrada' });
             res.json(data);
