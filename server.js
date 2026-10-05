@@ -8,140 +8,69 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── SUPABASE ────────────────────────────────────────────────────────────────
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ ERRO: Variáveis de ambiente do Supabase não configuradas');
-    process.exit(1);
-}
+if (!supabaseUrl || !supabaseKey) { console.error('❌ Supabase não configurado'); process.exit(1); }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
-}));
+app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'], allowedHeaders: ['Content-Type','Authorization','X-Session-Token'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ─── LOG DE ACESSOS ───────────────────────────────────────────────────────────
-const logFilePath = path.join(__dirname, 'acessos.log');
-let accessCount = 0, uniqueIPs = new Set();
-
-function registrarAcesso(req, res, next) {
-    const xForwardedFor = req.headers['x-forwarded-for'];
-    const clientIP = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.socket.remoteAddress;
-    const cleanIP = (clientIP || '').replace('::ffff:', '');
-    fs.appendFile(logFilePath, `[${new Date().toISOString()}] ${cleanIP} - ${req.method} ${req.path}\n`, () => {});
-    accessCount++;
-    uniqueIPs.add(cleanIP);
-    next();
-}
-app.use(registrarAcesso);
-
-setInterval(() => {
-    if (accessCount > 0) {
-        console.log(`📊 Última hora: ${accessCount} requisições de ${uniqueIPs.size} IPs únicos`);
-        accessCount = 0;
-        uniqueIPs.clear();
-    }
-}, 3600000);
-
-// ─── HEALTH CHECKS ────────────────────────────────────────────────────────────
-app.get('/health', async (req, res) => {
-    try {
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
-    } catch {
-        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
-    }
-});
-
-app.get('/api/health', async (req, res) => {
-    try {
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
-    } catch {
-        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
-    }
-});
-
-// ─── AUTENTICAÇÃO CENTRAL ─────────────────────────────────────────────────────
-const PUBLIC_PATHS = ['/', '/health', '/api/health', '/app', '/portal', '/portal/', '/api/supabase-config', '/api/verify-session'];
 const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/i;
 
 async function verificarAutenticacao(req, res, next) {
-    const isPublicPath = PUBLIC_PATHS.some(p => req.path === p);
-    const isStaticAsset = STATIC_EXTENSIONS.test(req.path);
-
-    if (isPublicPath || isStaticAsset) return next();
-    if (req.path.startsWith('/api/portal/')) return next();
-    if (req.path.startsWith('/api/cotacoes/health')) return next();
-
+    if (req.path === '/' || req.path === '/health' || req.path === '/api/health' ||
+        req.path === '/api/supabase-config' || req.path === '/api/verify-session' ||
+        req.path.startsWith('/api/portal/') || STATIC_EXTENSIONS.test(req.path)) {
+        return next();
+    }
     const sessionToken = req.headers['x-session-token'] || req.query.sessionToken;
-
     if (!sessionToken) {
         if (req.headers.accept && req.headers.accept.includes('text/html'))
             return res.redirect('/portal?redirect=' + encodeURIComponent(req.path));
-        return res.status(401).json({ error: 'Não autenticado', redirectToLogin: true });
+        return res.status(401).json({ error: 'Não autenticado' });
     }
-
     try {
         const { data: session, error } = await supabase
             .from('active_sessions')
-            .select(`*, users(id, username, name, is_admin, is_active, sector, apps, authorized_ips)`)
+            .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
             .eq('session_token', sessionToken)
             .eq('is_active', true)
             .gt('expires_at', new Date().toISOString())
             .single();
-
         if (error || !session || !session.users || !session.users.is_active)
-            return res.status(401).json({ error: 'Sessão inválida', redirectToLogin: true });
-
-        supabase
-            .from('active_sessions')
-            .update({ last_activity: new Date().toISOString() })
-            .eq('session_token', sessionToken)
-            .then(() => {});
-
+            return res.status(401).json({ error: 'Sessão inválida' });
         req.user = session.users;
         req.session = session;
         req.sessionToken = sessionToken;
         next();
     } catch (error) {
-        console.error('Erro ao verificar autenticação:', error.message);
         return res.status(500).json({ error: 'Erro ao verificar autenticação' });
     }
 }
 
-// ─── CONFIGURAÇÃO DO SUPABASE PARA FRONTEND ──────────────────────────────────
+app.get('/health', async (req, res) => {
+    try {
+        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
+    } catch { res.json({ status: 'unhealthy', timestamp: new Date().toISOString() }); }
+});
+app.get('/api/health', async (req, res) => {
+    try {
+        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
+    } catch { res.json({ status: 'unhealthy', timestamp: new Date().toISOString() }); }
+});
+
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
-    if (!url || !anonKey) {
-        return res.status(500).json({ error: 'Configuração do Supabase incompleta no servidor' });
-    }
+    if (!url || !anonKey) return res.status(500).json({ error: 'Configuração incompleta' });
     res.json({ url, anonKey });
 });
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────────────────────
-// ATENÇÃO: pasta no repo é "aplicativos", não "apps"
-const APPS = [
-    'portal', 'precos', 'compra', 'transportadoras', 'cotacoes',
-    'faturamento', 'frete', 'receber', 'vendas',
-    'pagar', 'lucro', 'licitacoes', 'estoque'
-];
+const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamento','frete','receber','vendas','pagar','lucro','licitacoes','estoque'];
 
 APPS.forEach(appName => {
     const appPath = path.join(__dirname, 'aplicativos', appName);
@@ -156,145 +85,84 @@ APPS.forEach(appName => {
     }
 });
 
-// ─── MIDDLEWARE: FALLBACK DE ASSETS ───────────────────────────────────────────
 app.use((req, res, next) => {
     if (!STATIC_EXTENSIONS.test(req.path)) return next();
     const referer = req.get('Referer') || '';
     let matchedApp = null;
-    for (const appName of APPS) {
-        if (referer.includes(`/${appName}`)) { matchedApp = appName; break; }
-    }
+    for (const appName of APPS) if (referer.includes(`/${appName}`)) { matchedApp = appName; break; }
     if (!matchedApp) return next();
-    const appPath = path.join(__dirname, 'aplicativos', matchedApp);
-    const fileName = req.path.replace(/^\//, '');
-    const filePath = path.join(appPath, fileName);
-    if (fs.existsSync(filePath)) {
-        return res.sendFile(filePath);
-    }
+    const filePath = path.join(__dirname, 'aplicativos', matchedApp, req.path.replace(/^\//, ''));
+    if (fs.existsSync(filePath)) return res.sendFile(filePath);
     next();
 });
 
-// ─── ROTA RAIZ → PORTAL ───────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-    const portalPath = path.join(__dirname, 'aplicativos', 'portal', 'index.html');
-    if (fs.existsSync(portalPath)) res.sendFile(portalPath);
-    else res.json({ message: 'I.R. Comércio - Sistema Central', apps: APPS.map(a => `/${a}`) });
+    const p = path.join(__dirname, 'aplicativos', 'portal', 'index.html');
+    if (fs.existsSync(p)) res.sendFile(p);
+    else res.json({ message: 'I.R. Comércio', apps: APPS.map(a => `/${a}`) });
 });
 
-// ─── API DO PORTAL (sem autenticação central) ─────────────────────────────────
 const portalRoutes = require('./aplicativos/portal/routes');
 app.use('/api/portal', portalRoutes(supabase));
 
-// ─── ENDPOINT DE VERIFICAÇÃO DE SESSÃO (público) ──────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
     try {
         const { sessionToken } = req.body;
         if (!sessionToken) return res.json({ valid: false });
         const { data: session, error } = await supabase
             .from('active_sessions')
-            .select(`*, users(id, username, name, is_admin, is_active, sector, apps, authorized_ips)`)
+            .select('*, users(id, username, name, is_admin, is_active, sector, apps)')
             .eq('session_token', sessionToken)
             .eq('is_active', true)
             .gt('expires_at', new Date().toISOString())
             .single();
         if (error || !session || !session.users || !session.users.is_active) return res.json({ valid: false });
         res.json({ valid: true, session: session.users });
-    } catch (err) { res.status(500).json({ valid: false }); }
+    } catch { res.status(500).json({ valid: false }); }
 });
 
-// ─── API DE COTAÇÕES (ANTES do auth para permitir /health público) ───────────
 const cotacoesRoutes = require('./aplicativos/cotacoes/routes');
 app.use('/api/cotacoes', cotacoesRoutes(supabase));
 
-// ─── MIDDLEWARE DE AUTENTICAÇÃO (aplicado a TODAS as rotas /api daqui pra baixo)
 app.use('/api', verificarAutenticacao);
 
-// ─── API DE NOTIFICAÇÕES ──────────────────────────────────────────────────────
 app.post('/api/notifications', async (req, res) => {
     try {
         const { message } = req.body;
-        if (!message || typeof message !== 'string') return res.status(400).json({ error: 'Mensagem inválida' });
+        if (!message) return res.status(400).json({ error: 'Mensagem inválida' });
         const { data, error } = await supabase.from('compranotifications').insert({ message }).select().single();
         if (error) throw error;
         res.status(201).json({ id: data.id });
-    } catch (err) { res.status(500).json({ error: 'Erro interno' }); }
+    } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 app.get('/api/notifications', async (req, res) => {
     try {
         const { data, error } = await supabase.from('compranotifications').select('*').order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
         res.json(data || []);
-    } catch (err) { res.status(500).json({ error: 'Erro ao buscar notificações' }); }
+    } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-// ─── API DE PREÇOS ────────────────────────────────────────────────────────────
-const precosRoutes = require('./aplicativos/precos/routes');
-app.use('/api/precos', precosRoutes(supabase));
+try { const precosRoutes = require('./aplicativos/precos/routes'); app.use('/api/precos', precosRoutes(supabase)); } catch(e) { console.log('⚠️ precos:', e.message); }
+try { const compraRoutes = require('./aplicativos/compra/routes'); app.use('/api', compraRoutes(supabase)); } catch(e) { console.log('⚠️ compra:', e.message); }
+try { const transpRoutes = require('./aplicativos/transportadoras/routes'); app.use('/api/transportadoras', transpRoutes(supabase)); } catch(e) { console.log('⚠️ transportadoras:', e.message); }
+try { const fatRoutes = require('./aplicativos/faturamento/routes'); app.use('/api/pedidos', fatRoutes(supabase)); } catch(e) { console.log('⚠️ faturamento:', e.message); }
+try { const freteRoutes = require('./aplicativos/frete/routes'); app.use('/api/fretes', freteRoutes(supabase)); } catch(e) { console.log('⚠️ frete:', e.message); }
+try { const receberRoutes = require('./aplicativos/receber/routes'); app.use('/api/receber', receberRoutes(supabase)); } catch(e) { console.log('⚠️ receber:', e.message); }
+try { const vendasRoutes = require('./aplicativos/vendas/routes'); app.use('/api/vendas', vendasRoutes(supabase)); } catch(e) { console.log('⚠️ vendas:', e.message); }
+try { const lucroRoutes = require('./aplicativos/lucro/routes'); app.use('/api', lucroRoutes(supabase)); } catch(e) { console.log('⚠️ lucro:', e.message); }
+try { const pagarRoutes = require('./aplicativos/pagar/routes'); app.use('/api', pagarRoutes(supabase)); } catch(e) { console.log('⚠️ pagar:', e.message); }
 
-// ─── API DE COMPRAS ───────────────────────────────────────────────────────────
-const compraRoutes = require('./aplicativos/compra/routes');
-app.use('/api', compraRoutes(supabase));
-
-// ─── API DE TRANSPORTADORAS ───────────────────────────────────────────────────
-const transportadorasRoutes = require('./aplicativos/transportadoras/routes');
-app.use('/api/transportadoras', transportadorasRoutes(supabase));
-
-// ─── API DE FATURAMENTO ───────────────────────────────────────────────────────
-const faturamentoRoutes = require('./aplicativos/faturamento/routes');
-app.use('/api/pedidos', faturamentoRoutes(supabase));
-
-// ─── API DE CONTROLE DE FRETE ─────────────────────────────────────────────────
-const freteRoutes = require('./aplicativos/frete/routes');
-app.use('/api/fretes', freteRoutes(supabase));
-
-// ─── API DE CONTAS A RECEBER ──────────────────────────────────────────────────
-const receberRoutes = require('./aplicativos/receber/routes');
-app.use('/api/receber', receberRoutes(supabase));
-
-// ─── API DE VENDAS ────────────────────────────────────────────────────────────
-const vendasRoutes = require('./aplicativos/vendas/routes');
-app.use('/api/vendas', vendasRoutes(supabase));
-
-// ─── API DE LUCRO REAL ────────────────────────────────────────────────────────
-const lucroRoutes = require('./aplicativos/lucro/routes');
-app.use('/api', lucroRoutes(supabase));
-
-// ─── API DE CONTAS A PAGAR ────────────────────────────────────────────────────
-const contasPagarRoutes = require('./aplicativos/pagar/routes');
-app.use('/api', contasPagarRoutes(supabase));
-
-// ─── ROTA DE ESTOQUE ──────────────────────────────────────────────────────────
 app.get('/api/estoque', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('estoque').select('*').order('codigo', { ascending: true });
-        if (error) throw error;
-        res.json(data);
-    } catch (err) { res.status(500).json({ error: 'Erro ao listar estoque' }); }
-});
-app.patch('/api/estoque/:codigo', async (req, res) => {
-    try {
-        const { quantidade } = req.body;
-        const { data, error } = await supabase.from('estoque').update({ quantidade }).eq('codigo', req.params.codigo).select().single();
-        if (error) throw error;
-        res.json(data);
-    } catch (err) { res.status(500).json({ error: 'Erro ao atualizar estoque' }); }
+    try { const { data, error } = await supabase.from('estoque').select('*').order('codigo'); if (error) throw error; res.json(data); }
+    catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => { res.status(404).json({ error: '404 - Rota não encontrada', path: req.path }); });
+app.use((error, req, res, next) => { console.error('Erro:', error.message); res.status(500).json({ error: 'Erro interno' }); });
 
-// ─── TRATAMENTO DE ERROS ──────────────────────────────────────────────────────
-app.use((error, req, res, next) => { console.error('Erro interno:', error.message); res.status(500).json({ error: 'Erro interno do servidor' }); });
-
-// ─── INICIAR ──────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n✅ I.R. Comércio - Servidor Central rodando na porta ${PORT}`);
-    console.log(`✅ Database: Supabase conectado`);
-    console.log(`✅ Autenticação: Ativa (via Supabase)\n`);
-    APPS.forEach(appName => {
-        const appPath = path.join(__dirname, 'aplicativos', appName);
-        const status = fs.existsSync(appPath) ? '✅' : '⚠️ ';
-        console.log(`  ${status} /${appName}`);
-    });
-    console.log(`\n📝 Logs salvos em: acessos.log\n`);
+    console.log(`\n✅ Servidor rodando na porta ${PORT}\n`);
+    APPS.forEach(a => console.log(`  ${fs.existsSync(path.join(__dirname,'aplicativos',a)) ? '✅' : '⚠️ '} /${a}`));
+    console.log('');
 });
