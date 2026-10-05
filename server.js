@@ -23,7 +23,6 @@ try {
     console.log('⚠️  Falha ao criar Supabase client:', e.message);
 }
 
-// ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
@@ -34,7 +33,6 @@ app.use(express.urlencoded({ extended: true }));
 
 const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/i;
 
-// ─── AUTENTICAÇÃO (não estoura se supabase for null) ─────────────────────────
 async function verificarAutenticacao(req, res, next) {
     if (req.path === '/' || req.path === '/health' || req.path === '/api/health' ||
         req.path === '/api/supabase-config' || req.path === '/api/verify-session' ||
@@ -70,7 +68,6 @@ async function verificarAutenticacao(req, res, next) {
     }
 }
 
-// ─── HEALTH ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
 });
@@ -78,7 +75,6 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', supabase: !!supabase, ts: new Date().toISOString() });
 });
 
-// ─── SUPABASE CONFIG (para o frontend) ───────────────────────────────────────
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
@@ -86,7 +82,6 @@ app.get('/api/supabase-config', (req, res) => {
     res.json({ url, anonKey });
 });
 
-// ─── ESTÁTICOS DOS MÓDULOS ────────────────────────────────────────────────────
 const APPS = ['portal','precos','compra','transportadoras','cotacoes','faturamento','frete','receber','vendas','pagar','lucro','licitacoes','estoque'];
 const APPS_ROOT = path.join(__dirname, 'aplicativos');
 
@@ -106,7 +101,6 @@ APPS.forEach(appName => {
     }
 });
 
-// Fallback de assets
 app.use((req, res, next) => {
     if (!STATIC_EXTENSIONS.test(req.path)) return next();
     const referer = req.get('Referer') || '';
@@ -118,14 +112,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// ─── RAIZ → PORTAL ────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
     const p = path.join(APPS_ROOT, 'portal', 'index.html');
     if (fs.existsSync(p)) return res.sendFile(p);
     res.json({ message: 'I.R. Comércio', apps: APPS.filter(a => fs.existsSync(path.join(APPS_ROOT, a))) });
 });
 
-// ─── VERIFY-SESSION (público, para os módulos) ───────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
     try {
         const { sessionToken } = req.body || {};
@@ -142,12 +134,12 @@ app.post('/api/verify-session', async (req, res) => {
     } catch { res.status(500).json({ valid: false }); }
 });
 
-// ─── CARREGADOR DE MÓDULOS (à prova de bala) ────────────────────────────────
+// ─── CARREGADOR — AGORA PASSA (supabase, supabase) ──────────────────────────
 function mount(relPath, mountPath, nome) {
     try {
         const mod = require(relPath);
         if (typeof mod === 'function' && supabase) {
-            app.use(mountPath, mod(supabase));
+            app.use(mountPath, mod(supabase, supabase));   // ← CORRIGIDO
             console.log(`✅ Rota ${mountPath}`);
         } else if (typeof mod === 'function') {
             console.log(`⚠️  ${nome}: supabase ausente, rota ignorada`);
@@ -171,10 +163,8 @@ mount('./aplicativos/compra/routes',          '/api',                 'compra');
 mount('./aplicativos/lucro/routes',           '/api',                 'lucro');
 mount('./aplicativos/pagar/routes',           '/api',                 'pagar');
 
-// ─── AUTH (aplicada só agora, depois de todos os mounts) ─────────────────────
 app.use('/api', verificarAutenticacao);
 
-// ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
 app.post('/api/notifications', async (req, res) => {
     try {
         const { message } = req.body || {};
@@ -193,7 +183,6 @@ app.get('/api/notifications', async (req, res) => {
     } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-// ─── ESTOQUE ──────────────────────────────────────────────────────────────────
 app.get('/api/estoque', async (req, res) => {
     try {
         if (!supabase) return res.json([]);
@@ -203,18 +192,27 @@ app.get('/api/estoque', async (req, res) => {
     } catch { res.status(500).json({ error: 'Erro' }); }
 });
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
+// Handler de erro de verdade (pega erros de middleware síncronos também)
+app.use((err, req, res, next) => {
+    console.error('❌ Erro capturado:', err.message);
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: 'Erro interno', message: err.message });
+});
+
 app.use((req, res) => {
     res.status(404).json({ error: '404 - Rota não encontrada', path: req.path });
 });
 
-// ─── ERRO GLOBAL ──────────────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-    console.error('Erro:', err.message);
-    res.status(500).json({ error: 'Erro interno', message: err.message });
+// ─── PROTEÇÃO CONTRA CRASH (rede de segurança) ──────────────────────────────
+process.on('uncaughtException', (err) => {
+    console.error('❌ uncaughtException:', err.message);
+    console.error(err.stack);
+    // NÃO dá process.exit() — deixa o servidor seguir vivo
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ unhandledRejection:', reason);
 });
 
-// ─── LISTEN ───────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ Servidor rodando na porta ${PORT}\n`);
 });
