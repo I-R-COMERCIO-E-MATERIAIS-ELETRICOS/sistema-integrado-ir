@@ -178,8 +178,8 @@ module.exports = function (supabase, supabaseAdmin, logActivity) {
     // ─── LISTAR ─────────────────────────────────────────────
     router.get('/ordens', requireAuth, async (req, res) => {
         try {
-            const mes  = req.query.mes !== undefined ? parseInt(req.query.mes, 10) : null;
-            const ano  = req.query.ano !== undefined ? parseInt(req.query.ano, 10) : null;
+            const mes = req.query.mes !== undefined ? parseInt(req.query.mes, 10) : null;
+            const ano = req.query.ano !== undefined ? parseInt(req.query.ano, 10) : null;
 
             let q = admin.from('ordens_compra').select('*');
 
