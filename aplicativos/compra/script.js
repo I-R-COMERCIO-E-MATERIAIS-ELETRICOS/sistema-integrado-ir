@@ -16,6 +16,7 @@ let currentTab = 0;
 let fornecedoresCache = {};
 let ultimoNumeroGlobal = 0;
 let currentFetchController = null;
+let primeiraCargaFeita = false;
 
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
@@ -101,14 +102,43 @@ function showToast(msg, type) {
     }, 3000);
 }
 
+// ─── ESTADO VISUAL: "CARREGANDO..." NA TABELA ───────────────
+function mostrarCarregando() {
+    const c = document.getElementById('ordensContainer');
+    if (!c) return;
+    c.innerHTML = `
+        <tr>
+            <td colspan="8" style="text-align:center;padding:2.5rem;">
+                <div style="display:inline-flex;align-items:center;gap:.6rem;color:#5B6470;font-size:.9rem;">
+                    <span style="
+                        width:18px;height:18px;border:3px solid rgba(255,82,29,.15);
+                        border-top-color:#FF521D;border-radius:50%;
+                        animation:spinLoad .8s linear infinite;display:inline-block;
+                    "></span>
+                    Carregando ordens...
+                </div>
+            </td>
+        </tr>
+        <style>@keyframes spinLoad{to{transform:rotate(360deg)}}</style>
+    `;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
 
-    await fetchSessionUser();
     updateMonthDisplay();
+    mostrarCarregando();
+
+    await fetchSessionUser();
     await carregarTudo();
-    setInterval(() => carregarTudo(), 30000);
+    primeiraCargaFeita = true;
+
+    // Depois da primeira carga, o refresh automático só recarrega as ordens,
+    // a cada 60s (não precisa re-buscar fornecedores nem último número toda hora).
+    setInterval(() => {
+        if (!document.hidden) loadOrdens();
+    }, 60000);
 });
 
 async function fetchSessionUser() {
@@ -125,9 +155,13 @@ async function fetchSessionUser() {
 
 async function carregarTudo() {
     try {
-        await loadOrdens();
-        await loadUltimoNumero();
-        await loadFornecedoresGlobal();
+        // Dispara os 3 fetches em paralelo. O que importa é que o loadOrdens
+        // resolva rápido pra tabela parar de mostrar "Carregando...".
+        await Promise.all([
+            loadOrdens(),
+            loadUltimoNumero(),
+            loadFornecedoresGlobal()
+        ]);
     } catch (err) {
         console.error('[compra] carregarTudo:', err);
     } finally {
@@ -289,8 +323,7 @@ function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
     ordens = [];
     updateMonthDisplay();
-    const c = document.getElementById('ordensContainer');
-    if (c) c.innerHTML = '';
+    mostrarCarregando();
     loadOrdens();
 }
 
