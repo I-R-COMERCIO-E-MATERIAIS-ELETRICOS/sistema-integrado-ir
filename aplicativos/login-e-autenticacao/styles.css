@@ -1,0 +1,185 @@
+:root {
+    --orange: #ff6a00;
+    --orange-hover: #f05f00;
+    --orange-soft: rgba(255, 106, 0, 0.12);
+    --black: #070707;
+    --panel: #0d0f10;
+    --panel-soft: #131619;
+    --white: #ffffff;
+    --text-muted: #a8adb4;
+    --border: rgba(255,255,255,0.12);
+    --danger: #ef4444;
+    --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+html, body { min-height: 100%; font-family: var(--font); color: var(--white); background: var(--black); -webkit-font-smoothing: antialiased; }
+body { overflow-x: hidden; }
+button, input { font-family: inherit; }
+button { cursor: pointer; }
+
+.login-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: 1.08fr 0.92fr;
+    background: var(--black);
+}
+
+.login-brand-side {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background: #090909 url('/imagens/time-ir.png') center center / cover no-repeat;
+}
+
+/* Escurece a foto sem alterar a imagem original. */
+.brand-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.53) 52%, rgba(0,0,0,.25) 100%),
+        linear-gradient(180deg, rgba(0,0,0,.26) 0%, rgba(0,0,0,.12) 48%, rgba(0,0,0,.72) 100%);
+}
+
+.brand-content {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: clamp(48px, 7vh, 82px) clamp(48px, 6vw, 92px) clamp(36px, 5vh, 62px);
+}
+
+.company-brand { display: flex; align-items: center; gap: 24px; }
+.company-logo {
+    width: 150px;
+    max-height: 112px;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,.28));
+}
+.brand-divider { width: 1px; height: 82px; background: rgba(255,255,255,.7); }
+.brand-title { font-size: clamp(2.2rem, 3.2vw, 3.4rem); font-weight: 700; letter-spacing: -0.045em; white-space: nowrap; }
+.brand-title span { color: var(--orange); }
+
+.module-list { display: grid; gap: 24px; max-width: 420px; margin-top: auto; margin-bottom: auto; padding-top: 80px; }
+.module-item { display: flex; align-items: center; gap: 20px; color: #f4f4f4; font-size: 1.08rem; font-weight: 500; }
+.module-icon {
+    width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--orange); font-size: 1.45rem; line-height: 1; font-weight: 700;
+}
+
+.security-note {
+    display: flex; align-items: center; gap: 14px; max-width: 430px;
+    padding-top: 22px; border-top: 1px solid rgba(255,255,255,.22);
+    color: #d7d9dc; font-size: .9rem;
+}
+.security-icon {
+    width: 32px; height: 32px; border: 2px solid var(--orange); border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--orange); font-weight: 700;
+}
+
+.login-form-side {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 48px clamp(34px, 5vw, 76px);
+    background: #090b0c;
+}
+
+.login-card {
+    width: min(100%, 540px);
+    padding: clamp(42px, 5vw, 64px);
+    background: linear-gradient(145deg, #101314, #0b0d0e);
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.38);
+}
+
+.accent-bar { width: 62px; height: 5px; border-radius: 99px; background: var(--orange); margin-bottom: 24px; }
+.login-card h1 { font-size: clamp(2rem, 3vw, 2.65rem); line-height: 1.12; letter-spacing: -.035em; font-weight: 700; }
+.login-subtitle { margin-top: 13px; margin-bottom: 38px; color: var(--text-muted); font-size: 1rem; }
+
+.field { margin-bottom: 20px; }
+.field label { display: block; margin-bottom: 9px; color: #d5d8dc; font-size: .83rem; font-weight: 600; }
+.input-wrap { position: relative; }
+.input-icon {
+    position: absolute; left: 19px; top: 50%; transform: translateY(-50%);
+    color: var(--orange); font-size: 1.25rem; pointer-events: none;
+}
+.field input {
+    width: 100%; min-height: 64px; padding: 0 52px 0 55px;
+    color: var(--white); background: #111517; border: 1px solid var(--border);
+    border-radius: 12px; outline: none; font-size: .97rem; transition: .18s ease;
+}
+.field input::placeholder { color: #858b92; }
+.field input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); background: #121718; }
+.field input.invalid { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.12); }
+.toggle-password {
+    position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; color: #8c939a; font-size: 1rem; border-radius: 8px; background: transparent;
+}
+.toggle-password:hover { color: var(--orange); background: var(--orange-soft); }
+
+.login-options { margin: 4px 0 22px; }
+.remember-option { display: inline-flex; align-items: center; gap: 10px; color: #c5c9ce; font-size: .9rem; cursor: pointer; }
+.remember-option input { position: absolute; opacity: 0; pointer-events: none; }
+.custom-check { width: 21px; height: 21px; border: 2px solid var(--orange); border-radius: 5px; display: inline-block; position: relative; }
+.remember-option input:checked + .custom-check::after {
+    content: ''; position: absolute; left: 4px; top: 1px; width: 7px; height: 11px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+
+.message { display: none; padding: 12px 14px; margin-bottom: 16px; border-radius: 10px; font-size: .85rem; line-height: 1.4; }
+.message.show { display: block; }
+.message.error { color: #fecaca; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.28); }
+
+.btn-primary {
+    width: 100%; min-height: 62px; display: flex; align-items: center; justify-content: center; gap: 13px;
+    border: 0; border-radius: 12px; background: var(--orange); color: #fff; font-size: 1rem; font-weight: 700;
+    transition: background .18s ease, transform .1s ease, opacity .18s ease;
+}
+.btn-primary:hover:not(:disabled) { background: var(--orange-hover); }
+.btn-primary:active:not(:disabled) { transform: scale(.99); }
+.btn-primary:disabled { opacity: .58; cursor: not-allowed; }
+.btn-arrow { font-size: 1.35rem; line-height: 1; }
+.btn-spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.desktop-only-notice { display:none; position:fixed; inset:0; z-index:999999; background:#090909; align-items:center; justify-content:center; padding:24px; }
+.desktop-only-card { width:min(520px,100%); background:#111314; border:1px solid #292d30; border-radius:16px; padding:36px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+.desktop-only-icon { width:54px; height:54px; margin:0 auto 18px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:var(--orange); color:#fff; font-size:30px; font-weight:700; }
+.desktop-only-card h1 { font-size:1.35rem; margin:0 0 12px; color:#fff; }
+.desktop-only-card p { margin:0; color:#a8adb4; line-height:1.65; font-size:.95rem; }
+
+@media (max-width: 1050px) {
+    .login-screen { grid-template-columns: 1fr; }
+    .login-brand-side { min-height: 360px; }
+    .brand-content { min-height: 360px; padding: 38px 42px; }
+    .module-list { padding-top: 40px; margin: 0; gap: 14px; }
+    .security-note { display: none; }
+    .login-form-side { min-height: calc(100vh - 360px); }
+}
+
+@media (max-width: 899px) {
+    body.mobile-blocked .desktop-only-notice { display:flex; }
+    body.mobile-blocked .login-screen { visibility:hidden; }
+}
+
+@media (max-width: 620px) {
+    .login-brand-side { min-height: 320px; }
+    .brand-content { min-height: 320px; padding: 30px 24px; }
+    .company-brand { gap: 14px; }
+    .company-logo { width: 110px; max-height: 80px; }
+    .brand-divider { height: 58px; }
+    .brand-title { font-size: 1.65rem; }
+    .module-list { padding-top: 25px; gap: 10px; }
+    .module-item { font-size: .9rem; gap: 10px; }
+    .module-icon { width: 24px; height: 24px; font-size: 1.1rem; }
+    .login-form-side { padding: 28px 18px; min-height: auto; }
+    .login-card { padding: 30px 22px; border-radius: 16px; }
+}
