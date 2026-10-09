@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#F4F4F5">
     <title>Login · Portal</title>
 
     <link rel="icon" type="image/png" href="/imagens/logo-navegador.png" sizes="32x32"/>
@@ -17,48 +17,44 @@
 </head>
 <body>
 <main class="login-screen">
-    <div class="ambient-glow ambient-glow-one" aria-hidden="true"></div>
-    <div class="ambient-glow ambient-glow-two" aria-hidden="true"></div>
-    <div class="ambient-grid" aria-hidden="true"></div>
+    <!-- Linhas sutis em movimento (vertical + horizontal) -->
+    <div class="line-field" aria-hidden="true"></div>
 
     <section class="login-content" aria-label="Login">
-        <div class="login-card">
-            <div class="logo-box">
-                <img src="/imagens/logo-login.png" alt="I.R. Comércio e Materiais Elétricos">
+        <div class="logo-box">
+            <img src="/imagens/logo-login.png" alt="I.R. Comércio e Materiais Elétricos">
+        </div>
+
+        <h1 class="login-headline">IDENTIFIQUE-SE PARA CONTINUAR</h1>
+
+        <form id="loginForm" novalidate>
+            <div class="field">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" placeholder="Digite seu usuário"
+                       required autocomplete="username" autofocus>
             </div>
 
-            <p class="login-headline">IDENTIFIQUE-SE PARA CONTINUAR</p>
-
-            <form id="loginForm" novalidate>
-                <div class="field">
-                    <label for="username">Usuário</label>
-                    <input type="text" id="username" placeholder="Digite seu usuário"
-                           required autocomplete="username" autofocus>
+            <div class="field">
+                <label for="password">Senha</label>
+                <div class="password-wrap">
+                    <input type="password" id="password" placeholder="••••••••"
+                           required autocomplete="current-password">
+                    <button type="button" class="toggle-password" id="togglePassword">Mostrar</button>
                 </div>
+            </div>
 
-                <div class="field">
-                    <label for="password">Senha</label>
-                    <div class="password-wrap">
-                        <input type="password" id="password" placeholder="••••••••"
-                               required autocomplete="current-password">
-                        <button type="button" class="toggle-password" id="togglePassword">Mostrar</button>
-                    </div>
-                </div>
+            <div id="messageBox" class="message" role="alert"></div>
+            <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
+        </form>
 
-                <div id="messageBox" class="message" role="alert"></div>
-                <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
-            </form>
-        </div>
-
-        <div class="security-seal" aria-label="Conexão segura">
-            <span class="security-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/>
-                    <path d="m9 12 2 2 4-4"/>
-                </svg>
-            </span>
-            <span class="security-label">CONEXÃO SEGURA</span>
-        </div>
+        <p class="restricted-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="4" y="10.5" width="16" height="10.5" rx="2.5"/>
+                <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+            </svg>
+            <span>Ambiente restrito ao uso interno</span>
+        </p>
     </section>
 </main>
 
