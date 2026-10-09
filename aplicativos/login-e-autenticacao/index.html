@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <meta name="theme-color" content="#F4F4F5">
+    <meta name="theme-color" content="#f4f6f8">
     <title>Login · Portal</title>
 
     <link rel="icon" type="image/png" href="/imagens/logo-navegador.png" sizes="32x32"/>
@@ -12,52 +12,75 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/login-e-autenticacao/styles.css">
 </head>
 <body>
-<main class="login-screen">
-    <!-- Linhas sutis em movimento (vertical + horizontal) -->
-    <div class="line-field" aria-hidden="true"></div>
 
-    <section class="login-content" aria-label="Login">
-        <div class="logo-box">
-            <img src="/imagens/logo-login.png" alt="I.R. Comércio e Materiais Elétricos">
-        </div>
+    <div id="loginScreen" class="login-screen">
+        <!-- Linhas animadas -->
+        <div class="login-line login-line-h"></div>
+        <div class="login-line login-line-h"></div>
+        <div class="login-line login-line-h"></div>
+        <div class="login-line login-line-v"></div>
+        <div class="login-line login-line-v"></div>
+        <div class="login-line login-line-v"></div>
 
-        <h1 class="login-headline">IDENTIFIQUE-SE PARA CONTINUAR</h1>
+        <div class="login-card">
+            <div class="login-form-area">
+                <div id="messageBox" class="message" role="alert"></div>
 
-        <form id="loginForm" novalidate>
-            <div class="field">
-                <label for="username">Usuário</label>
-                <input type="text" id="username" placeholder="Digite seu usuário"
-                       required autocomplete="username" autofocus>
-            </div>
+                <div class="login-logo-wrapper">
+                    <img src="/imagens/logo-login.png" alt="IR Comércio e Materiais Elétricos" class="login-logo-light">
+                    <img src="/imagens/logo-login.png" alt="IR Comércio e Materiais Elétricos" class="login-logo-dark">
+                </div>
 
-            <div class="field">
-                <label for="password">Senha</label>
-                <div class="password-wrap">
-                    <input type="password" id="password" placeholder="••••••••"
-                           required autocomplete="current-password">
-                    <button type="button" class="toggle-password" id="togglePassword">Mostrar</button>
+                <div class="login-portal-headline">IDENTIFIQUE-SE PARA CONTINUAR</div>
+
+                <div class="login-fields">
+                    <form id="loginForm" novalidate>
+                        <div class="form-group">
+                            <label for="username">Usuário</label>
+                            <div class="input-icon-wrapper">
+                                <span class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="8" r="4"></circle>
+                                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path>
+                                    </svg>
+                                </span>
+                                <input type="text" id="username" name="username"
+                                       required autofocus placeholder="Digite seu usuário"
+                                       autocomplete="username" style="padding-left:2.6rem;">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Senha</label>
+                            <div class="password-container input-icon-wrapper">
+                                <span class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
+                                </span>
+                                <input type="password" id="password" name="password"
+                                       required placeholder="Digite sua senha"
+                                       autocomplete="current-password" style="padding-left:2.6rem;">
+                                <button type="button" class="toggle-password" id="togglePassword">MOSTRAR</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-login" id="loginBtn">ENTRAR</button>
+                    </form>
                 </div>
             </div>
+        </div>
 
-            <div id="messageBox" class="message" role="alert"></div>
-            <button type="submit" class="btn-primary" id="loginBtn">Entrar</button>
-        </form>
+        <div class="login-version-footer">
+            © 2026 IR<span style="color: rgba(255,140,60,0.55);">2</span> COMÉRCIO E MATERIAIS ELÉTRICOS LTDA &nbsp;·&nbsp; USO INTERNO
+        </div>
+    </div>
 
-        <p class="restricted-note">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4" y="10.5" width="16" height="10.5" rx="2.5"/>
-                <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
-            </svg>
-            <span>Ambiente restrito ao uso interno</span>
-        </p>
-    </section>
-</main>
-
-<script src="/login-e-autenticacao/script.js"></script>
+    <script src="/login-e-autenticacao/script.js"></script>
 </body>
 </html>
