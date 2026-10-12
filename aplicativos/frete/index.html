@@ -9,10 +9,6 @@
     <link rel="stylesheet" href="/shared/ui-refined.css">
 </head>
 <body>
-    <!-- Splash Screen -->
-    <div class="splash-screen" id="splashScreen">
-        <div class="loader"></div>
-    </div>
 
     <!-- INTERFACE PRINCIPAL -->
     <div class="app-content" id="mainView">
@@ -220,12 +216,6 @@
             </div>
         </div>
     </div>
-    <script>
-        setTimeout(() => {
-            const splash = document.getElementById('splashScreen');
-            if (splash) splash.style.display = 'none';
-        }, 3000);
-    </script>
     <script src="/frete/script.js"></script>
     <script src="/frete/calendar.js"></script>
 </body>
