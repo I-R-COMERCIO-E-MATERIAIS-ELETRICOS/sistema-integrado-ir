@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/shared/ui-refined.css">
 </head>
 <body>
-    <div class="splash-screen" id="splashScreen"><div class="loader"></div></div>
+
     <div class="app-content" id="mainView">
         <div class="container">
             <div class="header">
@@ -295,15 +295,6 @@
             </div>
         </div>
     </div>
-
-    <script>
-        window.addEventListener('load', function () {
-            setTimeout(function () {
-                var splash = document.getElementById('splashScreen');
-                if (splash) splash.style.display = 'none';
-            }, 1500);
-        });
-    </script>
     <script src="/lucro-real/script.js"></script>
     <script src="/lucro-real/calendar.js"></script>
 </body>
