@@ -32,18 +32,18 @@ module.exports = function (supabase, supabaseAdmin) {
     }
 
     const MODULES = [
-        { id: 'usuarios', name: 'Usuários', url: '/usuarios', available: true, adminOnly: true },
-        { id: 'precos', name: 'Tabela de Preços', url: '/precos', available: true },
-        { id: 'compra', name: 'Ordens de Compra', url: '/compra', available: true },
-        { id: 'transportadoras', name: 'Transportadoras', url: '/transportadoras', available: true },
-        { id: 'cotacoes', name: 'Cotações de Frete', url: '/cotacoes', available: true },
-        { id: 'faturamento', name: 'Pedidos de Faturamento', url: '/faturamento', available: true },
-        { id: 'frete', name: 'Controle de Frete', url: '/frete', available: true },
-        { id: 'receber', name: 'Contas a Receber', url: '/receber', available: true },
-        { id: 'pagar', name: 'Contas a Pagar', url: '/pagar', available: true },
-        { id: 'lucro', name: 'Lucro Real', url: '/lucro', available: true },
-        { id: 'licitacoes', name: 'Licitações', url: '/licitacoes', available: false },
-        { id: 'estoque', name: 'Estoque', url: '/estoque', available: false },
+        { id: 'usuarios',       name: 'Usuários',                 url: '/usuarios',       available: true, adminOnly: true },
+        { id: 'precos',         name: 'Tabela de Preços',         url: '/precos',         available: true },
+        { id: 'compra',         name: 'Ordens de Compra',         url: '/compra',         available: true },
+        { id: 'transportadoras',name: 'Transportadoras',          url: '/transportadoras',available: true },
+        { id: 'cotacoes',       name: 'Cotações de Frete',        url: '/cotacoes',       available: true },
+        { id: 'faturamento',    name: 'Pedidos de Faturamento',   url: '/faturamento',    available: true },
+        { id: 'frete',          name: 'Controle de Frete',        url: '/frete',          available: true },
+        { id: 'receber',        name: 'Contas a Receber',         url: '/receber',        available: true },
+        { id: 'pagar',          name: 'Contas a Pagar',           url: '/pagar',          available: true },
+        { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
+        { id: 'licitacoes',     name: 'Licitações',               url: '/licitacoes',     available: false },
+        { id: 'estoque',        name: 'Estoque',                  url: '/estoque',        available: false },
     ];
 
     async function requireAuth(req, res, next) {
@@ -52,6 +52,7 @@ module.exports = function (supabase, supabaseAdmin) {
             const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
             const payload = verifyToken(token, secret);
             if (!payload?.uid) return res.status(401).json({ error: 'Sessão inválida' });
+
             const { data: profile, error } = await admin.from('profiles')
                 .select('id, code, username, name, sector, is_admin, is_active, apps')
                 .eq('id', payload.uid).maybeSingle();
@@ -69,17 +70,29 @@ module.exports = function (supabase, supabaseAdmin) {
 
     router.get('/modules', requireAuth, (req, res) => {
         const { is_admin, apps } = req.user;
-        const moduleAliases = { 'Usuários':'usuarios', 'Tabela de Preços':'precos', 'Ordens de Compra':'compra', 'Transportadoras':'transportadoras', 'Cotações de Frete':'cotacoes', 'Pedidos de Faturamento':'faturamento', 'Controle de Frete':'frete', 'Contas a Receber':'receber', 'Contas a Pagar':'pagar', 'Lucro Real':'lucro' };
+        const moduleAliases = {
+            'Usuários':'usuarios', 'Tabela de Preços':'precos', 'Ordens de Compra':'compra',
+            'Transportadoras':'transportadoras', 'Cotações de Frete':'cotacoes',
+            'Pedidos de Faturamento':'faturamento', 'Controle de Frete':'frete',
+            'Contas a Receber':'receber', 'Contas a Pagar':'pagar', 'Lucro Real':'lucro',
+            'Licitações':'licitacoes', 'Estoque':'estoque'
+        };
         const allowedIds = is_admin
             ? MODULES.filter(m => m.available).map(m => m.id)
-            : (Array.isArray(apps) ? apps.map(value => { const v = String(value || '').trim(); const byUrl = MODULES.find(m => m.url === v); return moduleAliases[v] || byUrl?.id || v.toLowerCase(); }).filter(id => id && id !== 'vendas') : []);
+            : (Array.isArray(apps) ? apps.map(value => {
+                const v = String(value || '').trim();
+                const byUrl = MODULES.find(m => m.url === v);
+                return moduleAliases[v] || byUrl?.id || v.toLowerCase();
+            }).filter(Boolean) : []);
+
         res.json({
             user: {
                 id: req.user.id, code: req.user.code, username: req.user.username,
                 name: req.user.name, sector: req.user.sector, is_admin: req.user.is_admin
             },
             modules: MODULES.filter(m => m.available).map(m => ({
-                id: m.id, name: m.name, url: m.url, allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id)
+                id: m.id, name: m.name, url: m.url,
+                allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id)
             }))
         });
     });
