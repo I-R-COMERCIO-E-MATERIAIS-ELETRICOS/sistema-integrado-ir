@@ -6,14 +6,12 @@ const express = require('express');
 module.exports = function (supabase) {
     const router = express.Router();
 
-    // GET /api/transportadoras — lista todas
     router.get('/', async (req, res) => {
         try {
-            const page  = parseInt(req.query.page)  || 1;
+            const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 100;
-            const from  = (page - 1) * limit;
-            const to    = from + limit - 1;
-
+            const from = (page - 1) * limit;
+            const to = from + limit - 1;
             const search = req.query.search || '';
 
             let query = supabase
@@ -41,7 +39,6 @@ module.exports = function (supabase) {
         }
     });
 
-    // GET /api/transportadoras/:id
     router.get('/:id', async (req, res) => {
         try {
             const { data, error } = await supabase
@@ -59,26 +56,25 @@ module.exports = function (supabase) {
         }
     });
 
-    // POST /api/transportadoras
     router.post('/', async (req, res) => {
         try {
             const { nome, representante, email, telefones, celulares, regioes, estados } = req.body;
 
             if (!nome || !email) {
-                return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+                return res.status(400).json({ error: 'Verifique se todas as informações obrigatórias estão preenchidas' });
             }
 
             const { data, error } = await supabase
                 .from('transportadoras')
                 .insert([{
-                    nome:          nome.trim().toUpperCase(),
+                    nome: nome.trim().toUpperCase(),
                     representante: representante?.trim() || '',
-                    email:         email.trim().toLowerCase(),
-                    telefones:     Array.isArray(telefones) ? telefones : [],
-                    celulares:     Array.isArray(celulares) ? celulares : [],
-                    regioes:       Array.isArray(regioes)   ? regioes   : [],
-                    estados:       Array.isArray(estados)   ? estados   : [],
-                    timestamp:     new Date().toISOString()
+                    email: email.trim().toLowerCase(),
+                    telefones: Array.isArray(telefones) ? telefones : [],
+                    celulares: Array.isArray(celulares) ? celulares : [],
+                    regioes: Array.isArray(regioes) ? regioes : [],
+                    estados: Array.isArray(estados) ? estados : [],
+                    timestamp: new Date().toISOString()
                 }])
                 .select()
                 .single();
@@ -91,25 +87,24 @@ module.exports = function (supabase) {
         }
     });
 
-    // PUT /api/transportadoras/:id
     router.put('/:id', async (req, res) => {
         try {
             const { nome, representante, email, telefones, celulares, regioes, estados } = req.body;
 
             if (!nome || !email) {
-                return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
+                return res.status(400).json({ error: 'Verifique se todas as informações obrigatórias estão preenchidas' });
             }
 
             const { data, error } = await supabase
                 .from('transportadoras')
                 .update({
-                    nome:          nome.trim().toUpperCase(),
+                    nome: nome.trim().toUpperCase(),
                     representante: representante?.trim() || '',
-                    email:         email.trim().toLowerCase(),
-                    telefones:     Array.isArray(telefones) ? telefones : [],
-                    celulares:     Array.isArray(celulares) ? celulares : [],
-                    regioes:       Array.isArray(regioes)   ? regioes   : [],
-                    estados:       Array.isArray(estados)   ? estados   : []
+                    email: email.trim().toLowerCase(),
+                    telefones: Array.isArray(telefones) ? telefones : [],
+                    celulares: Array.isArray(celulares) ? celulares : [],
+                    regioes: Array.isArray(regioes) ? regioes : [],
+                    estados: Array.isArray(estados) ? estados : []
                 })
                 .eq('id', req.params.id)
                 .select()
@@ -124,7 +119,6 @@ module.exports = function (supabase) {
         }
     });
 
-    // DELETE /api/transportadoras/:id
     router.delete('/:id', async (req, res) => {
         try {
             const { error } = await supabase
