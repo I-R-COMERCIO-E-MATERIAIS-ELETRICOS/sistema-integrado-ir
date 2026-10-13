@@ -14,7 +14,7 @@ let transportadorasCache = [];
 let currentFetchController = null;
 let pendingDeleteId = null;
 let isLoading = false;
-let podeMarcar = false; // novo indicador de carregamento
+let podeMarcar = false;
 
 const infoTabs = ['info-tab-geral', 'info-tab-transportadora', 'info-tab-observacoes'];
 let currentInfoTabIndex = 0;
@@ -33,7 +33,11 @@ async function verificarAutenticacao() {
     } else {
         sessionToken = sessionStorage.getItem('cotacoesSession');
     }
-    if (!sessionToken) { mostrarTelaAcessoNegado(); return; }
+    if (!sessionToken) {
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
+        return;
+    }
+    if (window.IR) IR.setToken(sessionToken);
     try {
         const verifyRes = await fetch(`${PORTAL_URL}/api/verify-session`, {
             method: 'POST',
@@ -46,7 +50,7 @@ async function verificarAutenticacao() {
                 currentUser = sessionData.session;
                 sessionStorage.setItem('cotacoesUserData', JSON.stringify(currentUser));
             } else {
-                mostrarTelaAcessoNegado('Sua sessão expirou');
+                if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
                 return;
             }
         }
@@ -56,13 +60,15 @@ async function verificarAutenticacao() {
             if (userData) currentUser = JSON.parse(userData);
         } catch (e2) {}
     }
-    if (window.IR) { IR.setToken(sessionToken); podeMarcar = await IR.podeConfirmar('ALMOXARIFADO'); IR.preencherVendedores(document.getElementById('vendedor')); }
+    if (window.IR) {
+        podeMarcar = await IR.podeConfirmar('ALMOXARIFADO');
+        IR.preencherVendedores(document.getElementById('vendedor'));
+    }
     inicializarApp();
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({ type: /expir|sess[aã]o/i.test(mensagem) ? 'ir-session-expired' : 'ir-module-denied', module: location.pathname.split('/')[1] }, '*'); return; }
-    document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:var(--bg-primary);color:var(--text-primary);text-align:center;padding:2rem;"><h1 style="font-size:2.2rem;margin-bottom:1rem;">${mensagem}</h1><p style="color:var(--text-secondary);margin-bottom:2rem;">Somente usuários autenticados podem acessar esta área.</p><a href="${PORTAL_URL}" style="display:inline-block;background:var(--btn-register);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Ir para o Portal</a></div>`;
+    document.body.innerHTML = `<div class="access-denied"><h1>${mensagem}</h1><p>Somente usuários autenticados podem acessar esta área.</p><a href="${PORTAL_URL}">Ir para o Portal</a></div>`;
 }
 
 function inicializarApp() {
@@ -73,28 +79,47 @@ function inicializarApp() {
 }
 
 function showMessage(message, type = 'success') {
+    if (window.IR && IR.toast) return IR.toast(message, type);
     const div = document.createElement('div');
     div.className = `floating-message ${type}`;
     div.textContent = message;
     document.body.appendChild(div);
     setTimeout(() => { div.style.animation = 'slideOutBottom 0.3s ease forwards'; setTimeout(() => div.remove(), 300); }, 2000);
 }
-function formatarMoeda(valor) { const num = parseFloat(valor) || 0; return 'R$ ' + num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
-function formatarData(data) { if (!data) return '-'; if (typeof data === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) return data; const d = new Date(data); if (isNaN(d.getTime())) return data; return d.toLocaleDateString('pt-BR'); }
-function getDataAtual() { const hoje = new Date(); return `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`; }
+
+function formatarMoeda(valor) {
+    const num = parseFloat(valor) || 0;
+    return 'R$ ' + num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function formatarData(data) {
+    if (!data) return '-';
+    if (typeof data === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(data)) return data;
+    const d = new Date(data);
+    if (isNaN(d.getTime())) return data;
+    return d.toLocaleDateString('pt-BR');
+}
+function getDataAtual() {
+    const hoje = new Date();
+    return `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+}
 
 async function syncData() {
     const btn = document.getElementById('syncBtn');
     if (btn) { btn.classList.add('syncing'); btn.disabled = true; }
-    try { await loadTransportadorasCache(); await loadCotacoes(); showMessage('Dados sincronizados', 'success'); }
-    catch (e) { showMessage('Erro ao sincronizar', 'error'); }
-    finally { if (btn) { btn.classList.remove('syncing'); btn.disabled = false; } }
+    try {
+        await loadTransportadorasCache();
+        await loadCotacoes();
+        showMessage('Dados sincronizados', 'success');
+    } catch (e) {
+        showMessage('Erro ao sincronizar', 'error');
+    } finally {
+        if (btn) { btn.classList.remove('syncing'); btn.disabled = false; }
+    }
 }
 
 function changeMonth(direction) {
     currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
     updateDisplay();
-    // Limpa os dados antigos imediatamente e exibe indicador de carregamento
     cotacoes = [];
     isLoading = true;
     renderTable();
@@ -139,10 +164,18 @@ async function loadCotacoes() {
     const mes = currentMonth.getMonth();
     const ano = currentMonth.getFullYear();
     isLoading = true;
-    renderTable(); // exibe "Carregando..."
+    renderTable();
     try {
-        const response = await fetch(`${API_URL}/cotacoes?mes=${mes}&ano=${ano}`, { headers: { 'X-Session-Token': sessionToken }, cache: 'no-cache', signal });
-        if (response.status === 401) { sessionStorage.removeItem('cotacoesSession'); mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU'); return; }
+        const response = await fetch(`${API_URL}/cotacoes?mes=${mes}&ano=${ano}`, {
+            headers: { 'X-Session-Token': sessionToken },
+            cache: 'no-cache',
+            signal
+        });
+        if (response.status === 401) {
+            sessionStorage.removeItem('cotacoesSession');
+            if (window.IR) IR.denied('SUA SESSÃO EXPIROU'); else mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+            return;
+        }
         if (!response.ok) { isOnline = false; isLoading = false; setTimeout(() => loadCotacoes(), 5000); return; }
         cotacoes = await response.json();
         isOnline = true;
@@ -150,7 +183,11 @@ async function loadCotacoes() {
         currentFetchController = null;
         updateDisplay();
         updateResponsavelSelect();
-    } catch (e) { if (e.name === 'AbortError') return; isOnline = false; isLoading = false; setTimeout(() => loadCotacoes(), 5000); }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        isOnline = false; isLoading = false;
+        setTimeout(() => loadCotacoes(), 5000);
+    }
 }
 
 function filterCotacoes() { renderTable(); }
@@ -167,24 +204,38 @@ function updateResponsavelSelect() {
 function renderTable() {
     const container = document.getElementById('cotacoesContainer');
     if (!container) return;
-    
-    // Exibe mensagem de carregamento
+
     if (isLoading && cotacoes.length === 0) {
         container.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;">Carregando...</td></tr>`;
         return;
     }
-    
+
     const search = (document.getElementById('search')?.value || '').toLowerCase();
     const filterTransp = document.getElementById('filterTransportadora')?.value || '';
     const filterResp = document.getElementById('filterResponsavel')?.value || '';
     const filterStatus = document.getElementById('filterStatus')?.value || '';
     let filtered = [...cotacoes];
-    if (search) { filtered = filtered.filter(c => (c.transportadora || '').toLowerCase().includes(search) || (c.destino || '').toLowerCase().includes(search) || (c.documento || '').toLowerCase().includes(search) || (c.numeroCotacao || '').toLowerCase().includes(search) || (c.responsavel || '').toLowerCase().includes(search)); }
+
+    if (search) {
+        filtered = filtered.filter(c =>
+            (c.transportadora || '').toLowerCase().includes(search) ||
+            (c.destino || '').toLowerCase().includes(search) ||
+            (c.documento || '').toLowerCase().includes(search) ||
+            (c.numeroCotacao || '').toLowerCase().includes(search) ||
+            (c.responsavel || '').toLowerCase().includes(search)
+        );
+    }
     if (filterTransp) filtered = filtered.filter(c => c.transportadora === filterTransp);
     if (filterResp) filtered = filtered.filter(c => c.responsavel === filterResp);
     if (filterStatus === 'aprovada') filtered = filtered.filter(c => c.negocioFechado === true);
     if (filterStatus === 'reprovada') filtered = filtered.filter(c => c.negocioFechado === false);
-    if (filtered.length === 0) { if (currentFetchController) return; container.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;">Nenhuma cotação encontrada</td></tr>`; return; }
+
+    if (filtered.length === 0) {
+        if (currentFetchController) return;
+        container.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;">Nenhuma cotação encontrada</td></tr>`;
+        return;
+    }
+
     container.innerHTML = filtered.map(c => {
         const aprovada = c.negocioFechado === true;
         return `<tr data-id="${c.id}" class="${aprovada ? 'row-fechada' : ''}" style="cursor:pointer;" onclick="viewCotacao(${c.id})">
@@ -210,7 +261,6 @@ function renderTable() {
         </tr>`;
     }).join('');
 }
-
 
 function parseObs(c) {
     const raw = c && c.observacoes;
@@ -250,65 +300,105 @@ window.removerObservacao = function (i) {
 function abrirObservacoes(id) { viewCotacao(id); switchInfoTab('info-tab-observacoes'); }
 
 async function toggleStatus(id, checked) {
-    if (!podeMarcar) { const cb = document.getElementById(`check-${id}`); if (cb) cb.checked = !checked; showMessage('Somente Almoxarifado e administradores podem alterar', 'error'); return; }
+    if (!podeMarcar) {
+        const cb = document.getElementById(`check-${id}`);
+        if (cb) cb.checked = !checked;
+        showMessage('Somente Almoxarifado e administradores podem alterar', 'error');
+        return;
+    }
     const cotacao = cotacoes.find(c => c.id === id);
     if (!cotacao) return;
     const nomeTransportadora = cotacao.transportadora || 'Cotação';
     try {
-        const response = await fetch(`${API_URL}/cotacoes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken }, body: JSON.stringify({ negocioFechado: checked }) });
+        const response = await fetch(`${API_URL}/cotacoes/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+            body: JSON.stringify({ negocioFechado: checked })
+        });
         if (!response.ok) throw new Error('Erro');
         await loadCotacoes();
         const msg = checked ? `${nomeTransportadora} aprovada` : `${nomeTransportadora} reprovada`;
         const tipo = checked ? 'success' : 'error';
         showMessage(msg, tipo);
-    } catch (e) { showMessage('Erro ao atualizar status!', 'error'); const cb = document.getElementById(`check-${id}`); if (cb) cb.checked = !checked; }
+    } catch (e) {
+        showMessage('Erro ao atualizar status!', 'error');
+        const cb = document.getElementById(`check-${id}`);
+        if (cb) cb.checked = !checked;
+    }
 }
 
+// ─── EXCLUSÃO ────────────────────────────────────────────────────────────────
 function showDeleteModal(id) {
     pendingDeleteId = id;
+    const c = cotacoes.find(x => x.id === id);
+    const doc = c ? (c.documento || c.numeroCotacao || `#${id}`) : '';
+    document.getElementById('deleteModalMessage').textContent = `Tem certeza que deseja excluir a cotação ${doc}?`;
     document.getElementById('deleteModal').classList.add('show');
+
     const confirmBtn = document.getElementById('confirmDeleteBtn');
-    confirmBtn.className = 'danger';
-    const cancelBtn = document.querySelector('#deleteModal .modal-actions-no-border button:last-child');
-    if (cancelBtn) cancelBtn.className = 'success';
     const newConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     newConfirmBtn.onclick = () => confirmDelete();
 }
-function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); pendingDeleteId = null; }
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('show');
+    pendingDeleteId = null;
+}
 async function confirmDelete() {
     if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
     try {
-        const response = await fetch(`${API_URL}/cotacoes/${pendingDeleteId}`, { method: 'DELETE', headers: { 'X-Session-Token': sessionToken } });
+        const response = await fetch(`${API_URL}/cotacoes/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-Session-Token': sessionToken }
+        });
         if (!response.ok) throw new Error('Erro');
         await loadCotacoes();
         showMessage('Cotação excluída', 'success');
         closeDeleteModal();
-    } catch (e) { showMessage('Erro ao excluir cotação!', 'error'); closeDeleteModal(); }
+    } catch (e) {
+        showMessage('Erro ao excluir cotação!', 'error');
+        closeDeleteModal();
+    }
 }
 
+// ─── FORM ────────────────────────────────────────────────────────────────────
 function openFormModal() {
     editingId = null;
     document.getElementById('formTitle').textContent = 'Nova Cotação';
-    const saveBtn = document.getElementById('btnFormSave'); if (saveBtn) saveBtn.textContent = 'Salvar';
+    const saveBtn = document.getElementById('btnFormSave');
+    if (saveBtn) saveBtn.textContent = 'Salvar';
     resetForm();
     document.getElementById('dataCotacao').value = getDataAtual();
     document.getElementById('responsavel').value = getCurrentFirstName().toUpperCase();
-    document.getElementById('observacoes').value = '[]'; atualizarListaObservacoes();
+    document.getElementById('observacoes').value = '[]';
+    atualizarListaObservacoes();
     updateTransportadoraSelects();
     document.getElementById('formModal').classList.add('show');
     switchFormTab('form-tab-geral');
 }
 function closeFormModal() { document.getElementById('formModal').classList.remove('show'); resetForm(); }
-function getCurrentFirstName(){ try { const raw=sessionStorage.getItem('cotacoesUserData') || sessionStorage.getItem('cotacoesSession') || sessionStorage.getItem('irSession') || '{}'; const u=JSON.parse(raw); const n=u.name||u.nome||u.fullName||u.user?.name||u.user?.nome||u.usuario?.nome||''; return String(n).trim().split(/\s+/)[0]||''; } catch(_){ return ''; } }
-function resetForm() { document.querySelectorAll('#formModal input, #formModal select, #formModal textarea').forEach(el => { if (el.type === 'checkbox') el.checked = false; else el.value = ''; }); }
+function getCurrentFirstName() {
+    try {
+        const raw = sessionStorage.getItem('cotacoesUserData') || sessionStorage.getItem('cotacoesSession') || sessionStorage.getItem('irSession') || '{}';
+        const u = JSON.parse(raw);
+        const n = u.name || u.nome || u.fullName || (u.user && u.user.name) || '';
+        return String(n).trim().split(/\s+/)[0] || '';
+    } catch (_) { return ''; }
+}
+function resetForm() {
+    document.querySelectorAll('#formModal input, #formModal select, #formModal textarea').forEach(el => {
+        if (el.type === 'checkbox') el.checked = false; else el.value = '';
+    });
+}
 
 function editCotacao(id) {
     const c = cotacoes.find(x => x.id === id);
     if (!c) return;
     editingId = id;
     document.getElementById('formTitle').textContent = `Editar Cotação`;
-    const saveBtn = document.getElementById('btnFormSave'); if (saveBtn) saveBtn.textContent = 'Atualizar';
+    const saveBtn = document.getElementById('btnFormSave');
+    if (saveBtn) saveBtn.textContent = 'Atualizar';
     resetForm();
     updateTransportadoraSelects();
     document.getElementById('dataCotacao').value = c.dataCotacao || '';
@@ -322,7 +412,8 @@ function editCotacao(id) {
     document.getElementById('responsavelTransportadora').value = c.responsavelTransportadora || '';
     document.getElementById('canalComunicacao').value = c.canalComunicacao || '';
     document.getElementById('codigoColeta').value = c.codigoColeta || '';
-    document.getElementById('observacoes').value = JSON.stringify(parseObs(c)); atualizarListaObservacoes();
+    document.getElementById('observacoes').value = JSON.stringify(parseObs(c));
+    atualizarListaObservacoes();
     if (window.IR) IR.preencherVendedores(document.getElementById('vendedor'), c.vendedor);
     document.getElementById('formModal').classList.add('show');
     switchFormTab('form-tab-geral');
@@ -331,7 +422,10 @@ function editCotacao(id) {
 async function saveCotacao() {
     const transportadora = document.getElementById('transportadora').value.trim();
     const destino = document.getElementById('destino').value.trim();
-    if (!transportadora) { showMessage('Selecione uma transportadora!', 'error'); return; }
+    if (!transportadora) {
+        showMessage(window.IR ? IR.ERRO_CAMPOS_OBRIGATORIOS : 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        return;
+    }
     const payload = {
         dataCotacao: document.getElementById('dataCotacao').value,
         transportadora,
@@ -350,16 +444,21 @@ async function saveCotacao() {
     try {
         const url = editingId ? `${API_URL}/cotacoes/${editingId}` : `${API_URL}/cotacoes`;
         const method = editingId ? 'PUT' : 'POST';
-        const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken }, body: JSON.stringify(payload) });
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+            body: JSON.stringify(payload)
+        });
         if (!response.ok) throw new Error('Erro ao salvar');
         await loadCotacoes();
         closeFormModal();
-        const msg = editingId ? 'Cotação atualizada' : 'Cotação registrada';
-        showMessage(msg, 'success');
-    } catch (e) { showMessage('Erro ao salvar cotação!', 'error'); }
+        showMessage(editingId ? 'Cotação atualizada' : 'Cotação registrada', 'success');
+    } catch (e) {
+        showMessage('Erro ao salvar cotação!', 'error');
+    }
 }
 
-// Navegação de abas (formulário)
+// ─── NAVEGAÇÃO DO FORMULÁRIO ─────────────────────────────────────────────────
 const formTabs = ['form-tab-geral', 'form-tab-transportadora', 'form-tab-observacoes'];
 let currentFormTabIndex = 0;
 function switchFormTab(tabId) {
@@ -376,13 +475,11 @@ function previousFormTab() { if (currentFormTabIndex > 0) switchFormTab(formTabs
 function updateFormNavButtons() {
     const btnPrev = document.getElementById('btnFormPrevious');
     const btnNext = document.getElementById('btnFormNext');
-    const btnSave = document.getElementById('btnFormSave');
     if (btnPrev) btnPrev.style.display = currentFormTabIndex === 0 ? 'none' : 'inline-block';
     if (btnNext) btnNext.style.display = currentFormTabIndex === formTabs.length - 1 ? 'none' : 'inline-block';
-    if (btnSave) btnSave.style.display = 'inline-block';
 }
 
-// Modal de visualização
+// ─── MODAL DE VISUALIZAÇÃO ───────────────────────────────────────────────────
 function viewCotacao(id) {
     const c = cotacoes.find(x => x.id === id);
     if (!c) return;
