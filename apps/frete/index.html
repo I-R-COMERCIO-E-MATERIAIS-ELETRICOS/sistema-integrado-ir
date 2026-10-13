@@ -6,34 +6,11 @@
     <title>Controle de Frete</title>
     <link rel="icon" type="image/png" href="/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="styles.css">
-<style>
-/* Ajustes transversais: desktop, modais e conteúdo sem cortes */
-:root { --primary: #ff521d; --warning-color: #ff521d; --btn-view: #ff521d; }
-html, body { width:100%; min-width:0; max-width:100%; }
-body { overflow-x:auto; }
-.container, .app-content, main, .main-content { max-width:100%; }
-.modal-overlay { padding:clamp(10px, 2vw, 28px); }
-.modal-content { max-width:min(96vw, 1100px); max-height:92vh; overflow:auto; }
-.modal-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
-.modal-actions button.danger, .modal-actions button.cancel-close, .modal-actions button.cancel, .modal-actions button[onclick*="closeFormModal"], .modal-actions button[onclick*="closeModal"] { background:#dc2626 !important; color:#fff !important; }
-.modal-actions button.success, .modal-actions button[onclick*="confirmDelete"], .modal-actions button[onclick*="confirmLogout"] { background:#16a34a !important; color:#fff !important; }
-input[readonly], textarea[readonly], select:disabled { cursor:not-allowed !important; }
-.form-grid > .form-group, .form-row > .form-group { min-width:0; }
-input, select, textarea { max-width:100%; }
-table { max-width:100%; }
-.table-container, .table-wrapper, .table-responsive { max-width:100%; overflow-x:auto; }
-#unsupportedDevice { display:none; }
-@media (max-width: 767px) { body > *:not(#unsupportedDevice) { display:none !important; } #unsupportedDevice { position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:28px; background:#fff; color:#111827; text-align:center; font:600 18px/1.5 system-ui,sans-serif; } }
-</style>
+    <link rel="stylesheet" href="/shared/ui-refined.css">
 </head>
 <body>
-    <!-- Splash Screen -->
-</div>
-
-    <!-- INTERFACE PRINCIPAL -->
     <div class="app-content" id="mainView">
         <div class="container">
-            <!-- Header -->
             <div class="header">
                 <div class="header-left">
                     <h1>Controle de Frete</h1>
@@ -47,9 +24,7 @@ table { max-width:100%; }
                 </button>
             </div>
 
-            <!-- Dashboard Cards -->
             <div class="dashboard-grid">
-                <!-- Entregas Realizadas – agora com cor verde (success) -->
                 <div class="stat-card stat-card-success">
                     <div class="stat-icon stat-icon-success">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,13 +37,12 @@ table { max-width:100%; }
                     </div>
                 </div>
 
-                <!-- Fora do Prazo (mantém vermelho) -->
                 <div class="stat-card stat-card-danger" id="cardForaPrazo" onclick="showAlertModal()" style="cursor: pointer;" title="Clique para ver detalhes">
                     <div class="stat-icon stat-icon-danger">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
                         </svg>
                     </div>
                     <div class="stat-content">
@@ -77,7 +51,6 @@ table { max-width:100%; }
                     </div>
                 </div>
 
-                <!-- Em Trânsito (universal – mantém cinza) -->
                 <div class="stat-card">
                     <div class="stat-icon stat-icon-default">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -90,7 +63,6 @@ table { max-width:100%; }
                     </div>
                 </div>
 
-                <!-- Valor Faturado (antigo Valor Total) – cor verde -->
                 <div class="stat-card stat-card-success">
                     <div class="stat-icon stat-icon-success">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,7 +76,6 @@ table { max-width:100%; }
                     </div>
                 </div>
 
-                <!-- Valor Frete (antigo Frete Total) – cor azul (info) -->
                 <div class="stat-card stat-card-info">
                     <div class="stat-icon stat-icon-info">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -118,134 +89,3 @@ table { max-width:100%; }
                         <div class="stat-value stat-value-info" id="statFrete">R$ 0,00</div>
                         <div class="stat-label">Frete</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Search Bar with Filters -->
-            <div class="search-bar-wrapper">
-                <div class="search-bar">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input type="text" id="search" placeholder="Pesquisar" oninput="filterFretes()">
-                    
-                    <div class="search-bar-filters">
-                        <div class="filter-dropdown-inline">
-                            <select id="filterTransportadora" onchange="filterFretes()">
-                                <option value="">Todas Transportadoras</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="filter-dropdown-inline">
-                            <select id="filterVendedor" onchange="filterFretes()">
-                                <option value="">Todos Vendedores</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="filter-dropdown-inline">
-                            <select id="filterStatus" onchange="filterFretes()">
-                                <option value="">Todos os Status</option>
-                            </select>
-                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="month-navigation-inline">
-                            <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </button>
-                            <div class="month-display-inline">
-                                <span id="currentMonth">Carregando...</span>
-                            </div>
-                            <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <button class="calendar-btn" onclick="toggleCalendar()" title="Selecionar mês">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                    </button>
-                    <button class="calendar-btn" onclick="abrirDashboardComparativo()" title="Comparativo mensal e anual" aria-label="Comparativo mensal e anual"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 3 5-7"/><path d="M20 6v4h-4"/></svg></button>
-                    <button class="calendar-btn" onclick="sincronizarDados()" title="Sincronizar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Calendar Modal -->
-            <div class="calendar-modal" id="calendarModal">
-                <div class="calendar-content">
-                    <div class="calendar-header">
-                        <button onclick="changeCalendarYear(-1)" class="calendar-year-nav">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                        </button>
-                        <h3 id="calendarYear">2026</h3>
-                        <button onclick="changeCalendarYear(1)" class="calendar-year-nav">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="calendar-months" id="calendarMonths"></div>
-                </div>
-            </div>
-
-            <!-- Table Card -->
-            <div class="card table-card">
-                <div id="fretesContainer"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE ALERTA FORA DO PRAZO -->
-    <div class="modal-overlay" id="alertModal" style="display: none;">
-        <div class="modal-content alert-modal">
-            <div class="modal-header-alert">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <button class="close-modal" onclick="closeAlertModal()">✕</button>
-            </div>
-            
-            <div class="modal-body" id="alertModalBody"></div>
-
-            <div class="modal-actions-alert">
-                <button type="button" onclick="closeAlertModal()" class="btn-close-red">Fechar</button>
-            </div>
-        </div>
-    </div>
-    <script>
-        setTimeout(() => {
-            const splash = document.getElementById('splashScreen');
-            if (splash) splash.style.display = 'none';
-        }, 3000);
-    </script>
-    <script src="script.js"></script>
-    <script src="calendar.js"></script>
-    <script src="/shared/ir-common.js"></script>
-<div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
-</body>
-</html>
