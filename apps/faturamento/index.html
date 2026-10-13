@@ -6,25 +6,7 @@
     <title>Pedido de Faturamento</title>
     <link rel="icon" type="image/png" href="/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="styles.css">
-<style>
-/* Ajustes transversais: desktop, modais e conteúdo sem cortes */
-:root { --primary: #ff521d; --warning-color: #ff521d; --btn-view: #ff521d; }
-html, body { width:100%; min-width:0; max-width:100%; }
-body { overflow-x:auto; }
-.container, .app-content, main, .main-content { max-width:100%; }
-.modal-overlay { padding:clamp(10px, 2vw, 28px); }
-.modal-content { max-width:min(96vw, 1100px); max-height:92vh; overflow:auto; }
-.modal-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
-.modal-actions button.danger, .modal-actions button.cancel-close, .modal-actions button.cancel, .modal-actions button[onclick*="closeFormModal"], .modal-actions button[onclick*="closeModal"] { background:#dc2626 !important; color:#fff !important; }
-.modal-actions button.success, .modal-actions button[onclick*="confirmDelete"], .modal-actions button[onclick*="confirmLogout"] { background:#16a34a !important; color:#fff !important; }
-input[readonly], textarea[readonly], select:disabled { cursor:not-allowed !important; }
-.form-grid > .form-group, .form-row > .form-group { min-width:0; }
-input, select, textarea { max-width:100%; }
-table { max-width:100%; }
-.table-container, .table-wrapper, .table-responsive { max-width:100%; overflow-x:auto; }
-#unsupportedDevice { display:none; }
-@media (max-width: 767px) { body > *:not(#unsupportedDevice) { display:none !important; } #unsupportedDevice { position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:28px; background:#fff; color:#111827; text-align:center; font:600 18px/1.5 system-ui,sans-serif; } }
-</style>
+    <link rel="stylesheet" href="/shared/ui-refined.css">
 </head>
 <body>
     <div class="app-content">
@@ -42,7 +24,6 @@ table { max-width:100%; }
                 </button>
             </div>
 
-            <!-- Dashboard Cards -->
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-icon stat-icon-default">
@@ -51,7 +32,6 @@ table { max-width:100%; }
                             <polyline points="14 2 14 8 20 8"></polyline>
                             <line x1="16" y1="13" x2="8" y2="13"></line>
                             <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
                     </div>
                     <div class="stat-content">
@@ -96,7 +76,6 @@ table { max-width:100%; }
                 </div>
             </div>
 
-            <!-- Search Bar with Filters -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,7 +83,7 @@ table { max-width:100%; }
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
                     <input type="text" id="search" placeholder="Pesquisar" oninput="filterPedidos()">
-                    
+
                     <div class="search-bar-filters">
                         <div class="filter-dropdown-inline">
                             <select id="filterVendedor" onchange="filterPedidos()">
@@ -158,7 +137,6 @@ table { max-width:100%; }
                 </div>
             </div>
 
-            <!-- Calendar Modal -->
             <div class="calendar-modal" id="calendarModal">
                 <div class="calendar-content">
                     <div class="calendar-header">
@@ -178,15 +156,10 @@ table { max-width:100%; }
                 </div>
             </div>
 
-            <!-- Table Card -->
             <div class="card table-card">
                 <div style="overflow-x: auto;">
                     <table>
-                        <thead>
-                            <tr>
-                                <!-- O cabeçalho será preenchido dinamicamente pelo JavaScript -->
-                            </tr>
-                        </thead>
+                        <thead><tr></tr></thead>
                         <tbody id="pedidosContainer"></tbody>
                     </table>
                 </div>
@@ -201,7 +174,7 @@ table { max-width:100%; }
                 <h3 class="modal-title" id="formTitle">Novo Pedido de Faturamento</h3>
                 <button class="close-modal" onclick="closeFormModal()">✕</button>
             </div>
-            
+
             <div class="tabs-container">
                 <div class="tabs-nav">
                     <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
@@ -234,6 +207,18 @@ table { max-width:100%; }
                             <label for="dataRegistro">Data de Registro</label>
                             <input type="text" id="dataRegistro" readonly>
                         </div>
+                        <div class="form-group">
+                            <label for="vendedor">Vendedor</label>
+                            <select id="vendedor"><option value="">Selecione...</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="atualizadoPor">Atualizado Por</label>
+                            <input type="text" id="atualizadoPor" readonly tabindex="-1" style="cursor:not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label for="ultimaAtualizacao">Última Atualização</label>
+                            <input type="text" id="ultimaAtualizacao" readonly tabindex="-1" style="cursor:not-allowed;">
+                        </div>
                     </div>
                 </div>
 
@@ -265,7 +250,7 @@ table { max-width:100%; }
                             <label for="email">E-mail</label>
                             <input type="email" id="email">
                         </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
+                        <div class="form-group full-width">
                             <label for="endereco">Endereço</label>
                             <input type="text" id="endereco">
                         </div>
@@ -310,7 +295,7 @@ table { max-width:100%; }
                         </div>
                         <div class="form-group">
                             <label for="quantidade">Quantidade Total</label>
-                            <input type="number" id="quantidade" min="0" step="1">
+                            <input type="number" id="quantidade" min="0" step="1" readonly tabindex="-1" style="cursor:not-allowed;">
                         </div>
                         <div class="form-group">
                             <label for="volumes">Volumes</label>
@@ -322,9 +307,9 @@ table { max-width:100%; }
                 <!-- TAB ENTREGA -->
                 <div class="tab-content" id="tab-entrega">
                     <div class="form-grid">
-                        <div class="form-group" style="grid-column: 1 / -1;">
+                        <div class="form-group full-width">
                             <label for="localEntrega">Local de Entrega</label>
-                            <textarea id="localEntrega" rows="3"></textarea>
+                            <input type="text" id="localEntrega">
                         </div>
                         <div class="form-group">
                             <label for="setor">Setor</label>
@@ -346,12 +331,6 @@ table { max-width:100%; }
                             <label for="valorFrete">Valor do Frete (R$)</label>
                             <input type="text" id="valorFrete">
                         </div>
-                        <div class="form-group"><label for="atualizadoPor">Atualizado Por</label><input type="text" id="atualizadoPor" readonly tabindex="-1" style="cursor:not-allowed;"></div>
-                        <div class="form-group"><label for="ultimaAtualizacao">Última Atualização</label><input type="text" id="ultimaAtualizacao" readonly tabindex="-1" style="cursor:not-allowed;"></div>
-                        <div class="form-group">
-                            <label for="vendedor">Vendedor</label>
-                            <select id="vendedor"><option value="">Selecione...</option></select>
-                        </div>
                         <div class="form-group">
                             <label for="previsaoEntrega">Previsão de Entrega</label>
                             <input type="date" id="previsaoEntrega">
@@ -361,9 +340,9 @@ table { max-width:100%; }
             </div>
 
             <div class="modal-actions">
-                <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
-                <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
-                <button type="button" id="btnSave" onclick="savePedido()" class="btn-save-green">Salvar</button>
+                <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary tab-prev" style="display: none;">Anterior</button>
+                <button type="button" id="btnNext" onclick="nextTab()" class="secondary tab-next">Próximo</button>
+                <button type="button" id="btnSave" onclick="savePedido()" class="save">Salvar</button>
                 <button type="button" onclick="closeFormModal()" class="cancel-close">Cancelar</button>
             </div>
         </div>
@@ -376,7 +355,6 @@ table { max-width:100%; }
                 <h3 class="modal-title">Pedido Nº <span id="modalCodigo"></span></h3>
                 <button class="close-modal" onclick="closeInfoModal()">✕</button>
             </div>
-            
             <div class="tabs-container">
                 <div class="tabs-nav">
                     <button class="tab-btn active" onclick="switchInfoTab('info-tab-geral')">Geral</button>
@@ -385,23 +363,21 @@ table { max-width:100%; }
                     <button class="tab-btn" onclick="switchInfoTab('info-tab-entrega')">Entrega</button>
                     <button class="tab-btn" onclick="switchInfoTab('info-tab-transporte')">Transporte</button>
                 </div>
-
                 <div class="tab-content active" id="info-tab-geral"></div>
                 <div class="tab-content" id="info-tab-faturamento"></div>
                 <div class="tab-content" id="info-tab-itens"></div>
                 <div class="tab-content" id="info-tab-entrega"></div>
                 <div class="tab-content" id="info-tab-transporte"></div>
             </div>
-
             <div class="modal-actions">
                 <button type="button" onclick="closeInfoModal()" class="cancel-close">Fechar</button>
             </div>
         </div>
     </div>
 
+    <script src="/shared/ir-common.js"></script>
     <script src="script.js"></script>
     <script src="calendar.js"></script>
-    <script src="/shared/ir-common.js"></script>
-<div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
+    <div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
 </body>
 </html>
