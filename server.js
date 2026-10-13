@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -20,9 +21,7 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey || !process.env.SESS
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-});
+const supabaseAdmin = supabase;
 
 // ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
 app.use(cors({
@@ -30,7 +29,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── LOG DE ACESSOS ───────────────────────────────────────────────────────────
@@ -56,49 +55,30 @@ setInterval(() => {
     }
 }, 3600000);
 
-// ─── HEALTH CHECKS (públicos, antes da autenticação) ─────────────────────────
+// ─── HEALTH CHECKS ────────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
     try {
         const { error } = await supabaseAdmin.from('profiles').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
-    } catch {
-        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
-    }
+        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
+    } catch { res.json({ status: 'unhealthy', timestamp: new Date().toISOString() }); }
 });
-
-// Health check da API
-app.get('/api/health', async (req, res) => {
-    try {
-        const { error } = await supabaseAdmin.from('profiles').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
-    } catch {
-        res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
-    }
-});
+app.get('/api/health', (req, res) => res.redirect('/health'));
 
 // ─── AUTENTICAÇÃO CENTRAL ─────────────────────────────────────────────────────
-const PUBLIC_PATHS = ['/', '/health', '/api/health', '/app', '/portal', '/portal/', '/login-autenticacao', '/login-autenticacao/', '/api/supabase-config'];
-const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$/i;
+const PUBLIC_PATHS = ['/', '/health', '/api/health', '/app', '/portal', '/portal/', '/login-autenticacao', '/login-autenticacao/', '/api/supabase-config', '/api/auth'];
+const STATIC_EXTENSIONS = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|map)$/i;
 
 function verifySessionToken(token) {
     if (!token || typeof token !== 'string' || !token.includes('.')) return null;
     const [body, sig] = token.split('.');
     try {
-        const expected = require('crypto').createHmac('sha256', process.env.SESSION_SECRET)
+        const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET)
             .update(body).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const a = Buffer.from(sig), b = Buffer.from(expected);
-        if (a.length !== b.length || !require('crypto').timingSafeEqual(a, b)) return null;
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
         const payload = JSON.parse(Buffer.from(body.replace(/-/g, '+').replace(/_/g, '/')
             .padEnd(Math.ceil(body.length / 4) * 4, '='), 'base64').toString('utf8'));
-        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+        if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
         return payload;
     } catch { return null; }
 }
@@ -115,6 +95,35 @@ function dentroDoExpediente() {
     return false;
 }
 
+// Mapeia rota base → id do módulo (usado para checar profiles.apps)
+const ROUTE_TO_MODULE = {
+    '/api/usuarios': 'usuarios',
+    '/api/precos': 'precos',
+    '/api/ordens': 'compra',
+    '/api/fornecedores': 'compra',
+    '/api/transportadoras': 'transportadoras',
+    '/api/cotacoes': 'cotacoes',
+    '/api/pedidos': 'faturamento',
+    '/api/fretes': 'frete',
+    '/api/receber': 'receber',
+    '/api/contas': 'pagar',
+    '/api/lucro-real': 'lucro',
+    '/api/custo-fixo': 'lucro',
+    '/api/monitorar-pedidos': 'lucro',
+    '/api/estoque': 'estoque',
+    '/api/licitacoes': 'licitacoes'
+};
+
+// Módulos que NÃO exigem checagem de app (compartilhados)
+const SHARED_PATHS = ['/api/me', '/api/vendedores', '/api/notifications', '/api/verify-session'];
+
+function moduloDaRota(pathname) {
+    for (const prefix of Object.keys(ROUTE_TO_MODULE)) {
+        if (pathname === prefix || pathname.startsWith(prefix + '/')) return ROUTE_TO_MODULE[prefix];
+    }
+    return null;
+}
+
 async function verificarAutenticacao(req, res, next) {
     const isPublicPath = PUBLIC_PATHS.some(p => req.path === p);
     const isStaticAsset = STATIC_EXTENSIONS.test(req.path);
@@ -124,6 +133,7 @@ async function verificarAutenticacao(req, res, next) {
     const token = req.headers.authorization?.startsWith('Bearer ')
         ? req.headers.authorization.slice(7)
         : (req.headers['x-session-token'] || req.query.sessionToken || req.query.access_token);
+
     if (!token) {
         if (req.headers.accept && req.headers.accept.includes('text/html'))
             return res.redirect('/?redirect=' + encodeURIComponent(req.path));
@@ -133,15 +143,35 @@ async function verificarAutenticacao(req, res, next) {
     try {
         const payload = verifySessionToken(token);
         if (!payload?.uid) return res.status(401).json({ error: 'Sessão inválida', redirectToLogin: true });
+
         const { data: profile, error } = await supabaseAdmin.from('profiles')
             .select('id, username, name, is_admin, is_active, sector, apps')
             .eq('id', payload.uid).maybeSingle();
+
         if (error || !profile || !profile.is_active)
             return res.status(401).json({ error: 'Sessão inválida', redirectToLogin: true });
+
         if (!profile.is_admin && !dentroDoExpediente()) {
             if (req.headers.accept && req.headers.accept.includes('text/html')) return res.redirect('/');
             return res.status(401).json({ error: 'Sessão encerrada', redirectToLogin: true, silentLogout: true });
         }
+
+        // ─── CHECAGEM DE PERMISSÃO POR MÓDULO ────────────────────────────
+        // Admins passam direto. Não-admins precisam ter o módulo em profiles.apps.
+        if (!profile.is_admin && !SHARED_PATHS.some(p => req.path === p || req.path.startsWith(p + '/'))) {
+            const modulo = moduloDaRota(req.path);
+            if (modulo && modulo !== 'usuarios') {
+                const apps = Array.isArray(profile.apps) ? profile.apps.map(String) : [];
+                if (!apps.includes(modulo)) {
+                    return res.status(403).json({
+                        error: 'Sem acesso a este módulo',
+                        moduleDenied: true,
+                        module: modulo
+                    });
+                }
+            }
+        }
+
         req.user = profile;
         req.sessionToken = token;
         next();
@@ -155,42 +185,45 @@ async function verificarAutenticacao(req, res, next) {
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
-    console.log('[supabase-config] URL exists:', !!url);
-    console.log('[supabase-config] ANON_KEY exists:', !!anonKey);
-    if (!url || !anonKey) {
-        console.error('❌ Supabase config missing: URL or ANON_KEY not set in environment');
-        return res.status(500).json({ error: 'Configuração do Supabase incompleta no servidor' });
-    }
+    if (!url || !anonKey) return res.status(500).json({ error: 'Configuração do Supabase incompleta no servidor' });
     res.json({ url, anonKey });
 });
 
-// ─── IMAGENS COMPARTILHADAS POR TODOS OS MÓDULOS ─────────────────────────────
+// ─── IMAGENS COMPARTILHADAS ──────────────────────────────────────────────────
 app.use('/shared', express.static(path.join(__dirname, 'shared'), { dotfiles: 'deny' }));
-app.use('/apps/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { fallthrough: false, dotfiles: 'deny', maxAge: '7d' }));
-// Compatibilidade com URLs antigas de imagens.
-app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { fallthrough: false, dotfiles: 'deny', maxAge: '7d' }));
+app.use('/apps/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
+app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ─────────────────────────────────────────
+// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────────────────────
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra', 'transportadoras', 'cotacoes',
-    'faturamento', 'frete', 'receber',
-    'pagar', 'lucro', 'licitacoes', 'estoque'
+    'faturamento', 'frete', 'receber', 'pagar', 'lucro', 'licitacoes', 'estoque'
 ];
 
 APPS.forEach(appName => {
     const appPath = path.join(__dirname, 'apps', appName);
     if (fs.existsSync(appPath)) {
+        // Só expõe o que for realmente público (html/css/js de frontend já são servidos abaixo, sem routes.js)
         app.use(`/${appName}/assets`, express.static(appPath));
         app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
         app.get(`/${appName}/`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
-        app.use(`/${appName}`, express.static(appPath, { index: false, dotfiles: 'deny' }));
+        app.use(`/${appName}`, express.static(appPath, {
+            index: false,
+            dotfiles: 'deny',
+            setHeaders: (res, filePath) => {
+                // Bloqueia routes.js e arquivos de backend por segurança
+                if (/[\\/]routes\.js$/i.test(filePath)) {
+                    res.status(404).end();
+                }
+            }
+        }));
         console.log(`✅ Servindo /${appName}`);
     } else {
         console.log(`⚠️  Pasta não encontrada: ${appPath}`);
     }
 });
 
-// ─── MIDDLEWARE: FALLBACK DE ASSETS ───────────────────────────────────────────
+// ─── FALLBACK DE ASSETS ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
     if (!STATIC_EXTENSIONS.test(req.path)) return next();
     const referer = req.get('Referer') || '';
@@ -202,32 +235,24 @@ app.use((req, res, next) => {
     const appPath = path.join(__dirname, 'apps', matchedApp);
     const fileName = req.path.replace(/^\//, '');
     const filePath = path.join(appPath, fileName);
-    if (fs.existsSync(filePath)) {
-        console.log(`🔧 Asset fallback: ${req.path} → /${matchedApp}/${fileName}`);
-        return res.sendFile(filePath);
-    }
+    if (fs.existsSync(filePath) && !/[\\/]routes\.js$/i.test(filePath)) return res.sendFile(filePath);
     next();
 });
 
-// ─── ROTA RAIZ → PORTAL ───────────────────────────────────────────────────────
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'apps', 'login-autenticacao', 'index.html'));
-});
+// ─── ROTAS ───────────────────────────────────────────────────────────────────
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'apps', 'login-autenticacao', 'index.html')));
 
-// ─── API DO PORTAL (sem autenticação central) ─────────────────────────────────
 app.use('/api/auth', require('./apps/login-autenticacao/routes')(supabase, supabaseAdmin));
-const portalRoutes = require('./apps/portal/routes');
-app.use('/api/portal', portalRoutes(supabase, supabaseAdmin));
+app.use('/api/portal', require('./apps/portal/routes')(supabase, supabaseAdmin));
 
-// ─── MIDDLEWARE DE AUTENTICAÇÃO (aplicado a TODAS as rotas /api a partir daqui)
 app.use('/api', verificarAutenticacao);
+
 app.use('/api/usuarios', require('./apps/usuarios/routes')(supabase, supabaseAdmin));
 
-// ─── DADOS COMPARTILHADOS (usuário atual e lista de vendedores) ──────────────
 const { primeiroNome } = require('./lib/helpers');
 app.get('/api/me', (req, res) => {
     const u = req.user || {};
-    res.json({ id: u.id, name: u.name, first_name: primeiroNome(u), username: u.username, sector: u.sector, is_admin: !!u.is_admin });
+    res.json({ id: u.id, name: u.name, first_name: primeiroNome(u), username: u.username, sector: u.sector, is_admin: !!u.is_admin, apps: u.apps || [] });
 });
 app.get('/api/vendedores', async (req, res) => {
     try {
@@ -235,13 +260,11 @@ app.get('/api/vendedores', async (req, res) => {
         if (error) throw error;
         const nomes = (data || [])
             .filter(p => p.is_admin || /^(SETOR DE )?VENDAS$/i.test(String(p.sector || '').trim()))
-            .map(p => primeiroNome(p))
-            .filter(Boolean);
+            .map(p => primeiroNome(p)).filter(Boolean);
         res.json([...new Set(nomes)].sort());
-    } catch (err) { res.status(500).json({ error: 'Erro ao listar vendedores' }); }
+    } catch { res.status(500).json({ error: 'Erro ao listar vendedores' }); }
 });
 
-// ─── API DE NOTIFICAÇÕES ──────────────────────────────────────────────────────
 app.post('/api/notifications', async (req, res) => {
     try {
         const { message } = req.body;
@@ -249,61 +272,32 @@ app.post('/api/notifications', async (req, res) => {
         const { data, error } = await supabase.from('compranotifications').insert({ message }).select().single();
         if (error) throw error;
         res.status(201).json({ id: data.id });
-    } catch (err) { res.status(500).json({ error: 'Erro interno' }); }
+    } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 app.get('/api/notifications', async (req, res) => {
     try {
         const { data, error } = await supabase.from('compranotifications').select('*').order('created_at', { ascending: false }).limit(50);
         if (error) throw error;
         res.json(data || []);
-    } catch (err) { res.status(500).json({ error: 'Erro ao buscar notificações' }); }
+    } catch { res.status(500).json({ error: 'Erro ao buscar notificações' }); }
 });
 
-// ─── API DE PREÇOS ────────────────────────────────────────────────────────────
-const precosRoutes = require('./apps/precos/routes');
-app.use('/api/precos', precosRoutes(supabase));
+app.use('/api/precos', require('./apps/precos/routes')(supabase));
+app.use('/api', require('./apps/compra/routes')(supabase));
+app.use('/api/transportadoras', require('./apps/transportadoras/routes')(supabase));
+app.use('/api/cotacoes', require('./apps/cotacoes/routes')(supabase));
+app.use('/api/pedidos', require('./apps/faturamento/routes')(supabase));
+app.use('/api/fretes', require('./apps/frete/routes')(supabase));
+app.use('/api/receber', require('./apps/receber/routes')(supabase));
+app.use('/api', require('./apps/lucro/routes')(supabase));
+app.use('/api', require('./apps/pagar/routes')(supabase));
 
-// ─── API DE COMPRAS ───────────────────────────────────────────────────────────
-const compraRoutes = require('./apps/compra/routes');
-app.use('/api', compraRoutes(supabase));
-
-// ─── API DE TRANSPORTADORAS ───────────────────────────────────────────────────
-const transportadorasRoutes = require('./apps/transportadoras/routes');
-app.use('/api/transportadoras', transportadorasRoutes(supabase));
-
-// ─── API DE COTAÇÕES DE FRETE ─────────────────────────────────────────────────
-const cotacoesRoutes = require('./apps/cotacoes/routes');
-app.use('/api/cotacoes', cotacoesRoutes(supabase));
-
-// ─── API DE FATURAMENTO ───────────────────────────────────────────────────────
-const faturamentoRoutes = require('./apps/faturamento/routes');
-app.use('/api/pedidos', faturamentoRoutes(supabase));
-
-// ─── API DE CONTROLE DE FRETE ─────────────────────────────────────────────────
-const freteRoutes = require('./apps/frete/routes');
-app.use('/api/fretes', freteRoutes(supabase));
-
-// ─── API DE CONTAS A RECEBER ──────────────────────────────────────────────────
-const receberRoutes = require('./apps/receber/routes');
-app.use('/api/receber', receberRoutes(supabase));
-
-// O módulo de interface Vendas foi removido. Dados históricos e tabelas não são apagados.
-
-// ─── API DE LUCRO REAL ────────────────────────────────────────────────────────
-const lucroRoutes = require('./apps/lucro/routes');
-app.use('/api', lucroRoutes(supabase));
-
-// 🚨 API DE CONTAS A PAGAR
-const contasPagarRoutes = require('./apps/pagar/routes');
-app.use('/api', contasPagarRoutes(supabase));
-
-// ─── ROTA DE ESTOQUE ──────────────────────────────────────────────────────────
 app.get('/api/estoque', async (req, res) => {
     try {
         const { data, error } = await supabase.from('estoque').select('*').order('codigo', { ascending: true });
         if (error) throw error;
         res.json(data);
-    } catch (err) { res.status(500).json({ error: 'Erro ao listar estoque' }); }
+    } catch { res.status(500).json({ error: 'Erro ao listar estoque' }); }
 });
 app.patch('/api/estoque/:codigo', async (req, res) => {
     try {
@@ -311,10 +305,9 @@ app.patch('/api/estoque/:codigo', async (req, res) => {
         const { data, error } = await supabase.from('estoque').update({ quantidade }).eq('codigo', req.params.codigo).select().single();
         if (error) throw error;
         res.json(data);
-    } catch (err) { res.status(500).json({ error: 'Erro ao atualizar estoque' }); }
+    } catch { res.status(500).json({ error: 'Erro ao atualizar estoque' }); }
 });
 
-// ─── ENDPOINT DE VERIFICAÇÃO DE SESSÃO ────────────────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
     try {
         const token = req.body?.sessionToken || req.headers['x-session-token'];
@@ -332,37 +325,11 @@ app.post('/api/verify-session', async (req, res) => {
     }
 });
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => { res.status(404).json({ error: '404 - Rota não encontrada' }); });
-
-// ─── TRATAMENTO DE ERROS ──────────────────────────────────────────────────────
 app.use((error, req, res, next) => { console.error('Erro interno:', error.message); res.status(500).json({ error: 'Erro interno do servidor' }); });
 
-// ─── INICIAR ──────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio - Servidor Central rodando na porta ${PORT}`);
     console.log(`✅ Database: Supabase conectado`);
     console.log(`✅ Autenticação: Ativa (via Supabase)\n`);
-    APPS.forEach(appName => {
-        const appPath = path.join(__dirname, 'apps', appName);
-        const status = fs.existsSync(appPath) ? '✅' : '⚠️ ';
-        console.log(`  ${status} /${appName}`);
-    });
-    console.log(`\n📝 Logs salvos em: acessos.log\n`);
-    console.log('📡 Rotas de API registradas:');
-    console.log('  GET  /health               → Health check (sem prefixo)');
-    console.log('  GET  /api/health           → Health check (com prefixo)');
-    console.log('  POST /api/portal/...       → Portal (auth)');
-    console.log('  POST /api/notifications    → Notificações globais');
-    console.log('  GET  /api/transportadoras  → Transportadoras');
-    console.log('  GET  /api/cotacoes         → Cotações de Frete');
-    console.log('  GET  /api/pedidos          → Pedidos de Faturamento');
-    console.log('  GET  /api/estoque          → Estoque');
-    console.log('  GET  /api/precos           → Preços');
-    console.log('  GET  /api/ordens           → Compras');
-    console.log('  CRUD /api/fretes           → Controle de Frete');
-    console.log('  CRUD /api/receber          → Contas a Receber');
-    console.log('  CRUD /api/lucro-real       → Lucro Real');
-    console.log('  POST /api/custo-fixo       → Custo Fixo Mensal');
-    console.log('  CRUD /api/contas           → Contas a Pagar\n');
 });
