@@ -1,5 +1,6 @@
 const express = require('express');
 const { primeiroNome, exigirSetor, podeConfirmar } = require('../../lib/helpers');
+
 module.exports = function (supabase) {
     const router = express.Router();
 
