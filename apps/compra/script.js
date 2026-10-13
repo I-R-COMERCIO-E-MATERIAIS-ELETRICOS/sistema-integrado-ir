@@ -33,10 +33,6 @@ function detectResponsavelFromUser(name) {
     return null;
 }
 
-console.log('🚀 Ordem de Compra iniciada');
-console.log('📍 API URL:', API_URL);
-console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
-
 function toUpperCase(value) {
     return value ? String(value).toUpperCase() : '';
 }
@@ -44,7 +40,7 @@ function toUpperCase(value) {
 function setupUpperCaseInputs() {
     const textInputs = document.querySelectorAll('input[type="text"]:not([readonly]), textarea');
     textInputs.forEach(input => {
-        input.addEventListener('input', function(e) {
+        input.addEventListener('input', function () {
             const start = this.selectionStart;
             const end = this.selectionEnd;
             this.value = toUpperCase(this.value);
@@ -55,7 +51,6 @@ function setupUpperCaseInputs() {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (DEVELOPMENT_MODE) {
-        console.log('⚠️ MODO DESENVOLVIMENTO ATIVADO');
         sessionToken = 'dev-mode';
         inicializarApp();
     } else {
@@ -86,10 +81,11 @@ function verificarAutenticacao() {
     }
 
     if (!sessionToken) {
-        mostrarTelaAcessoNegado();
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
         return;
     }
 
+    if (window.IR) IR.setToken(sessionToken);
     inicializarApp();
     fetchSessionUser();
 }
@@ -97,7 +93,7 @@ function verificarAutenticacao() {
 async function fetchSessionUser() {
     if (!sessionToken) return;
     try {
-        const r = await fetch(`${PORTAL_URL}/api/portal/verify-session`, {
+        const r = await fetch(`${window.location.origin}/api/portal/verify-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionToken })
@@ -109,12 +105,11 @@ async function fetchSessionUser() {
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({ type: /expir|sess[aã]o/i.test(mensagem) ? 'ir-session-expired' : 'ir-module-denied', module: location.pathname.split('/')[1] }, '*'); return; }
     document.body.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:var(--bg-primary);color:var(--text-primary);text-align:center;padding:2rem;">
+            <h1 style="font-size:2.2rem;margin-bottom:1rem;">${mensagem}</h1>
+            <p style="color:var(--text-secondary);margin-bottom:2rem;">Somente usuários autenticados podem acessar esta área.</p>
+            <a href="${PORTAL_URL}" style="display:inline-block;background:var(--btn-register);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Ir para o Portal</a>
         </div>
     `;
 }
@@ -125,29 +120,23 @@ function inicializarApp() {
     loadUltimoNumero();
     loadFornecedoresGlobal();
     setInterval(() => loadOrdensDirectly(), 10000);
-    // Botão Duplicar Ordem já está fixo no HTML — nenhuma inserção automática é necessária
 }
 
-// ============================================
-// MODAL DE DUPLICAÇÃO
-// ============================================
+// ─── MODAL DE DUPLICAÇÃO ─────────────────────────────────────────────────────
 function abrirModalDuplicar() {
-    // Remove modal existente se houver
     const existing = document.getElementById('duplicarModal');
     if (existing) existing.remove();
 
     const modalHTML = `
         <div class="modal-overlay" id="duplicarModal" style="display: flex; z-index: 10001;">
-            <div class="modal-content confirm-modal-content" style="max-width: 420px; min-height: 220px;">
-                <button class="close-modal" onclick="fecharModalDuplicar()">✕</button>
-                <div style="padding: 1.5rem 0.25rem 0.5rem; text-align: center;">
-                    <p style="font-size: 1.05rem; margin-bottom: 1rem; font-weight: 600;">Digite o número da ordem a ser duplicada</p>
-                    <input type="text" id="numeroOrdemDuplicar" placeholder="Ex: 1250" style="text-align: center; font-size: 1.1rem; padding: 10px; width: 100%; max-width: 200px;">
-                    <div id="duplicarErro" style="color: #EF4444; font-size: 0.9rem; margin-top: 0.5rem; display: none;">Esta ordem de compra ainda não existe.</div>
-                </div>
-                <div class="modal-actions modal-actions-no-border" style="justify-content: center;">
-                    <button type="button" id="btnDuplicarConfirmar" class="success" style="background: #22C55E; min-width: 140px;">Confirmar</button>
-                    <button type="button" onclick="fecharModalDuplicar()" class="secondary" style="min-width: 100px;">Cancelar</button>
+            <div class="modal-content ir-modal-confirm" style="max-width: 460px;">
+                <button class="close-modal ir-close" onclick="fecharModalDuplicar()">✕</button>
+                <p style="font-size:1.05rem;margin-bottom:1rem;font-weight:600;">Digite o número da ordem a ser duplicada</p>
+                <input type="text" id="numeroOrdemDuplicar" placeholder="Ex: 1250" style="text-align:center;font-size:1.1rem;padding:10px;width:100%;max-width:220px;margin:0 auto;">
+                <div id="duplicarErro" style="color:#EF4444;font-size:0.9rem;margin-top:0.5rem;display:none;">Esta ordem de compra ainda não existe.</div>
+                <div class="ir-confirm-actions" style="margin-top:1.5rem;">
+                    <button type="button" id="btnDuplicarConfirmar" class="ir-btn-green">Confirmar</button>
+                    <button type="button" onclick="fecharModalDuplicar()" class="ir-btn-red">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -171,9 +160,6 @@ function fecharModalDuplicar() {
     }
 }
 
-// ============================================
-// CONFIRMAR DUPLICAÇÃO (com busca via API)
-// ============================================
 async function confirmarDuplicacao() {
     const input = document.getElementById('numeroOrdemDuplicar');
     const numero = input?.value.trim();
@@ -183,7 +169,6 @@ async function confirmarDuplicacao() {
     }
 
     try {
-        // Buscar a ordem original pelo número (independente do mês)
         const headers = { 'Accept': 'application/json' };
         if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
 
@@ -194,7 +179,6 @@ async function confirmarDuplicacao() {
         });
 
         if (response.status === 404) {
-            // Ordem não encontrada
             const erroDiv = document.getElementById('duplicarErro');
             if (erroDiv) {
                 erroDiv.style.display = 'block';
@@ -208,23 +192,17 @@ async function confirmarDuplicacao() {
             return;
         }
 
-        if (!response.ok) {
-            throw new Error('Erro ao buscar ordem');
-        }
+        if (!response.ok) throw new Error('Erro ao buscar ordem');
 
         const original = await response.json();
-
-        // Fechar modal
         fecharModalDuplicar();
 
-        // Data atual para a nova ordem (sempre o dia de hoje)
         const dataAtual = new Date().toISOString().split('T')[0];
 
-        // Criar uma cópia dos dados (sem id)
         const dadosCopia = {
             numeroOrdem: original.numero_ordem || original.numeroOrdem,
             responsavel: original.responsavel || '',
-            dataOrdem: dataAtual, // <-- AGORA SEMPRE DATA ATUAL
+            dataOrdem: dataAtual,
             razaoSocial: original.razao_social || original.razaoSocial || '',
             nomeFantasia: original.nome_fantasia || original.nomeFantasia || '',
             cnpj: original.cnpj || '',
@@ -254,7 +232,6 @@ async function confirmarDuplicacao() {
             status: 'aberta'
         };
 
-        // Enviar para criar nova ordem
         const postHeaders = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -270,7 +247,7 @@ async function confirmarDuplicacao() {
 
         if (!DEVELOPMENT_MODE && postResponse.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
@@ -296,10 +273,7 @@ async function confirmarDuplicacao() {
     }
 }
 
-// ============================================
-// FUNÇÕES EXISTENTES (mantidas)
-// ============================================
-
+// ─── CARREGAR ORDENS ─────────────────────────────────────────────────────────
 async function loadOrdensDirectly() {
     if (currentFetchController) currentFetchController.abort();
     currentFetchController = new AbortController();
@@ -319,7 +293,7 @@ async function loadOrdensDirectly() {
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
         if (!response.ok) return;
@@ -360,7 +334,6 @@ async function loadFornecedoresGlobal() {
                 };
             }
         });
-        console.log(`👥 ${Object.keys(fornecedoresCache).length} fornecedores em cache global`);
     } catch (e) { console.error('❌ loadFornecedoresGlobal:', e); }
 }
 
@@ -372,18 +345,16 @@ async function loadUltimoNumero() {
         if (!response.ok) return;
         const data = await response.json();
         ultimoNumeroGlobal = data.ultimoNumero || 0;
-        console.log(`🔢 Último número global: ${ultimoNumeroGlobal}`);
         updateDashboard();
     } catch (e) { console.error('❌ loadUltimoNumero:', e); }
 }
 
 async function syncData() {
-    const syncBtn = document.querySelector('.sync-btn');
+    const syncBtn = document.getElementById('btnSync');
     if (syncBtn && !syncBtn.classList.contains('spin')) {
         syncBtn.classList.add('spin');
         setTimeout(() => syncBtn.classList.remove('spin'), 1000);
     }
-    console.log('🔄 Iniciando sincronização...');
     try {
         const headers = { 'Accept': 'application/json' };
         if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
@@ -394,7 +365,7 @@ async function syncData() {
         });
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
         if (!response.ok) throw new Error(`Erro ao sincronizar: ${response.status}`);
@@ -404,7 +375,6 @@ async function syncData() {
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
         await loadUltimoNumero();
-        console.log(`✅ Sincronização concluída: ${ordens.length} ordens em ${mes + 1}/${ano}`);
         showToast('Dados sincronizados', 'success');
     } catch (error) {
         console.error('❌ Erro na sincronização:', error);
@@ -457,7 +427,7 @@ function setupFornecedorAutocomplete() {
     if (!razaoSocialInput) return;
     const newInput = razaoSocialInput.cloneNode(true);
     razaoSocialInput.parentNode.replaceChild(newInput, razaoSocialInput);
-    newInput.addEventListener('input', function(e) {
+    newInput.addEventListener('input', function (e) {
         const termo = e.target.value;
         let suggestionsDiv = document.getElementById('fornecedorSuggestions');
         if (suggestionsDiv) suggestionsDiv.remove();
@@ -466,19 +436,11 @@ function setupFornecedorAutocomplete() {
         if (fornecedores.length === 0) return;
         suggestionsDiv = document.createElement('div');
         suggestionsDiv.id = 'fornecedorSuggestions';
-        suggestionsDiv.style.cssText = `
-            position: absolute; z-index: 1000; background: var(--bg-card);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 300px;
-            overflow-y: auto; width: 100%; margin-top: 4px;
-        `;
+        suggestionsDiv.style.cssText = `position:absolute;z-index:1000;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:300px;overflow-y:auto;width:100%;margin-top:4px;`;
         fornecedores.forEach(fornecedor => {
             const item = document.createElement('div');
-            item.style.cssText = `padding: 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);`;
-            item.innerHTML = `
-                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${fornecedor.razaoSocial}</div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary);">${fornecedor.cnpj}${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}</div>
-            `;
+            item.style.cssText = `padding:12px;cursor:pointer;border-bottom:1px solid var(--border-color);`;
+            item.innerHTML = `<div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">${fornecedor.razaoSocial}</div><div style="font-size:0.85rem;color:var(--text-secondary);">${fornecedor.cnpj}${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}</div>`;
             item.addEventListener('click', () => preencherDadosFornecedor(fornecedor));
             suggestionsDiv.appendChild(item);
         });
@@ -486,7 +448,7 @@ function setupFornecedorAutocomplete() {
         formGroup.style.position = 'relative';
         formGroup.appendChild(suggestionsDiv);
     });
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!e.target.closest('.form-group')) {
             const suggestionsDiv = document.getElementById('fornecedorSuggestions');
             if (suggestionsDiv) suggestionsDiv.remove();
@@ -507,9 +469,7 @@ function changeMonth(direction) {
 function updateMonthDisplay() {
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const monthName = months[currentMonth.getMonth()];
-    const year = currentMonth.getFullYear();
-    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
+    document.getElementById('currentMonth').textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 }
 
 function switchTab(tabId) {
@@ -527,12 +487,9 @@ function showTab(index) {
 function updateNavigationButtons() {
     const btnPrevious = document.getElementById('btnPrevious');
     const btnNext = document.getElementById('btnNext');
-    const btnSave = document.getElementById('btnSave');
-    if (!btnPrevious || !btnNext || !btnSave) return;
-
+    if (!btnPrevious || !btnNext) return;
     btnPrevious.style.display = currentTab > 0 ? 'inline-flex' : 'none';
     btnNext.style.display = currentTab < tabs.length - 1 ? 'inline-flex' : 'none';
-    btnSave.style.display = 'inline-flex';  // sempre visível
 }
 function nextTab() { if (currentTab < tabs.length - 1) { currentTab++; showTab(currentTab); updateNavigationButtons(); } }
 function previousTab() { if (currentTab > 0) { currentTab--; showTab(currentTab); updateNavigationButtons(); } }
@@ -552,13 +509,9 @@ function switchInfoTab(tabId) {
 function updateInfoNavigationButtons() {
     const btnPrev = document.getElementById('btnInfoPrevious');
     const btnNext = document.getElementById('btnInfoNext');
-    const btnClose = document.getElementById('btnInfoClose');
-    if (!btnPrev || !btnNext || !btnClose) return;
-    if (currentInfoTab > 0) btnPrev.style.display = 'inline-flex';
-    else btnPrev.style.display = 'none';
-    if (currentInfoTab < 4) btnNext.style.display = 'inline-flex';
-    else btnNext.style.display = 'none';
-    btnClose.style.display = 'inline-flex';
+    if (!btnPrev || !btnNext) return;
+    btnPrev.style.display = currentInfoTab > 0 ? 'inline-flex' : 'none';
+    btnNext.style.display = currentInfoTab < 4 ? 'inline-flex' : 'none';
 }
 function nextInfoTab() {
     const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
@@ -634,15 +587,15 @@ function openFormModal() {
                         <div class="tab-content" id="tab-pagamento">
                             <div class="form-grid">
                                 <div class="form-group"><label>Forma de Pagamento *</label><input type="text" id="formaPagamento" required placeholder="Ex: Boleto, PIX, Cartão"></div>
+                                <div class="form-group"><label>Dados Bancários</label><input type="text" id="dadosBancarios" placeholder="Banco / Agência / Conta"></div>
                                 <div class="form-group"><label>Prazo de Pagamento *</label><input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias"></div>
-                                <div class="form-group"><label>Dados Bancários</label><textarea id="dadosBancarios" rows="3"></textarea></div>
                             </div>
                         </div>
                         <div class="modal-actions">
-                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
-                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
-                            <button type="submit" id="btnSave" class="save" style="display: none;">Salvar</button>
-                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary tab-prev" style="display: none;">Anterior</button>
+                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary tab-next">Próximo</button>
+                            <button type="submit" id="btnSave" class="save">Salvar</button>
+                            <button type="button" onclick="closeFormModal(true)" class="cancel-close">Cancelar</button>
                         </div>
                     </form>
                 </div>
@@ -754,8 +707,8 @@ async function handleSubmit(event) {
         prazoEntrega: toUpperCase(document.getElementById('prazoEntrega').value),
         transporte: toUpperCase(document.getElementById('transporte').value),
         formaPagamento: toUpperCase(document.getElementById('formaPagamento').value),
-        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
         dadosBancarios: toUpperCase(document.getElementById('dadosBancarios').value),
+        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
         status: 'aberta'
     };
     if (!DEVELOPMENT_MODE && !navigator.onLine) {
@@ -771,12 +724,12 @@ async function handleSubmit(event) {
         const response = await fetch(url, { method, headers, body: JSON.stringify(formData), mode: 'cors' });
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
         if (!response.ok) {
             let errorMessage = 'Erro ao salvar';
-            try { const errorData = await response.json(); errorMessage = errorData.error || errorData.message || errorMessage; } catch(e) { errorMessage = `Erro ${response.status}: ${response.statusText}`; }
+            try { const errorData = await response.json(); errorMessage = errorData.error || errorData.message || errorMessage; } catch (e) { errorMessage = `Erro ${response.status}: ${response.statusText}`; }
             throw new Error(errorMessage);
         }
         const savedData = await response.json();
@@ -848,15 +801,17 @@ async function editOrdem(id) {
                         <div class="form-group"><label>Transporte</label><input type="text" id="transporte" value="${toUpperCase(ordem.transporte || 'FORNECEDOR')}"></div></div>
                     </div>
                     <div class="tab-content" id="tab-pagamento">
-                        <div class="form-grid"><div class="form-group"><label>Forma de Pagamento *</label><input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento || '')}" required></div>
-                        <div class="form-group"><label>Prazo de Pagamento *</label><input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento || '')}" required></div>
-                        <div class="form-group"><label>Dados Bancários</label><textarea id="dadosBancarios" rows="3">${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea></div></div>
+                        <div class="form-grid">
+                            <div class="form-group"><label>Forma de Pagamento *</label><input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento || '')}" required></div>
+                            <div class="form-group"><label>Dados Bancários</label><input type="text" id="dadosBancarios" value="${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}" placeholder="Banco / Agência / Conta"></div>
+                            <div class="form-group"><label>Prazo de Pagamento *</label><input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento || '')}" required></div>
+                        </div>
                     </div>
                     <div class="modal-actions">
-                        <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display:none;">Anterior</button>
-                        <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
-                        <button type="submit" id="btnSave" class="save" style="display:none;">Atualizar</button>
-                        <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                        <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary tab-prev" style="display:none;">Anterior</button>
+                        <button type="button" id="btnNext" onclick="nextTab()" class="secondary tab-next">Próximo</button>
+                        <button type="submit" id="btnSave" class="save">Atualizar</button>
+                        <button type="button" onclick="closeFormModal(true)" class="cancel-close">Cancelar</button>
                     </div>
                 </form></div>
             </div>
@@ -882,7 +837,17 @@ async function editOrdem(id) {
 }
 async function deleteOrdem(id) { showDeleteModal(id); }
 function showDeleteModal(id) {
-    const modalHTML = `<div class="modal-overlay" id="deleteModal" style="display: flex;"><div class="modal-content modal-delete"><button class="close-modal" onclick="closeDeleteModal()">✕</button><div class="modal-message-delete">Tem certeza que deseja excluir esta ordem?</div><div class="modal-actions modal-actions-no-border"><button type="button" onclick="confirmDelete('${id}')" class="danger">Sim</button><button type="button" onclick="closeDeleteModal()" class="danger">Não</button></div></div></div>`;
+    const modalHTML = `
+        <div class="modal-overlay" id="deleteModal" style="display: flex;">
+            <div class="modal-content ir-modal-confirm">
+                <button class="close-modal ir-close" onclick="closeDeleteModal()">✕</button>
+                <div class="ir-confirm-msg">Tem certeza que deseja excluir esta ordem?</div>
+                <div class="ir-confirm-actions">
+                    <button type="button" onclick="confirmDelete('${id}')" class="ir-btn-green">Sim</button>
+                    <button type="button" onclick="closeDeleteModal()" class="ir-btn-red">Não</button>
+                </div>
+            </div>
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 function closeDeleteModal() {
@@ -903,7 +868,7 @@ async function confirmDelete(id) {
         const response = await fetch(`${API_URL}/ordens/${id}`, { method: 'DELETE', headers, mode: 'cors' });
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
         if (!response.ok) throw new Error('Erro ao deletar');
@@ -933,7 +898,7 @@ async function toggleStatus(id) {
         const response = await fetch(`${API_URL}/ordens/${id}/status`, { method: 'PATCH', headers, body: JSON.stringify({ status: novoStatus }), mode: 'cors' });
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
         if (!response.ok) throw new Error('Erro ao atualizar');
@@ -991,7 +956,7 @@ function updateTable() {
     if (filterResp) filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
     if (filterStatus) filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
     if (filteredOrdens.length === 0) { container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`; return; }
-    filteredOrdens.sort((a,b) => (parseInt(a.numero_ordem || a.numeroOrdem) - parseInt(b.numero_ordem || b.numeroOrdem)));
+    filteredOrdens.sort((a, b) => (parseInt(a.numero_ordem || a.numeroOrdem) - parseInt(b.numero_ordem || b.numeroOrdem)));
     container.innerHTML = filteredOrdens.map(ordem => `<tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}" onclick="handleRowClick(event, '${ordem.id}')" style="cursor:pointer;"><td style="text-align:center;"><div class="checkbox-wrapper"><input type="checkbox" id="check-${ordem.id}" ${ordem.status === 'fechada' ? 'checked' : ''} onchange="toggleStatus('${ordem.id}')" class="styled-checkbox"><label for="check-${ordem.id}" class="checkbox-label-styled"></label></div></td><td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td><td>${toUpperCase(ordem.responsavel)}</td><td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td><td>${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td><td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td><td><span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></td><td class="actions-cell"><div class="actions"><button onclick="editOrdem('${ordem.id}')" class="action-btn edit">Editar</button><button onclick="generatePDF('${ordem.id}')" class="action-btn success">PDF</button><button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete">Excluir</button></div></td></tr>`).join('');
 }
 function updateResponsaveisFilter() {
@@ -1007,95 +972,285 @@ function updateResponsaveisFilter() {
 }
 function getOrdensForCurrentMonth() { return ordens; }
 function getNextOrderNumber() { return ultimoNumeroGlobal > 0 ? (ultimoNumeroGlobal + 1).toString() : '1250'; }
-function formatDateTime(v) { if (!v) return ''; const d = new Date(v); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
+function formatDateTime(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d)) return '';
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const ano = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${dia}/${mes}/${ano} ${hh}:${mm}`;
+}
 function formatDate(dateString) { if (!dateString) return '-'; return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR'); }
 function formatCurrency(value) { return parseFloat(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 function showToast(message, type = 'success') {
     document.querySelectorAll('.floating-message').forEach(msg => msg.remove());
-    const messageDiv = document.createElement('div'); messageDiv.className = `floating-message ${type}`; messageDiv.textContent = message;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
+    messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
     setTimeout(() => { messageDiv.style.animation = 'slideOutBottom 0.3s ease forwards'; setTimeout(() => messageDiv.remove(), 300); }, 3000);
 }
 
-// ============================================
-// GERAÇÃO DE PDF (COMPLETA)
-// ============================================
+// ─── PDF ─────────────────────────────────────────────────────────────────────
 function generatePDF(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) { showToast('Ordem não encontrada!', 'error'); return; }
     if (typeof window.jspdf === 'undefined') {
-        let attempts = 0; const maxAttempts = 5; const checkInterval = setInterval(() => { attempts++; if (typeof window.jspdf !== 'undefined') { clearInterval(checkInterval); generatePDFForOrdem(ordem); } else if (attempts >= maxAttempts) { clearInterval(checkInterval); showToast('Erro: Biblioteca PDF não carregou. Recarregue a página (F5).', 'error'); } }, 500);
+        let attempts = 0; const maxAttempts = 5;
+        const checkInterval = setInterval(() => {
+            attempts++;
+            if (typeof window.jspdf !== 'undefined') { clearInterval(checkInterval); generatePDFForOrdem(ordem); }
+            else if (attempts >= maxAttempts) { clearInterval(checkInterval); showToast('Erro: Biblioteca PDF não carregou. Recarregue a página (F5).', 'error'); }
+        }, 500);
         return;
     }
     generatePDFForOrdem(ordem);
 }
 function generatePDFForOrdem(ordem) {
-    const { jsPDF } = window.jspdf; const doc = new jsPDF();
-    let y = 3; const margin = 15; const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height; const lineHeight = 5; const maxWidth = pageWidth - (2 * margin);
-    function addTextWithWrap(text, x, yStart, maxW, lineH = 5) { const lines = doc.splitTextToSize(text, maxW); lines.forEach((line, index) => { if (yStart + (index * lineH) > pageHeight - 30) { doc.addPage(); yStart = 20; } doc.text(line, x, yStart + (index * lineH)); }); return yStart + (lines.length * lineH); }
-    const logoHeader = new Image(); logoHeader.crossOrigin = 'anonymous'; logoHeader.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-    logoHeader.onload = function() { try { const logoWidth = 40; const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth; const logoX = 5; const logoY = y; doc.setGState(new doc.GState({ opacity: 0.3 })); doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight); doc.setGState(new doc.GState({ opacity: 1.0 })); const fontSize = logoHeight * 0.5; doc.setFontSize(fontSize); doc.setFont(undefined, 'bold'); doc.setTextColor(150, 150, 150); const textX = logoX + logoWidth + 1.2; const lineSpacing = fontSize * 0.5; const textY1 = logoY + fontSize * 0.85; doc.text('I.R COMÉRCIO E', textX, textY1); const textY2 = textY1 + lineSpacing; doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2); doc.setTextColor(0, 0, 0); y = logoY + logoHeight + 8; continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap); } catch(e) { y = 25; continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap); } };
-    logoHeader.onerror = function() { y = 25; continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap); };
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 3;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const lineHeight = 5;
+    const maxWidth = pageWidth - (2 * margin);
+
+    const logoHeader = new Image();
+    logoHeader.crossOrigin = 'anonymous';
+    logoHeader.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    logoHeader.onload = function () {
+        try {
+            const logoWidth = 40;
+            const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
+            const logoX = 5;
+            const logoY = y;
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+            const fontSize = logoHeight * 0.5;
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
+            const lineSpacing = fontSize * 0.5;
+            const textY1 = logoY + fontSize * 0.85;
+            doc.text('I.R COMÉRCIO E', textX, textY1);
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY1 + lineSpacing);
+            doc.setTextColor(0, 0, 0);
+            y = logoY + logoHeight + 8;
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth);
+        } catch (e) {
+            y = 25;
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth);
+        }
+    };
+    logoHeader.onerror = function () { y = 25; continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth); };
 }
-function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
-    const logoHeaderImg = new Image(); logoHeaderImg.crossOrigin = 'anonymous'; logoHeaderImg.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-    logoHeaderImg.onload = function() { gerarPDFComCabecalho(); }; logoHeaderImg.onerror = function() { gerarPDFComCabecalho(); };
-    function gerarPDFComCabecalho() {
-        const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
-        function adicionarCabecalho() { if (!logoCarregada) return 20; const headerY = 3; const logoWidth = 40; const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth; const logoX = 5; doc.setGState(new doc.GState({ opacity: 0.3 })); doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight); doc.setGState(new doc.GState({ opacity: 1.0 })); const fontSize = logoHeight * 0.5; doc.setFontSize(fontSize); doc.setFont(undefined, 'bold'); doc.setTextColor(150, 150, 150); const textX = logoX + logoWidth + 1.2; const lineSpacing = fontSize * 0.5; const textY1 = headerY + fontSize * 0.85; doc.text('I.R COMÉRCIO E', textX, textY1); const textY2 = textY1 + lineSpacing; doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2); doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2); return headerY + logoHeight + 8; }
-        function addPageWithHeader() { doc.addPage(); return adicionarCabecalho(); }
-        addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) { const lines = doc.splitTextToSize(text, maxW); lines.forEach((line, index) => { if (yStart + (index * lineH) > pageHeight - 30) { yStart = addPageWithHeader(); } doc.text(line, x, yStart + (index * lineH)); }); return yStart + (lines.length * lineH); };
-        doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.setTextColor(0, 0, 0); doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' }); y += 8; doc.setFontSize(14); doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' }); y += 12;
-        doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold'); doc.text('DADOS PARA FATURAMENTO', margin, y); y += lineHeight + 1; doc.setFont(undefined, 'bold'); doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y); y += lineHeight + 1; doc.setFont(undefined, 'normal'); doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y); y += lineHeight + 1; doc.text('RUA TADORNA Nº 472, SALA 2', margin, y); y += lineHeight + 1; doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y); y += lineHeight + 1; doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y); y += 10;
-        doc.setFont(undefined, 'bold'); doc.text('DADOS DO FORNECEDOR', margin, y); y += lineHeight + 1; doc.setFont(undefined, 'normal'); doc.text('RAZÃO SOCIAL: ', margin, y); const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: '); doc.setFont(undefined, 'bold'); const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial); const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - razaoSocialWidth); doc.text(razaoLines[0], margin + razaoSocialWidth, y); y += lineHeight; if (razaoLines.length > 1) { for (let i = 1; i < razaoLines.length; i++) { doc.text(razaoLines[i], margin, y); y += lineHeight; } }
-        if (ordem.nome_fantasia || ordem.nomeFantasia) { y += 1; doc.setFont(undefined, 'normal'); doc.text('NOME FANTASIA: ', margin, y); const nomeW = doc.getTextWidth('NOME FANTASIA: '); doc.setFont(undefined, 'normal'); const nomeLines = doc.splitTextToSize(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), maxWidth - nomeW); doc.text(nomeLines[0], margin + nomeW, y); y += lineHeight; if (nomeLines.length > 1) { for (let i = 1; i < nomeLines.length; i++) { doc.text(nomeLines[i], margin, y); y += lineHeight; } } }
-        y += 1; doc.setFont(undefined, 'normal'); doc.text('CNPJ: ', margin, y); doc.setFont(undefined, 'bold'); doc.text(`${ordem.cnpj}`, margin + doc.getTextWidth('CNPJ: '), y); y += lineHeight;
-        if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) { y += 1; doc.setFont(undefined, 'normal'); doc.text('ENDEREÇO: ', margin, y); const endW = doc.getTextWidth('ENDEREÇO: '); const endLines = doc.splitTextToSize(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), maxWidth - endW); doc.text(endLines[0], margin + endW, y); y += lineHeight; if (endLines.length > 1) { for (let i = 1; i < endLines.length; i++) { doc.text(endLines[i], margin, y); y += lineHeight; } } }
-        if (ordem.site) { y += 1; doc.setFont(undefined, 'normal'); doc.text('SITE: ', margin, y); doc.text(ordem.site, margin + doc.getTextWidth('SITE: '), y); y += lineHeight; }
-        if (ordem.contato) { y += 1; doc.setFont(undefined, 'normal'); doc.text('CONTATO: ', margin, y); const contW = doc.getTextWidth('CONTATO: '); const contLines = doc.splitTextToSize(toUpperCase(ordem.contato), maxWidth - contW); doc.text(contLines[0], margin + contW, y); y += lineHeight; if (contLines.length > 1) { for (let i = 1; i < contLines.length; i++) { doc.text(contLines[i], margin, y); y += lineHeight; } } }
-        if (ordem.telefone) { y += 1; doc.setFont(undefined, 'normal'); doc.text('TELEFONE: ', margin, y); doc.text(`${ordem.telefone}`, margin + doc.getTextWidth('TELEFONE: '), y); y += lineHeight; }
-        if (ordem.email) { y += 1; doc.setFont(undefined, 'normal'); doc.text('E-MAIL: ', margin, y); doc.text(ordem.email, margin + doc.getTextWidth('E-MAIL: '), y); y += lineHeight; }
-        y += 8; if (y > pageHeight - 50) y = addPageWithHeader();
-        doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('ITENS DO PEDIDO', margin, y); y += 6;
-        const tableWidth = pageWidth - (2 * margin); const colWidths = { item: tableWidth * 0.05, especificacao: tableWidth * 0.35, qtd: tableWidth * 0.08, unid: tableWidth * 0.08, valorUn: tableWidth * 0.12, ipi: tableWidth * 0.10, st: tableWidth * 0.10, total: tableWidth * 0.12 }; const itemRowHeight = 10;
-        doc.setFillColor(108, 117, 125); doc.setDrawColor(180, 180, 180); doc.rect(margin, y, tableWidth, itemRowHeight, 'FD'); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont(undefined, 'bold');
-        let xPos = margin; const headers = ['ITEM', 'ESPECIFICAÇÃO', 'QTD', 'UNID', 'VALOR UN', 'IPI', 'ST', 'TOTAL']; const colKeys = ['item', 'especificacao', 'qtd', 'unid', 'valorUn', 'ipi', 'st', 'total']; colKeys.forEach((key, i) => { doc.line(xPos, y, xPos, y + itemRowHeight); doc.text(headers[i], xPos + (colWidths[key] / 2), y + 6.5, { align: 'center' }); xPos += colWidths[key]; }); doc.line(xPos, y, xPos, y + itemRowHeight); y += itemRowHeight;
-        doc.setTextColor(0, 0, 0); doc.setFontSize(8); doc.setFont(undefined, 'normal');
-        (ordem.items || []).forEach((item, index) => {
-            const especificacaoUpper = toUpperCase(item.especificacao); const maxWidthEspec = colWidths.especificacao - 6; const especLines = doc.splitTextToSize(especificacaoUpper, maxWidthEspec); const lineCount = especLines.length; const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
-            if (y + necessaryHeight > pageHeight - 30) y = addPageWithHeader(); if (index % 2 !== 0) { doc.setFillColor(240, 240, 240); doc.rect(margin, y, tableWidth, necessaryHeight, 'F'); }
-            xPos = margin; doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
-            doc.line(xPos, y, xPos, y + necessaryHeight); doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.item; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.text(especLines, xPos + 3, y + 4); xPos += colWidths.especificacao; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.qtd; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.unid; doc.line(xPos, y, xPos, y + necessaryHeight);
-            const valorUn = item.valorUnitario || item.valor_unitario || 0; doc.text(parseFloat(valorUn).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.valorUn; doc.line(xPos, y, xPos, y + necessaryHeight);
-            const ipiValor = item.ipi; let ipiDisplay = '-'; if (ipiValor && ipiValor.trim() !== '') { const ipiNum = parseFloatLocale(ipiValor); ipiDisplay = !isNaN(ipiNum) ? ipiNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : toUpperCase(ipiValor); } doc.text(ipiDisplay, xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.ipi; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.st; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' }); xPos += colWidths.total; doc.line(xPos, y, xPos, y + necessaryHeight);
-            doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight); y += necessaryHeight;
+
+function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth) {
+    const addTextWithWrap = function (text, x, yStart, maxW, lineH = 5) {
+        const lines = doc.splitTextToSize(text, maxW);
+        lines.forEach((line, index) => {
+            if (yStart + (index * lineH) > pageHeight - 30) {
+                doc.addPage();
+                yStart = 20;
+            }
+            doc.text(line, x, yStart + (index * lineH));
         });
-        y += 8; if (y > pageHeight - 40) y = addPageWithHeader();
-        doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y); y += 10;
-        if (y > pageHeight - 60) y = addPageWithHeader();
-        doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('LOCAL DE ENTREGA:', margin, y); y += 5; doc.setFontSize(10); doc.setFont(undefined, 'normal'); const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318'; const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' ? toUpperCase(ordem.local_entrega || ordem.localEntrega) : localPadrao; y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth); y += 10;
-        if (y > pageHeight - 50) y = addPageWithHeader();
-        doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.text('PRAZO DE ENTREGA:', margin, y); doc.setFont(undefined, 'normal'); doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y); doc.setFont(undefined, 'bold'); doc.text('FRETE:', pageWidth - margin - 35, y); doc.setFont(undefined, 'normal'); doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y); y += 6; doc.setFont(undefined, 'bold'); doc.text('TRANSPORTE:', margin, y); doc.setFont(undefined, 'normal'); doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y); y += 10;
-        if (y > pageHeight - 60) y = addPageWithHeader();
-        doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y); y += 5; doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y); y += 5; doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y); if (ordem.dados_bancarios || ordem.dadosBancarios) { y += 5; doc.setFont(undefined, 'bold'); doc.text('DADOS BANCÁRIOS:', margin, y); y += 5; doc.setFont(undefined, 'normal'); y = addTextWithWrap(toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios), margin, y, maxWidth); }
-        y += 15; if (y > pageHeight - 80) y = addPageWithHeader();
-        const dataAtual = new Date(); const dia = dataAtual.getDate(); const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO']; const mes = meses[dataAtual.getMonth()]; const ano = dataAtual.getFullYear();
-        doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' }); y += 5;
-        const assinatura = new Image(); assinatura.crossOrigin = 'anonymous'; assinatura.src = '/apps/imagens/assinatura.png';
-        assinatura.onload = function() { try { const imgWidth = 50; const imgHeight = (assinatura.height / assinatura.width) * imgWidth; doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight); let yFinal = y + imgHeight + 10; doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5; doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5; doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 12; adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight, addPageWithHeader); } catch(e) { gerarPDFSemAssinatura(); } };
-        assinatura.onerror = function() { gerarPDFSemAssinatura(); };
-        function gerarPDFSemAssinatura() { let yFinal = y + 10; doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5; doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5; doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 12; adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight, addPageWithHeader); }
+        return yStart + (lines.length * lineH);
+    };
+
+    doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.setTextColor(0, 0, 0);
+    doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' }); y += 8;
+    doc.setFontSize(14); doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' }); y += 12;
+
+    doc.setFontSize(11); doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold'); doc.text('DADOS PARA FATURAMENTO', margin, y); y += lineHeight + 1;
+    doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y); y += lineHeight + 1;
+    doc.setFont(undefined, 'normal');
+    doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y); y += lineHeight + 1;
+    doc.text('RUA TADORNA Nº 472, SALA 2', margin, y); y += lineHeight + 1;
+    doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y); y += lineHeight + 1;
+    doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y); y += 10;
+
+    doc.setFont(undefined, 'bold'); doc.text('DADOS DO FORNECEDOR', margin, y); y += lineHeight + 1;
+    doc.setFont(undefined, 'normal');
+    doc.text('RAZÃO SOCIAL: ', margin, y);
+    doc.setFont(undefined, 'bold');
+    const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial);
+    const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - doc.getTextWidth('RAZÃO SOCIAL: '));
+    doc.text(razaoLines[0], margin + doc.getTextWidth('RAZÃO SOCIAL: '), y);
+    y += lineHeight;
+    for (let i = 1; i < razaoLines.length; i++) { doc.text(razaoLines[i], margin, y); y += lineHeight; }
+
+    doc.setFont(undefined, 'normal');
+    if (ordem.nome_fantasia || ordem.nomeFantasia) {
+        y += 1;
+        doc.text('NOME FANTASIA: ', margin, y);
+        doc.text(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), margin + doc.getTextWidth('NOME FANTASIA: '), y);
+        y += lineHeight;
+    }
+    doc.text('CNPJ: ', margin, y);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${ordem.cnpj}`, margin + doc.getTextWidth('CNPJ: '), y);
+    y += lineHeight;
+    doc.setFont(undefined, 'normal');
+    if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
+        y += 1;
+        doc.text('ENDEREÇO: ', margin, y);
+        const endLines = doc.splitTextToSize(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), maxWidth - doc.getTextWidth('ENDEREÇO: '));
+        doc.text(endLines[0], margin + doc.getTextWidth('ENDEREÇO: '), y);
+        y += lineHeight;
+        for (let i = 1; i < endLines.length; i++) { doc.text(endLines[i], margin, y); y += lineHeight; }
+    }
+    if (ordem.site) { y += 1; doc.text('SITE: ', margin, y); doc.text(ordem.site, margin + doc.getTextWidth('SITE: '), y); y += lineHeight; }
+    if (ordem.contato) { y += 1; doc.text('CONTATO: ', margin, y); doc.text(toUpperCase(ordem.contato), margin + doc.getTextWidth('CONTATO: '), y); y += lineHeight; }
+    if (ordem.telefone) { y += 1; doc.text('TELEFONE: ', margin, y); doc.text(`${ordem.telefone}`, margin + doc.getTextWidth('TELEFONE: '), y); y += lineHeight; }
+    if (ordem.email) { y += 1; doc.text('E-MAIL: ', margin, y); doc.text(ordem.email, margin + doc.getTextWidth('E-MAIL: '), y); y += lineHeight; }
+    y += 8;
+
+    doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.text('ITENS DO PEDIDO', margin, y); y += 6;
+    const tableWidth = pageWidth - (2 * margin);
+    const colWidths = { item: tableWidth * 0.05, especificacao: tableWidth * 0.35, qtd: tableWidth * 0.08, unid: tableWidth * 0.08, valorUn: tableWidth * 0.12, ipi: tableWidth * 0.10, st: tableWidth * 0.10, total: tableWidth * 0.12 };
+    const itemRowHeight = 10;
+    doc.setFillColor(108, 117, 125); doc.setDrawColor(180, 180, 180);
+    doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont(undefined, 'bold');
+    let xPos = margin;
+    const headers = ['ITEM', 'ESPECIFICAÇÃO', 'QTD', 'UNID', 'VALOR UN', 'IPI', 'ST', 'TOTAL'];
+    const colKeys = ['item', 'especificacao', 'qtd', 'unid', 'valorUn', 'ipi', 'st', 'total'];
+    colKeys.forEach((key, i) => {
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text(headers[i], xPos + (colWidths[key] / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths[key];
+    });
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    y += itemRowHeight;
+    doc.setTextColor(0, 0, 0); doc.setFontSize(8); doc.setFont(undefined, 'normal');
+
+    (ordem.items || []).forEach((item, index) => {
+        const especLines = doc.splitTextToSize(toUpperCase(item.especificacao), colWidths.especificacao - 6);
+        const necessaryHeight = Math.max(itemRowHeight, especLines.length * 4 + 4);
+        if (y + necessaryHeight > pageHeight - 30) { doc.addPage(); y = 20; }
+        if (index % 2 !== 0) { doc.setFillColor(240, 240, 240); doc.rect(margin, y, tableWidth, necessaryHeight, 'F'); }
+        xPos = margin; doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.item; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(especLines, xPos + 3, y + 4); xPos += colWidths.especificacao; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.qtd; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.unid; doc.line(xPos, y, xPos, y + necessaryHeight);
+        const valorUn = item.valorUnitario || item.valor_unitario || 0;
+        doc.text(parseFloat(valorUn).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.valorUn; doc.line(xPos, y, xPos, y + necessaryHeight);
+        const ipiValor = item.ipi;
+        let ipiDisplay = '-';
+        if (ipiValor && ipiValor.trim() !== '') {
+            const ipiNum = parseFloatLocale(ipiValor);
+            ipiDisplay = !isNaN(ipiNum) ? ipiNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : toUpperCase(ipiValor);
+        }
+        doc.text(ipiDisplay, xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.ipi; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.st; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.total; doc.line(xPos, y, xPos, y + necessaryHeight);
+        doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
+        y += necessaryHeight;
+    });
+    y += 8;
+
+    doc.setFontSize(11); doc.setFont(undefined, 'bold');
+    doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y); y += 10;
+
+    doc.setFontSize(11); doc.setFont(undefined, 'bold');
+    doc.text('LOCAL DE ENTREGA:', margin, y); y += 5;
+    doc.setFontSize(10); doc.setFont(undefined, 'normal');
+    const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
+    const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' ? toUpperCase(ordem.local_entrega || ordem.localEntrega) : localPadrao;
+    y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth); y += 10;
+
+    doc.setFontSize(10); doc.setFont(undefined, 'bold');
+    doc.text('PRAZO DE ENTREGA:', margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
+    doc.setFont(undefined, 'bold');
+    doc.text('FRETE:', pageWidth - margin - 35, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
+    y += 6;
+    doc.setFont(undefined, 'bold');
+    doc.text('TRANSPORTE:', margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y);
+    y += 10;
+
+    doc.setFontSize(11); doc.setFont(undefined, 'bold');
+    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y); y += 5;
+    doc.setFontSize(10); doc.setFont(undefined, 'normal');
+    doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y); y += 5;
+    doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
+    if (ordem.dados_bancarios || ordem.dadosBancarios) {
+        y += 5;
+        doc.setFont(undefined, 'bold');
+        doc.text('DADOS BANCÁRIOS:', margin, y);
+        y += 5;
+        doc.setFont(undefined, 'normal');
+        y = addTextWithWrap(toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios), margin, y, maxWidth);
+    }
+    y += 15;
+
+    const dataAtual = new Date();
+    const dia = dataAtual.getDate();
+    const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    doc.setFontSize(10); doc.setFont(undefined, 'normal');
+    doc.text(`SERRA/ES, ${dia} DE ${meses[dataAtual.getMonth()]} DE ${dataAtual.getFullYear()}`, pageWidth / 2, y, { align: 'center' });
+    y += 5;
+
+    const assinatura = new Image();
+    assinatura.crossOrigin = 'anonymous';
+    assinatura.src = '/apps/imagens/assinatura.png';
+    assinatura.onload = function () {
+        try {
+            const imgWidth = 50;
+            const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
+            doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
+            let yFinal = y + imgHeight + 10;
+            doc.setFontSize(10); doc.setFont(undefined, 'bold');
+            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5;
+            doc.setFontSize(9); doc.setFont(undefined, 'normal');
+            doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5;
+            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 12;
+            adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight);
+        } catch (e) { gerarPDFSemAssinatura(); }
+    };
+    assinatura.onerror = function () { gerarPDFSemAssinatura(); };
+
+    function gerarPDFSemAssinatura() {
+        let yFinal = y + 10;
+        doc.setFontSize(10); doc.setFont(undefined, 'bold');
+        doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5;
+        doc.setFontSize(9); doc.setFont(undefined, 'normal');
+        doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 5;
+        doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' }); yFinal += 12;
+        adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight);
     }
 }
-function adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight, addPageWithHeader) {
-    if (yFinal > pageHeight - 30) yFinal = addPageWithHeader();
-    doc.setFillColor(240, 240, 240); doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F'); doc.setDrawColor(200, 200, 200); doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S'); yFinal += 6;
-    doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.setTextColor(255, 82, 29); doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal); yFinal += 5;
+function adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight) {
+    if (yFinal > pageHeight - 30) { doc.addPage(); yFinal = 20; }
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
+    yFinal += 6;
+    doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.setTextColor(255, 82, 29);
+    doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal); yFinal += 5;
     doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal'); doc.setFontSize(9);
     doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal); yFinal += 5;
     doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
