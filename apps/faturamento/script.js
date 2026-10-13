@@ -1,5 +1,5 @@
 // ============================================
-// CONFIGURAÇÃO
+// FATURAMENTO - script.js
 // ============================================
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -21,8 +21,6 @@ let currentFetchController = null;
 let transportadorasCache = [];
 const tabs = ['tab-geral', 'tab-faturamento', 'tab-itens', 'tab-entrega', 'tab-transporte'];
 
-
-// ── Controle de permissões ──────────────────────────────────────────────────
 const ROLES_CHECKBOX = ['administrador', 'financeiro'];
 const NAMES_CHECKBOX = [];
 
@@ -45,23 +43,15 @@ function detectResponsavelFromUser() {
 
 function userCanToggleEmissao() {
     if (!currentUser) return false;
-    // is_admin = acesso total
     if (currentUser.is_admin === true) return true;
-    // sector = campo do servidor (ex: "financeiro", "administrador")
     const sector = (currentUser.sector || '').toLowerCase();
     if (ROLES_CHECKBOX.some(r => sector.includes(r))) return true;
-    // fallback: checar nome
     const name = (currentUser.name || currentUser.nome || currentUser.username || '').toLowerCase();
     if (NAMES_CHECKBOX.some(n => name.includes(n))) return true;
-    console.log('🔒 Sem permissão:', JSON.stringify(currentUser));
     return false;
 }
-// ============================================
-// FUNÇÕES AUXILIARES
-// ============================================
-function toUpperCase(value) {
-    return value ? String(value).toUpperCase() : '';
-}
+
+function toUpperCase(value) { return value ? String(value).toUpperCase() : ''; }
 
 function formatarCNPJ(cnpj) {
     cnpj = cnpj.replace(/\D/g, '');
@@ -87,6 +77,7 @@ function parseMoeda(valor) {
 }
 
 function showMessage(message, type = 'success') {
+    if (window.IR && IR.toast) return IR.toast(message, type);
     const div = document.createElement('div');
     div.className = `floating-message ${type}`;
     div.textContent = message;
@@ -127,12 +118,7 @@ function getDataAtual() {
     return `${dia}/${mes}/${ano}`;
 }
 
-// ============================================
-// INICIALIZAÇÃO E AUTENTICAÇÃO
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    verificarAutenticacao();
-});
+document.addEventListener('DOMContentLoaded', () => { verificarAutenticacao(); });
 
 async function verificarAutenticacao() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -147,12 +133,13 @@ async function verificarAutenticacao() {
     }
 
     if (!sessionToken) {
-        mostrarTelaAcessoNegado();
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
         return;
     }
 
+    if (window.IR) IR.setToken(sessionToken);
+
     try {
-        // Busca dados do usuário no próprio servidor (que já valida o token)
         const meRes = await fetch(`${API_URL}/pedidos/me`, {
             headers: { 'X-Session-Token': sessionToken }
         });
@@ -160,64 +147,33 @@ async function verificarAutenticacao() {
             currentUser = await meRes.json();
             sessionStorage.setItem('pedidosUserData', JSON.stringify(currentUser));
         } else if (meRes.status === 401) {
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
-    } catch(e) {
-        // Fallback: usa dados salvos localmente
+    } catch (e) {
         try {
             const userData = sessionStorage.getItem('pedidosUserData');
             if (userData) currentUser = JSON.parse(userData);
-        } catch(e2) {}
+        } catch (e2) {}
     }
-    if (window.IR) { IR.setToken(sessionToken); await IR.preencherVendedores(document.getElementById('vendedor')); }
+    if (window.IR) {
+        await IR.preencherVendedores(document.getElementById('vendedor'));
+    }
     inicializarApp();
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({ type: /expir|sess[aã]o/i.test(mensagem) ? 'ir-session-expired' : 'ir-module-denied', module: location.pathname.split('/')[1] }, '*'); return; }
-    document.body.innerHTML = `
-        <div style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            text-align: center;
-            padding: 2rem;
-        ">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">
-                ${mensagem}
-            </h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-                Somente usuários autenticados podem acessar esta área.
-            </p>
-            <a href="${PORTAL_URL}" style="
-                display: inline-block;
-                background: var(--btn-register);
-                color: white;
-                padding: 14px 32px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-weight: 600;
-                text-transform: uppercase;
-            ">IR PARA O PORTAL</a>
-        </div>
-    `;
+    document.body.innerHTML = `<div class="access-denied"><h1>${mensagem}</h1><p>Somente usuários autenticados podem acessar esta área.</p><a href="${PORTAL_URL}">IR PARA O PORTAL</a></div>`;
 }
 
 function inicializarApp() {
-    console.log('👤 currentUser:', JSON.stringify(currentUser));
-    console.log('🔑 canToggle:', userCanToggleEmissao());
     updateMonthDisplay();
     loadPedidosDirectly();
     loadEstoque();
     loadTransportadorasCache();
     loadAllClientesCache();
-    
-    document.addEventListener('keydown', function(e) {
+
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             const formModal = document.getElementById('formModal');
             if (formModal && formModal.classList.contains('show')) {
@@ -231,13 +187,13 @@ function inicializarApp() {
     });
 
     document.addEventListener('input', (e) => {
-        const upperIds = ['razaoSocial','inscricaoEstadual','endereco','telefone','contato','documento','localEntrega','setor','valorFrete'];
+        const upperIds = ['razaoSocial', 'inscricaoEstadual', 'endereco', 'telefone', 'contato', 'documento', 'localEntrega', 'setor', 'valorFrete'];
         if (upperIds.includes(e.target.id) ||
             (e.target.id && (e.target.id.startsWith('especificacao-') || e.target.id.startsWith('codigoEstoque-') || e.target.id.startsWith('ncm-')))) {
             const start = e.target.selectionStart;
             const end = e.target.selectionEnd;
             e.target.value = e.target.value.toUpperCase();
-            try { e.target.setSelectionRange(start, end); } catch(e) {}
+            try { e.target.setSelectionRange(start, end); } catch (e) {}
         }
         if (e.target.id === 'cnpj') {
             e.target.value = formatarCNPJ(e.target.value);
@@ -246,22 +202,9 @@ function inicializarApp() {
     setInterval(() => { if (isOnline) loadPedidosDirectly(); }, 30000);
 }
 
-// ============================================
-// CONEXÃO COM A API
-// ============================================
-function updateConnectionStatus() {
-    const status = document.getElementById('connectionStatus');
-    if (status) {
-        status.className = isOnline ? 'connection-status online' : 'connection-status offline';
-    }
-}
-
 async function syncData() {
     const btnSync = document.getElementById('btnSync');
-    if (btnSync) {
-        btnSync.classList.add('syncing');
-        btnSync.disabled = true;
-    }
+    if (btnSync) { btnSync.classList.add('syncing'); btnSync.disabled = true; }
     try {
         await loadPedidosDirectly();
         await loadEstoque();
@@ -270,16 +213,10 @@ async function syncData() {
     } catch (error) {
         showMessage('Erro ao sincronizar', 'error');
     } finally {
-        if (btnSync) {
-            btnSync.classList.remove('syncing');
-            btnSync.disabled = false;
-        }
+        if (btnSync) { btnSync.classList.remove('syncing'); btnSync.disabled = false; }
     }
 }
 
-// ============================================
-// CARREGAR PEDIDOS
-// ============================================
 async function loadPedidosDirectly() {
     if (currentFetchController) currentFetchController.abort();
     currentFetchController = new AbortController();
@@ -294,12 +231,11 @@ async function loadPedidosDirectly() {
         });
         if (response.status === 401) {
             sessionStorage.removeItem('pedidosSession');
-            mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
             return;
         }
         if (!response.ok) {
             isOnline = false;
-            updateConnectionStatus();
             setTimeout(() => loadPedidosDirectly(), 5000);
             return;
         }
@@ -308,25 +244,18 @@ async function loadPedidosDirectly() {
         pedidos = data;
         atualizarCacheClientes(pedidos);
         isOnline = true;
-        updateConnectionStatus();
         lastDataHash = JSON.stringify(pedidos.map(p => p.id));
         currentFetchController = null;
         updateDisplay();
     } catch (error) {
         if (error.name === 'AbortError') return;
         isOnline = false;
-        updateConnectionStatus();
         setTimeout(() => loadPedidosDirectly(), 5000);
     }
 }
 
-async function loadPedidos() {
-    return loadPedidosDirectly();
-}
+async function loadPedidos() { return loadPedidosDirectly(); }
 
-// ============================================
-// TRANSPORTADORAS
-// ============================================
 async function loadTransportadorasCache() {
     try {
         const response = await fetch(`${API_URL}/transportadoras?page=1&limit=200`, {
@@ -336,11 +265,8 @@ async function loadTransportadorasCache() {
         const result = await response.json();
         const lista = Array.isArray(result) ? result : (result.data || []);
         transportadorasCache = lista.map(t => t.nome.trim().toUpperCase()).filter(Boolean).sort();
-        console.log(`🚚 ${transportadorasCache.length} transportadoras carregadas`);
         updateTransportadoraSelects();
-    } catch (e) {
-        console.error('Erro ao carregar transportadoras:', e);
-    }
+    } catch (e) { console.error('Erro ao carregar transportadoras:', e); }
 }
 
 function updateTransportadoraSelects() {
@@ -353,37 +279,24 @@ function updateTransportadoraSelects() {
     }
 }
 
-// ============================================
-// CARREGAR ESTOQUE
-// ============================================
 async function loadEstoque() {
     try {
         const response = await fetch(`${API_URL}/estoque`, {
             headers: { 'X-Session-Token': sessionToken }
         });
-
         if (response.status === 401) {
             sessionStorage.removeItem('pedidosSession');
-            mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
             return;
         }
-
         if (response.ok) {
             const items = await response.json();
             estoqueCache = {};
-            items.forEach(item => {
-                estoqueCache[item.codigo.toString()] = item;
-            });
-            console.log(`📦 ${items.length} itens carregados do estoque`);
+            items.forEach(item => { estoqueCache[item.codigo.toString()] = item; });
         }
-    } catch (error) {
-        console.error('Erro ao carregar estoque:', error);
-    }
+    } catch (error) { console.error('Erro ao carregar estoque:', error); }
 }
 
-// ============================================
-// CACHE DE CLIENTES
-// ============================================
 function atualizarCacheClientes(lista) {
     lista.forEach(pedido => {
         const cnpj = pedido.cnpj?.trim();
@@ -414,7 +327,6 @@ function atualizarCacheClientes(lista) {
             };
         }
     });
-    console.log(`👥 ${Object.keys(clientesCache).length} clientes em cache global`);
 }
 
 async function loadAllClientesCache() {
@@ -426,34 +338,24 @@ async function loadAllClientesCache() {
         if (!response.ok) return;
         const todos = await response.json();
         atualizarCacheClientes(todos);
-        console.log(`📋 Cache global de clientes: ${Object.keys(clientesCache).length} CNPJs`);
-    } catch (e) {
-        console.error('Erro ao carregar cache global de clientes:', e);
-    }
+    } catch (e) { console.error('Erro ao carregar cache global de clientes:', e); }
 }
 
 function buscarClientePorCNPJ(cnpj) {
     cnpj = cnpj.replace(/\D/g, '');
-    
     const suggestionsDiv = document.getElementById('cnpjSuggestions');
     if (!suggestionsDiv) return;
-    
     if (cnpj.length < 3) {
         suggestionsDiv.innerHTML = '';
         suggestionsDiv.style.display = 'none';
         return;
     }
-    
-    const matches = Object.keys(clientesCache).filter(key => 
-        key.replace(/\D/g, '').includes(cnpj)
-    );
-    
+    const matches = Object.keys(clientesCache).filter(key => key.replace(/\D/g, '').includes(cnpj));
     if (matches.length === 0) {
         suggestionsDiv.innerHTML = '';
         suggestionsDiv.style.display = 'none';
         return;
     }
-    
     suggestionsDiv.innerHTML = '';
     matches.forEach(cnpjKey => {
         const cliente = clientesCache[cnpjKey];
@@ -463,7 +365,6 @@ function buscarClientePorCNPJ(cnpj) {
         div.onclick = () => preencherDadosClienteCompleto(cnpjKey);
         suggestionsDiv.appendChild(div);
     });
-    
     suggestionsDiv.style.display = 'block';
 }
 
@@ -482,7 +383,6 @@ function preencherDadosClienteCompleto(cnpj) {
     document.getElementById('email').value = cliente.email || '';
     document.getElementById('documento').value = cliente.documento || '';
     if (cliente.peso) document.getElementById('peso').value = cliente.peso;
-    if (cliente.quantidade) document.getElementById('quantidade').value = cliente.quantidade;
     if (cliente.volumes) document.getElementById('volumes').value = cliente.volumes;
     document.getElementById('localEntrega').value = cliente.localEntrega || '';
     document.getElementById('setor').value = cliente.setor || '';
@@ -503,64 +403,53 @@ function preencherDadosClienteCompleto(cnpj) {
             const container = document.getElementById('itemsContainer');
             const tr = document.createElement('tr');
             tr.id = `item-${itemCounter}`;
-            tr.innerHTML = `
-                <td><input type="text" value="${index + 1}" readonly style="text-align: center; width: 50px;"></td>
-                <td>
-                    <input type="text" 
-                           id="codigoEstoque-${itemCounter}" 
-                           value="${item.codigoEstoque || ''}"
-                           class="codigo-estoque"
-                           onblur="verificarEstoque(${itemCounter})"
-                           onchange="buscarDadosEstoque(${itemCounter})">
-                </td>
-                <td><textarea id="especificacao-${itemCounter}" rows="2">${item.especificacao || ''}</textarea></td>
-                <td>
-                    <select id="unidade-${itemCounter}">
-                        <option value="">-</option>
-                        <option value="UN" ${item.unidade === 'UN' ? 'selected' : ''}>UN</option>
-                        <option value="MT" ${item.unidade === 'MT' ? 'selected' : ''}>MT</option>
-                        <option value="KG" ${item.unidade === 'KG' ? 'selected' : ''}>KG</option>
-                        <option value="PC" ${item.unidade === 'PC' ? 'selected' : ''}>PC</option>
-                        <option value="CX" ${item.unidade === 'CX' ? 'selected' : ''}>CX</option>
-                        <option value="LT" ${item.unidade === 'LT' ? 'selected' : ''}>LT</option>
-                        <option value="BO" ${item.unidade === 'BO' ? 'selected' : ''}>BO</option>
-                        <option value="BA" ${item.unidade === 'BA' ? 'selected' : ''}>BA</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="number" 
-                           id="quantidade-${itemCounter}" 
-                           value="${item.quantidade || ''}"
-                           min="0" step="1"
-                           onchange="calcularValorItem(${itemCounter}); verificarEstoque(${itemCounter})">
-                </td>
-                <td>
-                    <input type="number" 
-                           id="valorUnitario-${itemCounter}" 
-                           value="${item.valorUnitario || ''}"
-                           min="0" step="0.01" placeholder="0.00"
-                           onchange="calcularValorItem(${itemCounter})">
-                </td>
-                <td><input type="text" id="valorTotal-${itemCounter}" value="${item.valorTotal || ''}" readonly></td>
-                <td><input type="text" id="ncm-${itemCounter}" value="${item.ncm || ''}"></td>
-                <td>
-                    <button type="button" onclick="removeItem(${itemCounter})" class="danger small" style="padding: 6px 10px;">
-                        ✕
-                    </button>
-                </td>
-            `;
+            tr.innerHTML = buildItemRow(itemCounter, item, index);
             container.appendChild(tr);
-    atualizarQuantidadeTotalAutomatica();
+            calcularValorItem(itemCounter);
         });
+        atualizarQuantidadeTotalAutomatica();
         calcularTotais();
     }
     document.getElementById('cnpjSuggestions').style.display = 'none';
     showMessage('Dados do último pedido preenchidos automaticamente!', 'success');
 }
 
-// ============================================
-// NAVEGAÇÃO DE MESES
-// ============================================
+function buildItemRow(counter, item, index) {
+    const it = item || {};
+    const idx = index != null ? index : counter - 1;
+    return `
+        <td><input type="text" value="${idx + 1}" readonly style="text-align: center; width: 50px;"></td>
+        <td>
+            <input type="text" id="codigoEstoque-${counter}" value="${it.codigoEstoque || ''}" class="codigo-estoque" onblur="verificarEstoque(${counter})" onchange="buscarDadosEstoque(${counter})">
+        </td>
+        <td><textarea id="especificacao-${counter}" rows="2">${it.especificacao || ''}</textarea></td>
+        <td>
+            <select id="unidade-${counter}">
+                <option value="">-</option>
+                <option value="UN" ${it.unidade === 'UN' ? 'selected' : ''}>UN</option>
+                <option value="MT" ${it.unidade === 'MT' ? 'selected' : ''}>MT</option>
+                <option value="KG" ${it.unidade === 'KG' ? 'selected' : ''}>KG</option>
+                <option value="PC" ${it.unidade === 'PC' ? 'selected' : ''}>PC</option>
+                <option value="CX" ${it.unidade === 'CX' ? 'selected' : ''}>CX</option>
+                <option value="LT" ${it.unidade === 'LT' ? 'selected' : ''}>LT</option>
+                <option value="BO" ${it.unidade === 'BO' ? 'selected' : ''}>BO</option>
+                <option value="BA" ${it.unidade === 'BA' ? 'selected' : ''}>BA</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" id="quantidade-${counter}" value="${it.quantidade || ''}" min="0" step="1" onchange="calcularValorItem(${counter}); verificarEstoque(${counter}); atualizarQuantidadeTotalAutomatica();" oninput="atualizarQuantidadeTotalAutomatica();">
+        </td>
+        <td>
+            <input type="number" id="valorUnitario-${counter}" value="${it.valorUnitario || ''}" min="0" step="0.01" placeholder="0.00" onchange="calcularValorItem(${counter})">
+        </td>
+        <td><input type="text" id="valorTotal-${counter}" value="${it.valorTotal || ''}" readonly></td>
+        <td><input type="text" id="ncm-${counter}" value="${it.ncm || ''}"></td>
+        <td>
+            <button type="button" onclick="removeItem(${counter})" class="danger small" style="padding: 6px 10px;">✕</button>
+        </td>
+    `;
+}
+
 function changeMonth(direction) {
     if (currentFetchController) currentFetchController.abort();
     currentMonth.setMonth(currentMonth.getMonth() + direction);
@@ -572,29 +461,16 @@ function changeMonth(direction) {
 }
 
 function updateMonthDisplay() {
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthName = months[currentMonth.getMonth()];
     const year = currentMonth.getFullYear();
     const element = document.getElementById('currentMonth');
-    if (element) {
-        element.textContent = `${monthName} ${year}`;
-    }
+    if (element) element.textContent = `${monthName} ${year}`;
 }
 
-function getPedidosForCurrentMonth() {
-    return pedidos;
-}
+function getPedidosForCurrentMonth() { return pedidos; }
 
-function formatDate(dateString) {
-    if (!dateString) return '-';
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR');
-}
-
-// ============================================
-// ATUALIZAR DISPLAY
-// ============================================
 function updateDisplay() {
     updateMonthDisplay();
     updateDashboard();
@@ -602,23 +478,15 @@ function updateDisplay() {
     updateVendedoresFilter();
 }
 
-// ============================================
-// ATUALIZAR DASHBOARD
-// ============================================
 function updateDashboard() {
     const monthPedidos = getPedidosForCurrentMonth();
     const totalEmitidos = monthPedidos.filter(p => p.status === 'emitida').length;
     const totalPendentes = monthPedidos.filter(p => p.status === 'pendente').length;
-    
     const ultimoCodigo = monthPedidos.length;
-    
     const valorTotalMes = monthPedidos
         .filter(p => p.status === 'emitida')
-        .reduce((acc, p) => {
-            const valor = parseMoeda(p.valor_total);
-            return acc + valor;
-        }, 0);
-    
+        .reduce((acc, p) => acc + parseMoeda(p.valor_total), 0);
+
     document.getElementById('totalPedidos').textContent = ultimoCodigo;
     document.getElementById('totalEmitidos').textContent = totalEmitidos;
     document.getElementById('totalPendentes').textContent = totalPendentes;
@@ -628,94 +496,60 @@ function updateDashboard() {
 function updateVendedoresFilter() {
     const vendedores = new Set();
     pedidos.forEach(p => {
-        if (p.responsavel?.trim()) {
-            vendedores.add(p.responsavel.trim());
-        } else if (p.vendedor?.trim()) {
-            vendedores.add(p.vendedor.trim());
-        }
+        if (p.responsavel?.trim()) vendedores.add(p.responsavel.trim());
+        else if (p.vendedor?.trim()) vendedores.add(p.vendedor.trim());
     });
-
     const select = document.getElementById('filterVendedor');
     if (select) {
         const currentValue = select.value;
         select.innerHTML = '<option value="">Responsável</option>';
         Array.from(vendedores).sort().forEach(v => {
             const option = document.createElement('option');
-            option.value = v;
-            option.textContent = v;
+            option.value = v; option.textContent = v;
             select.appendChild(option);
         });
         select.value = currentValue;
     }
 }
 
-// ============================================
-// FILTRAR PEDIDOS
-// ============================================
-function filterPedidos() {
-    updateTable();
-}
+function filterPedidos() { updateTable(); }
 
-// ============================================
-// ATUALIZAR TABELA
-// ============================================
 function updateTable() {
     const container = document.getElementById('pedidosContainer');
     const thead = document.querySelector('thead');
     let filtered = getPedidosForCurrentMonth();
-    
+
     const search = document.getElementById('search').value.toLowerCase();
     const filterVendedor = document.getElementById('filterVendedor').value;
     const filterStatus = document.getElementById('filterStatus').value;
-    
+
     if (search) {
-        filtered = filtered.filter(p => 
+        filtered = filtered.filter(p =>
             p.codigo?.toString().includes(search) ||
             (p.razao_social || '').toLowerCase().includes(search)
         );
     }
-    
     if (filterVendedor) {
-        filtered = filtered.filter(p => 
-            (p.responsavel || '') === filterVendedor || 
+        filtered = filtered.filter(p =>
+            (p.responsavel || '') === filterVendedor ||
             (p.vendedor || '') === filterVendedor
         );
     }
-    
-    if (filterStatus) {
-        filtered = filtered.filter(p => p.status === filterStatus);
-    }
-    
-    const canToggle = userCanToggleEmissao();
+    if (filterStatus) filtered = filtered.filter(p => p.status === filterStatus);
 
+    const canToggle = userCanToggleEmissao();
     let headerHtml;
     if (canToggle) {
-        headerHtml = `
-            <tr>
-                <th style="width: 40px; text-align: center;">
-                    <span style="font-size: 1.1rem;">✓</span>
-                </th>
-                <th>Nº Pedido</th>
-                <th>Razão Social</th>
-                <th>Nº NF</th>
-                <th>Data Emissão</th>
-                <th>Valor Total</th>
-                <th>Status</th>
-                <th style="text-align: center;">Ações</th>
-            </tr>
-        `;
+        headerHtml = `<tr>
+            <th style="width: 40px; text-align: center;"><span style="font-size: 1.1rem;">✓</span></th>
+            <th>Nº Pedido</th><th>Razão Social</th><th>Nº NF</th><th>Data Emissão</th>
+            <th>Valor Total</th><th>Status</th><th style="text-align: center;">Ações</th>
+        </tr>`;
     } else {
-        headerHtml = `
-            <tr>
-                <th>Nº Pedido</th>
-                <th>Razão Social</th>
-                <th>Nº NF</th>
-                <th>Data Emissão</th>
-                <th>Valor Total</th>
-                <th>Status</th>
-                <th style="text-align: center;">Ações</th>
-            </tr>
-        `;
+        headerHtml = `<tr>
+            <th>Nº Pedido</th><th>Razão Social</th><th>Nº NF</th><th>Data Emissão</th>
+            <th>Valor Total</th><th>Status</th><th style="text-align: center;">Ações</th>
+        </tr>`;
     }
     thead.innerHTML = headerHtml;
 
@@ -725,97 +559,60 @@ function updateTable() {
         container.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;padding:2rem;">Nenhum registro encontrado</td></tr>`;
         return;
     }
-    
-    filtered.sort((a, b) => {
-        const numA = parseInt(a.codigo);
-        const numB = parseInt(b.codigo);
-        return numA - numB;
-    });
+
+    filtered.sort((a, b) => (parseInt(a.codigo) || 0) - (parseInt(b.codigo) || 0));
 
     container.innerHTML = filtered.map(pedido => {
         const emitida = pedido.status === 'emitida';
-        const dataEmissao = pedido.data_emissao
-            ? new Date(pedido.data_emissao).toLocaleDateString('pt-BR')
-            : '-';
-
+        const dataEmissao = pedido.data_emissao ? new Date(pedido.data_emissao).toLocaleDateString('pt-BR') : '-';
         let firstCell = '';
         if (canToggle) {
-            firstCell = `
-                <td style="text-align: center;">
-                    <div class="checkbox-wrapper">
-                        <input type="checkbox"
-                               class="styled-checkbox"
-                               id="check-${pedido.id}"
-                               ${emitida ? 'checked' : ''}
-                               onchange="toggleEmissao('${pedido.id}', this.checked)">
-                        <label for="check-${pedido.id}" class="checkbox-label-styled"></label>
-                    </div>
-                </td>
-            `;
+            firstCell = `<td style="text-align: center;"><div class="checkbox-wrapper">
+                <input type="checkbox" class="styled-checkbox" id="check-${pedido.id}" ${emitida ? 'checked' : ''} onchange="toggleEmissao('${pedido.id}', this.checked)">
+                <label for="check-${pedido.id}" class="checkbox-label-styled"></label>
+            </div></td>`;
         }
-
-        const actions = `
-            <td>
-                <div class="actions">
-                    <button onclick="editPedido('${pedido.id}')" class="action-btn" style="background: #6B7280;">Editar</button>
-                    <button onclick="gerarEtiqueta('${pedido.id}')" class="action-btn" style="background: #1E3A8A;">Etiqueta</button>
-                    ${canToggle ? `<button onclick="confirmarExcluirPedido('${pedido.id}')" class="action-btn" style="background: #DC2626;">Excluir</button>` : ''}
-                </div>
-            </td>
-        `;
-
+        const actions = `<td><div class="actions">
+            <button onclick="editPedido('${pedido.id}')" class="action-btn" style="background: #6B7280;">Editar</button>
+            <button onclick="gerarEtiqueta('${pedido.id}')" class="action-btn" style="background: #1E3A8A;">Etiqueta</button>
+            ${canToggle ? `<button onclick="confirmarExcluirPedido('${pedido.id}')" class="action-btn" style="background: #DC2626;">Excluir</button>` : ''}
+        </div></td>`;
         const nfCell = canToggle
             ? `<td onclick="event.stopPropagation(); abrirModalDefinirNF('${pedido.id}')" style="cursor:pointer; text-decoration: underline dotted; text-underline-offset: 3px;" title="Clique para definir/editar o número da NF">${pedido.numero_nf || '-'}</td>`
             : `<td>${pedido.numero_nf || '-'}</td>`;
-
         if (canToggle) {
-            return `
-            <tr class="${emitida ? 'row-fechada' : ''}" data-id="${pedido.id}" style="cursor:pointer;">
+            return `<tr class="${emitida ? 'row-fechada' : ''}" data-id="${pedido.id}" style="cursor:pointer;">
                 ${firstCell}
                 <td><strong>${pedido.codigo}</strong></td>
                 <td>${pedido.razao_social}</td>
                 ${nfCell}
                 <td>${dataEmissao}</td>
                 <td><strong>${pedido.valor_total || 'R$ 0,00'}</strong></td>
-                <td>
-                    <span class="badge ${emitida ? 'fechada' : 'aberta'}">
-                        ${emitida ? 'EMITIDO' : 'PENDENTE'}
-                    </span>
-                </td>
+                <td><span class="badge ${emitida ? 'fechada' : 'aberta'}">${emitida ? 'EMITIDO' : 'PENDENTE'}</span></td>
                 ${actions}
             </tr>`;
         } else {
-            return `
-            <tr class="${emitida ? 'row-fechada' : ''}" data-id="${pedido.id}" style="cursor:pointer;">
+            return `<tr class="${emitida ? 'row-fechada' : ''}" data-id="${pedido.id}" style="cursor:pointer;">
                 <td><strong>${pedido.codigo}</strong></td>
                 <td>${pedido.razao_social}</td>
                 ${nfCell}
                 <td>${dataEmissao}</td>
                 <td><strong>${pedido.valor_total || 'R$ 0,00'}</strong></td>
-                <td>
-                    <span class="badge ${emitida ? 'fechada' : 'aberta'}">
-                        ${emitida ? 'EMITIDO' : 'PENDENTE'}
-                    </span>
-                </td>
+                <td><span class="badge ${emitida ? 'fechada' : 'aberta'}">${emitida ? 'EMITIDO' : 'PENDENTE'}</span></td>
                 ${actions}
             </tr>`;
         }
     }).join('');
 
     document.querySelectorAll('#pedidosContainer tr').forEach(tr => {
-        tr.addEventListener('click', function(e) {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('button') || e.target.closest('input')) {
-                return;
-            }
+        tr.addEventListener('click', function (e) {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('button') || e.target.closest('input')) return;
             const id = this.dataset.id;
             if (id) viewPedido(id);
         });
     });
 }
 
-// ============================================
-// MODAL DE FORMULÁRIO
-// ============================================
 async function openFormModal() {
     editingId = null;
     currentTabIndex = 0;
@@ -826,21 +623,17 @@ async function openFormModal() {
 
     document.getElementById('codigo').value = '';
     document.getElementById('dataRegistro').value = getDataAtual();
-
     const responsavelAuto = detectResponsavelFromUser();
     const responsavelInput = document.getElementById('responsavel');
-    if (responsavelInput && responsavelAuto) {
-        responsavelInput.value = responsavelAuto;
-    }
+    if (responsavelInput && responsavelAuto) responsavelInput.value = responsavelAuto;
 
     updateNumeroNFVisibility();
     activateTab(0);
     document.getElementById('formModal').classList.add('show');
     updateTransportadoraSelects();
+    if (window.IR) await IR.preencherVendedores(document.getElementById('vendedor'));
 }
 
-// Mostra/esconde e habilita o campo "Nº Nota Fiscal" apenas para quem tem
-// permissão de emissão (mesma regra da caixa de marcação da tabela).
 function updateNumeroNFVisibility() {
     const canToggle = userCanToggleEmissao();
     const group = document.getElementById('numeroNFGroup');
@@ -851,133 +644,58 @@ function closeFormModal(silent = false) {
     const isEditing = editingId !== null;
     document.getElementById('formModal').classList.remove('show');
     resetForm();
-    
-    if (!silent) {
-        if (isEditing) {
-            showMessage('Atualização cancelada', 'error');
-        } else {
-            showMessage('Pedido cancelado', 'error');
-        }
-    }
+    if (!silent) showMessage(isEditing ? 'Atualização cancelada' : 'Pedido cancelado', 'error');
 }
 
 function resetForm() {
     document.querySelectorAll('#formModal input:not([type="checkbox"]), #formModal textarea, #formModal select').forEach(input => {
-        if (input.type === 'checkbox') {
-            input.checked = false;
-        } else if (input.id !== 'codigo' && input.id !== 'dataRegistro') {
-            input.value = '';
-        }
+        if (input.type === 'checkbox') input.checked = false;
+        else if (input.id !== 'codigo' && input.id !== 'dataRegistro') input.value = '';
     });
-    
     document.getElementById('itemsContainer').innerHTML = '';
     itemCounter = 0;
     addItem();
+    atualizarQuantidadeTotalAutomatica();
 }
 
-// ============================================
-// NAVEGAÇÃO ENTRE ABAS
-// ============================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    
     document.getElementById(tabId).classList.add('active');
     event.target.classList.add('active');
-    
     currentTabIndex = tabs.indexOf(tabId);
     updateNavigationButtons();
 }
 
 function nextTab() {
-    if (currentTabIndex < tabs.length - 1) {
-        currentTabIndex++;
-        activateTab(currentTabIndex);
-    }
+    if (currentTabIndex < tabs.length - 1) { currentTabIndex++; activateTab(currentTabIndex); }
 }
-
 function previousTab() {
-    if (currentTabIndex > 0) {
-        currentTabIndex--;
-        activateTab(currentTabIndex);
-    }
+    if (currentTabIndex > 0) { currentTabIndex--; activateTab(currentTabIndex); }
 }
-
 function activateTab(index) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    
     const tabId = tabs[index];
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-btn')[index].classList.add('active');
-    
     updateNavigationButtons();
 }
-
 function updateNavigationButtons() {
     const btnPrevious = document.getElementById('btnPrevious');
     const btnNext = document.getElementById('btnNext');
-    const btnSave = document.getElementById('btnSave');
-    
+    if (!btnPrevious || !btnNext) return;
     btnPrevious.style.display = currentTabIndex === 0 ? 'none' : 'inline-block';
     btnNext.style.display = currentTabIndex === tabs.length - 1 ? 'none' : 'inline-block';
-    btnSave.style.display = 'inline-block';
 }
 
-// ============================================
-// GERENCIAMENTO DE ITENS
-// ============================================
+// ─── ITENS ───────────────────────────────────────────────────────────────────
 function addItem() {
     itemCounter++;
     const container = document.getElementById('itemsContainer');
     const tr = document.createElement('tr');
     tr.id = `item-${itemCounter}`;
-    tr.innerHTML = `
-        <td><input type="text" value="${itemCounter}" readonly style="text-align: center; width: 50px;"></td>
-        <td>
-            <input type="text" 
-                   id="codigoEstoque-${itemCounter}" 
-                   class="codigo-estoque"
-                   onblur="verificarEstoque(${itemCounter})"
-                   onchange="buscarDadosEstoque(${itemCounter})">
-        </td>
-        <td><textarea id="especificacao-${itemCounter}" rows="2"></textarea></td>
-        <td>
-            <select id="unidade-${itemCounter}">
-                <option value="">-</option>
-                <option value="UN">UN</option>
-                <option value="MT">MT</option>
-                <option value="KG">KG</option>
-                <option value="PC">PC</option>
-                <option value="CX">CX</option>
-                <option value="LT">LT</option>
-                <option value="BO">BO</option>
-                <option value="BA">BA</option>
-            </select>
-        </td>
-        <td>
-            <input type="number" 
-                   id="quantidade-${itemCounter}" 
-                   min="0" 
-                   step="1"
-                   onchange="calcularValorItem(${itemCounter}); verificarEstoque(${itemCounter})">
-        </td>
-        <td>
-            <input type="number" 
-                   id="valorUnitario-${itemCounter}" 
-                   min="0" 
-                   step="0.01"
-                   placeholder="0.00"
-                   onchange="calcularValorItem(${itemCounter})">
-        </td>
-        <td><input type="text" id="valorTotal-${itemCounter}" readonly></td>
-        <td><input type="text" id="ncm-${itemCounter}"></td>
-        <td>
-            <button type="button" onclick="removeItem(${itemCounter})" class="danger small" style="padding: 6px 10px;">
-                ✕
-            </button>
-        </td>
-    `;
+    tr.innerHTML = buildItemRow(itemCounter, {}, itemCounter - 1);
     container.appendChild(tr);
     atualizarQuantidadeTotalAutomatica();
 }
@@ -987,6 +705,7 @@ function removeItem(id) {
     if (item) {
         item.remove();
         calcularTotais();
+        atualizarQuantidadeTotalAutomatica();
     }
 }
 
@@ -994,21 +713,17 @@ function calcularValorItem(id) {
     const quantidade = parseFloat(document.getElementById(`quantidade-${id}`).value) || 0;
     const valorUnitario = parseFloat(document.getElementById(`valorUnitario-${id}`).value) || 0;
     const valorTotal = quantidade * valorUnitario;
-    
     document.getElementById(`valorTotal-${id}`).value = formatarMoeda(valorTotal);
     calcularTotais();
 }
 
 function calcularTotais() {
     let valorTotal = 0;
-    
     document.querySelectorAll('[id^="item-"]').forEach(item => {
         const id = item.id.replace('item-', '');
         const valor = parseMoeda(document.getElementById(`valorTotal-${id}`).value);
-        
         valorTotal += valor;
     });
-    
     document.getElementById('valorTotalPedido').value = formatarMoeda(valorTotal);
 }
 
@@ -1016,15 +731,10 @@ function buscarDadosEstoque(itemId) {
     const codigoInput = document.getElementById(`codigoEstoque-${itemId}`);
     const especificacaoInput = document.getElementById(`especificacao-${itemId}`);
     const ncmInput = document.getElementById(`ncm-${itemId}`);
-    
     if (!codigoInput || !especificacaoInput || !ncmInput) return;
-    
     const codigo = codigoInput.value.trim();
-    
     if (!codigo) return;
-    
     const itemEstoque = estoqueCache[codigo];
-    
     if (itemEstoque) {
         especificacaoInput.value = itemEstoque.descricao;
         ncmInput.value = itemEstoque.ncm;
@@ -1036,24 +746,13 @@ function buscarDadosEstoque(itemId) {
 function verificarEstoque(itemId) {
     const codigoInput = document.getElementById(`codigoEstoque-${itemId}`);
     const quantidadeInput = document.getElementById(`quantidade-${itemId}`);
-    
     if (!codigoInput || !quantidadeInput) return;
-    
     const codigo = codigoInput.value.trim();
     const quantidadeSolicitada = parseFloat(quantidadeInput.value) || 0;
-    
-    if (!codigo || quantidadeSolicitada === 0) {
-        return;
-    }
-    
+    if (!codigo || quantidadeSolicitada === 0) return;
     const itemEstoque = estoqueCache[codigo];
-    
-    if (!itemEstoque) {
-        return;
-    }
-    
+    if (!itemEstoque) return;
     const quantidadeDisponivel = parseFloat(itemEstoque.quantidade) || 0;
-    
     if (quantidadeSolicitada > quantidadeDisponivel) {
         showMessage(`Esta quantidade não corresponde ao estoque do item ${codigo}`, 'error');
     }
@@ -1070,27 +769,34 @@ function getItems() {
         const valorUnitario = parseFloat(document.getElementById(`valorUnitario-${id}`).value) || 0;
         const valorTotal = document.getElementById(`valorTotal-${id}`).value;
         const ncm = document.getElementById(`ncm-${id}`).value.trim();
-        
         const temDados = codigoEstoque || especificacao || (unidade && unidade !== '') || quantidade > 0 || valorUnitario > 0 || ncm;
         if (temDados) {
-            items.push({
-                item: items.length + 1,
-                codigoEstoque,
-                especificacao,
-                unidade,
-                quantidade,
-                valorUnitario,
-                valorTotal,
-                ncm
-            });
+            items.push({ item: items.length + 1, codigoEstoque, especificacao, unidade, quantidade, valorUnitario, valorTotal, ncm });
         }
     });
     return items;
 }
 
-// ============================================
-// SALVAR PEDIDO (sem campos bairro/municipio/uf/numero)
-// ============================================
+// ─── QUANTIDADE TOTAL AUTOMÁTICA ─────────────────────────────────────────────
+function atualizarQuantidadeTotalAutomatica() {
+    const totalInput = document.getElementById('quantidade');
+    if (!totalInput) return;
+    const modal = document.getElementById('formModal') || document;
+    const fields = Array.from(modal.querySelectorAll('input[id^="quantidade-"]'));
+    const sum = fields.reduce((n, el) => {
+        const v = Number(String(el.value || '').replace(',', '.'));
+        return n + (Number.isFinite(v) ? v : 0);
+    }, 0);
+    totalInput.value = String(sum);
+}
+document.addEventListener('input', e => {
+    if (e.target && (/^quantidade-/.test(e.target.id || ''))) atualizarQuantidadeTotalAutomatica();
+});
+document.addEventListener('change', e => {
+    if (e.target && (/^quantidade-/.test(e.target.id || ''))) atualizarQuantidadeTotalAutomatica();
+});
+
+// ─── SALVAR ──────────────────────────────────────────────────────────────────
 async function savePedido() {
     const responsavel = document.getElementById('responsavel').value.trim();
     if (!responsavel && !editingId) {
@@ -1098,18 +804,15 @@ async function savePedido() {
         activateTab(0);
         return;
     }
-
     const cnpj = document.getElementById('cnpj').value.replace(/\D/g, '');
     const razaoSocial = document.getElementById('razaoSocial').value.trim();
     const endereco = document.getElementById('endereco').value.trim();
     const vendedor = document.getElementById('vendedor').value.trim();
     const items = getItems();
-    
     if (!cnpj || !razaoSocial || !endereco) {
-        showMessage('Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        showMessage(window.IR ? IR.ERRO_CAMPOS_OBRIGATORIOS : 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
         return;
     }
-    
     const pedido = {
         cnpj,
         razao_social: razaoSocial,
@@ -1132,18 +835,11 @@ async function savePedido() {
         atualizado_por: (currentUser && (currentUser.name || currentUser.username) ? String(currentUser.name || currentUser.username).trim().split(/\s+/)[0].toUpperCase() : ''),
         ultima_atualizacao: new Date().toISOString()
     };
-    
-    if (items.length > 0) {
-        pedido.items = items;
-    }
-
-    // Nº NF só é enviado quando o usuário tem permissão de edição.
-    // Assim, quem não vê o campo nunca sobrescreve o valor já salvo.
+    if (items.length > 0) pedido.items = items;
     if (userCanToggleEmissao()) {
         const numeroNFInput = document.getElementById('numeroNF');
         pedido.numero_nf = numeroNFInput ? (numeroNFInput.value.trim() || null) : null;
     }
-
     if (!editingId) {
         pedido.responsavel = responsavel;
         pedido.status = 'pendente';
@@ -1151,72 +847,50 @@ async function savePedido() {
     } else {
         pedido.codigo = document.getElementById('codigo').value.trim();
     }
-    
     try {
         const url = editingId ? `${API_URL}/pedidos/${editingId}` : `${API_URL}/pedidos`;
         const method = editingId ? 'PATCH' : 'POST';
-        
         const response = await fetch(url, {
             method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
             body: JSON.stringify(pedido)
         });
-        
         if (!response.ok) {
             const errorText = await response.text();
             console.error('❌ Erro do servidor:', errorText);
             throw new Error('Erro ao salvar pedido');
         }
-        
         const wasEditing = !!editingId;
         const savedData = await response.json().catch(() => null);
         const savedCodigo = savedData?.codigo || pedido.codigo || '';
         await loadPedidos();
         closeFormModal(true);
-        
-        if (wasEditing) {
-            showMessage(`Pedido ${pedido.codigo} atualizado`, 'success');
-        } else {
-            showMessage(`Pedido ${savedCodigo} registrado`, 'success');
-        }
+        showMessage(wasEditing ? `Pedido ${pedido.codigo} atualizado` : `Pedido ${savedCodigo} registrado`, 'success');
     } catch (error) {
         console.error('Erro ao salvar:', error);
         showMessage('Erro ao salvar pedido!', 'error');
     }
 }
 
-// ============================================
-// EDITAR PEDIDO
-// ============================================
+// ─── EDITAR ──────────────────────────────────────────────────────────────────
 async function editPedido(id) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-    
     editingId = id;
     currentTabIndex = 0;
     document.getElementById('formTitle').textContent = `Editar Pedido Nº ${pedido.codigo}`;
     const btnSaveEl = document.getElementById('btnSave');
     if (btnSaveEl) btnSaveEl.textContent = 'Atualizar';
     updateTransportadoraSelects();
-    
+
     document.getElementById('codigo').value = pedido.codigo;
     document.getElementById('documento').value = pedido.documento || '';
-
     updateNumeroNFVisibility();
     const numeroNFInput = document.getElementById('numeroNF');
     if (numeroNFInput) numeroNFInput.value = pedido.numero_nf || '';
+    if (pedido.responsavel) document.getElementById('responsavel').value = pedido.responsavel;
+    if (pedido.data_registro) document.getElementById('dataRegistro').value = formatarData(pedido.data_registro);
 
-    if (pedido.responsavel) {
-        document.getElementById('responsavel').value = pedido.responsavel;
-    }
-    
-    if (pedido.data_registro) {
-        document.getElementById('dataRegistro').value = formatarData(pedido.data_registro);
-    }
-    
     document.getElementById('cnpj').value = formatarCNPJ(pedido.cnpj);
     document.getElementById('razaoSocial').value = pedido.razao_social;
     document.getElementById('inscricaoEstadual').value = pedido.inscricao_estadual || '';
@@ -1233,267 +907,104 @@ async function editPedido(id) {
     document.getElementById('previsaoEntrega').value = pedido.previsao_entrega || '';
     document.getElementById('transportadora').value = pedido.transportadora || '';
     document.getElementById('valorFrete').value = pedido.valor_frete || '';
-    
+
     const apEl = document.getElementById('atualizadoPor');
     const uaEl = document.getElementById('ultimaAtualizacao');
     if (apEl) apEl.value = (pedido.atualizado_por || '').toUpperCase();
-    if (uaEl) uaEl.value = window.IR ? IR.dataHora(pedido.ultima_atualizacao) : '';
+    if (uaEl) uaEl.value = window.IR ? IR.formatDateTime(pedido.ultima_atualizacao) : '';
+
     const vendedorSelect = document.getElementById('vendedor');
-    if (vendedorSelect && pedido.vendedor) {
-        if (window.IR) await IR.preencherVendedores(vendedorSelect, pedido.vendedor);
-        vendedorSelect.value = pedido.vendedor;
-    }
-    
+    if (window.IR) await IR.preencherVendedores(vendedorSelect, pedido.vendedor || '');
+
     document.getElementById('itemsContainer').innerHTML = '';
     itemCounter = 0;
-    
     const items = Array.isArray(pedido.items) ? pedido.items : [];
-    if (items.length === 0) {
-        addItem();
-    } else {
+    if (items.length === 0) { addItem(); }
+    else {
         items.forEach((item, index) => {
             itemCounter++;
             const container = document.getElementById('itemsContainer');
             const tr = document.createElement('tr');
             tr.id = `item-${itemCounter}`;
-            tr.innerHTML = `
-                <td><input type="text" value="${index + 1}" readonly style="text-align: center; width: 50px;"></td>
-                <td>
-                    <input type="text" 
-                           id="codigoEstoque-${itemCounter}" 
-                           value="${item.codigoEstoque || ''}"
-                           class="codigo-estoque"
-                           onblur="verificarEstoque(${itemCounter})"
-                           onchange="buscarDadosEstoque(${itemCounter})">
-                </td>
-                <td><textarea id="especificacao-${itemCounter}" rows="2">${item.especificacao || ''}</textarea></td>
-                <td>
-                    <select id="unidade-${itemCounter}">
-                        <option value="">-</option>
-                        <option value="UN" ${item.unidade === 'UN' ? 'selected' : ''}>UN</option>
-                        <option value="MT" ${item.unidade === 'MT' ? 'selected' : ''}>MT</option>
-                        <option value="KG" ${item.unidade === 'KG' ? 'selected' : ''}>KG</option>
-                        <option value="PC" ${item.unidade === 'PC' ? 'selected' : ''}>PC</option>
-                        <option value="CX" ${item.unidade === 'CX' ? 'selected' : ''}>CX</option>
-                        <option value="LT" ${item.unidade === 'LT' ? 'selected' : ''}>LT</option>
-                        <option value="BO" ${item.unidade === 'BO' ? 'selected' : ''}>BO</option>
-                        <option value="BA" ${item.unidade === 'BA' ? 'selected' : ''}>BA</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="number" 
-                           id="quantidade-${itemCounter}" 
-                           value="${item.quantidade || 0}"
-                           min="0" 
-                           step="1"
-                           onchange="calcularValorItem(${itemCounter}); verificarEstoque(${itemCounter})">
-                </td>
-                <td>
-                    <input type="number" 
-                           id="valorUnitario-${itemCounter}" 
-                           value="${item.valorUnitario || 0}"
-                           min="0" 
-                           step="0.01"
-                           onchange="calcularValorItem(${itemCounter})">
-                </td>
-                <td><input type="text" id="valorTotal-${itemCounter}" value="${item.valorTotal || 'R$ 0,00'}" readonly></td>
-                <td><input type="text" id="ncm-${itemCounter}" value="${item.ncm || ''}"></td>
-                <td>
-                    <button type="button" onclick="removeItem(${itemCounter})" class="danger small" style="padding: 6px 10px;">
-                        ✕
-                    </button>
-                </td>
-            `;
+            tr.innerHTML = buildItemRow(itemCounter, item, index);
             container.appendChild(tr);
-    atualizarQuantidadeTotalAutomatica();
         });
     }
-    
+    atualizarQuantidadeTotalAutomatica();
+    calcularTotais();
+
     activateTab(0);
     document.getElementById('formModal').classList.add('show');
 }
 
-// ============================================
-// VISUALIZAR PEDIDO
-// ============================================
+// ─── VISUALIZAR ──────────────────────────────────────────────────────────────
 function viewPedido(id) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-    
     document.getElementById('modalCodigo').textContent = pedido.codigo;
-    
     const statusClass = pedido.status === 'emitida' ? 'fechada' : 'aberta';
     const statusText = pedido.status === 'emitida' ? 'EMITIDO' : 'PENDENTE';
-    
-    const dataEmissaoFormatada = pedido.data_emissao
-        ? new Date(pedido.data_emissao).toLocaleDateString('pt-BR')
-        : '-';
+    const dataEmissaoFormatada = pedido.data_emissao ? new Date(pedido.data_emissao).toLocaleDateString('pt-BR') : '-';
 
     document.getElementById('info-tab-geral').innerHTML = `
-        <div class="info-section">
-            <h4>Informações Gerais</h4>
-            <div class="info-row">
-                <span class="info-label">Responsável:</span>
-                <span class="info-value">${pedido.responsavel || pedido.vendedor || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Data:</span>
-                <span class="info-value">${pedido.data_registro ? formatarData(pedido.data_registro) : '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Atualizado Por:</span>
-                <span class="info-value">${(pedido.atualizado_por || '-').toUpperCase()}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Última Atualização:</span>
-                <span class="info-value">${(window.IR && IR.dataHora(pedido.ultima_atualizacao)) || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Data Emissão:</span>
-                <span class="info-value">${dataEmissaoFormatada}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Status:</span>
-                <span class="badge ${statusClass}">${statusText}</span>
-            </div>
-        </div>
-    `;
-    
+        <div class="info-section"><h4>Informações Gerais</h4>
+            <div class="info-row"><span class="info-label">Responsável:</span><span class="info-value">${pedido.responsavel || pedido.vendedor || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Data:</span><span class="info-value">${pedido.data_registro ? formatarData(pedido.data_registro) : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Vendedor:</span><span class="info-value">${pedido.vendedor || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Atualizado Por:</span><span class="info-value">${(pedido.atualizado_por || '-').toUpperCase()}</span></div>
+            <div class="info-row"><span class="info-label">Última Atualização:</span><span class="info-value">${(window.IR && IR.formatDateTime(pedido.ultima_atualizacao)) || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Data Emissão:</span><span class="info-value">${dataEmissaoFormatada}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="badge ${statusClass}">${statusText}</span></div>
+        </div>`;
+
     document.getElementById('info-tab-faturamento').innerHTML = `
-        <div class="info-section">
-            <h4>Dados de Faturamento</h4>
-            <div class="info-row">
-                <span class="info-label">CNPJ:</span>
-                <span class="info-value">${formatarCNPJ(pedido.cnpj)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Razão Social:</span>
-                <span class="info-value">${pedido.razao_social}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Inscrição Estadual:</span>
-                <span class="info-value">${pedido.inscricao_estadual || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Endereço:</span>
-                <span class="info-value">${pedido.endereco}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Telefone:</span>
-                <span class="info-value">${pedido.telefone || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Contato:</span>
-                <span class="info-value">${pedido.contato || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">E-mail:</span>
-                <span class="info-value">${pedido.email || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Documento:</span>
-                <span class="info-value">${pedido.documento || '-'}</span>
-            </div>
-        </div>
-    `;
-    
+        <div class="info-section"><h4>Dados de Faturamento</h4>
+            <div class="info-row"><span class="info-label">CNPJ:</span><span class="info-value">${formatarCNPJ(pedido.cnpj)}</span></div>
+            <div class="info-row"><span class="info-label">Razão Social:</span><span class="info-value">${pedido.razao_social}</span></div>
+            <div class="info-row"><span class="info-label">Inscrição Estadual:</span><span class="info-value">${pedido.inscricao_estadual || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Endereço:</span><span class="info-value">${pedido.endereco}</span></div>
+            <div class="info-row"><span class="info-label">Telefone:</span><span class="info-value">${pedido.telefone || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Contato:</span><span class="info-value">${pedido.contato || '-'}</span></div>
+            <div class="info-row"><span class="info-label">E-mail:</span><span class="info-value">${pedido.email || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Documento:</span><span class="info-value">${pedido.documento || '-'}</span></div>
+        </div>`;
+
     const items = Array.isArray(pedido.items) ? pedido.items : [];
     document.getElementById('info-tab-itens').innerHTML = `
-        <div class="info-section">
-            <h4>Itens do Pedido</h4>
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Cód. Estoque</th>
-                        <th>Especificação</th>
-                        <th>UN</th>
-                        <th>Quantidade</th>
-                        <th>Valor Unitário</th>
-                        <th>Valor Total</th>
-                        <th>NCM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${items.map((item, index) => `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td>${item.codigoEstoque || '-'}</td>
-                            <td>${item.especificacao || '-'}</td>
-                            <td>${item.unidade || '-'}</td>
-                            <td>${item.quantidade || 0}</td>
-                            <td>${formatarMoeda(item.valorUnitario || 0)}</td>
-                            <td>${item.valorTotal || 'R$ 0,00'}</td>
-                            <td>${item.ncm || '-'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+        <div class="info-section"><h4>Itens do Pedido</h4>
+            <table class="items-table"><thead><tr><th>Item</th><th>Cód. Estoque</th><th>Especificação</th><th>UN</th><th>Qtd</th><th>Valor Un.</th><th>Valor Total</th><th>NCM</th></tr></thead>
+            <tbody>${items.map((item, index) => `<tr>
+                <td>${index + 1}</td><td>${item.codigoEstoque || '-'}</td><td>${item.especificacao || '-'}</td>
+                <td>${item.unidade || '-'}</td><td>${item.quantidade || 0}</td>
+                <td>${formatarMoeda(item.valorUnitario || 0)}</td><td>${item.valorTotal || 'R$ 0,00'}</td><td>${item.ncm || '-'}</td>
+            </tr>`).join('')}</tbody></table>
         </div>
-        <div class="info-section" style="margin-top: 1.5rem;">
-            <h4>Totais</h4>
-            <div class="info-row">
-                <span class="info-label">Valor Total:</span>
-                <span class="info-value"><strong>${pedido.valor_total || 'R$ 0,00'}</strong></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Peso (kg):</span>
-                <span class="info-value">${pedido.peso || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Quantidade Total:</span>
-                <span class="info-value">${pedido.quantidade || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Volumes:</span>
-                <span class="info-value">${pedido.volumes || '-'}</span>
-            </div>
-        </div>
-    `;
-    
+        <div class="info-section" style="margin-top:1.5rem;"><h4>Totais</h4>
+            <div class="info-row"><span class="info-label">Valor Total:</span><span class="info-value"><strong>${pedido.valor_total || 'R$ 0,00'}</strong></span></div>
+            <div class="info-row"><span class="info-label">Peso (kg):</span><span class="info-value">${pedido.peso || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Quantidade Total:</span><span class="info-value">${pedido.quantidade || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Volumes:</span><span class="info-value">${pedido.volumes || '-'}</span></div>
+        </div>`;
+
     document.getElementById('info-tab-entrega').innerHTML = `
-        <div class="info-section">
-            <h4>Informações de Entrega</h4>
-            <div class="info-row">
-                <span class="info-label">Local de Entrega:</span>
-                <span class="info-value">${pedido.local_entrega || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Setor:</span>
-                <span class="info-value">${pedido.setor || '-'}</span>
-            </div>
-        </div>
-    `;
-    
+        <div class="info-section"><h4>Informações de Entrega</h4>
+            <div class="info-row"><span class="info-label">Local de Entrega:</span><span class="info-value">${pedido.local_entrega || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Setor:</span><span class="info-value">${pedido.setor || '-'}</span></div>
+        </div>`;
+
     document.getElementById('info-tab-transporte').innerHTML = `
-        <div class="info-section">
-            <h4>Informações de Transporte</h4>
-            <div class="info-row">
-                <span class="info-label">Transportadora:</span>
-                <span class="info-value">${pedido.transportadora || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Valor do Frete:</span>
-                <span class="info-value">${pedido.valor_frete || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Vendedor:</span>
-                <span class="info-value">${pedido.vendedor || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Previsão de Entrega:</span>
-                <span class="info-value">${pedido.previsao_entrega ? new Date(pedido.previsao_entrega).toLocaleDateString('pt-BR') : '-'}</span>
-            </div>
-        </div>
-    `;
-    
+        <div class="info-section"><h4>Informações de Transporte</h4>
+            <div class="info-row"><span class="info-label">Transportadora:</span><span class="info-value">${pedido.transportadora || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Valor do Frete:</span><span class="info-value">${pedido.valor_frete || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Vendedor:</span><span class="info-value">${pedido.vendedor || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Previsão de Entrega:</span><span class="info-value">${pedido.previsao_entrega ? new Date(pedido.previsao_entrega).toLocaleDateString('pt-BR') : '-'}</span></div>
+        </div>`;
+
     switchInfoTab('info-tab-geral');
     document.getElementById('infoModal').classList.add('show');
 }
 
-function closeInfoModal() {
-    document.getElementById('infoModal').classList.remove('show');
-}
+function closeInfoModal() { document.getElementById('infoModal').classList.remove('show'); }
 
 function switchInfoTab(tabId, btn) {
     document.querySelectorAll('#infoModal .tab-content').forEach(tab => tab.classList.remove('active'));
@@ -1504,57 +1015,35 @@ function switchInfoTab(tabId, btn) {
     if (activeBtn) activeBtn.classList.add('active');
 }
 
-// ============================================
-// TOGGLE EMISSÃO (DEBITAR ESTOQUE)
-// ============================================
+// ─── TOGGLE EMISSÃO ──────────────────────────────────────────────────────────
 async function toggleEmissao(id, checked) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
-    if (checked && pedido.status === 'pendente') {
-        // Abrir modal para solicitar o número da NF antes de emitir
-        abrirModalEmissaoNF(id);
-        // Não prosseguir com a emissão diretamente
-        return;
-    } else if (!checked && pedido.status === 'emitida') {
-        // Reverter emissão
-        // Manter checkbox marcado enquanto processa
+    if (checked && pedido.status === 'pendente') { abrirModalEmissaoNF(id); return; }
+    else if (!checked && pedido.status === 'emitida') {
         document.getElementById(`check-${id}`).checked = true;
         await executarReverterEmissao(id);
     }
 }
 
-// ── Modal para emissão com NF ──────────────────────────────────────────────
 function abrirModalEmissaoNF(id) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
-    // Remove modal existente
     const existing = document.getElementById('emissaoNFModal');
     if (existing) existing.remove();
-
     const nfExistente = pedido.numero_nf ? pedido.numero_nf.replace(/"/g, '&quot;') : '';
-
     const modalHTML = `
         <div class="modal-overlay" id="emissaoNFModal" style="display:flex;">
-            <div class="modal-content modal-delete" style="max-width:420px; min-height:280px;">
-                <button class="close-modal" onclick="fecharModalEmissaoNF('${id}')">✕</button>
-                <div style="margin-bottom:1.5rem; padding: 0 0.25rem; margin-top:1rem;">
-                    <p style="font-size:1.05rem; margin-bottom:1rem; font-weight:600;">Informe o número da NF para confirmar a emissão do pedido ${pedido.codigo}</p>
-                    <input type="text"
-                           id="emissaoNFInput"
-                           placeholder="Ex: 3000"
-                           value="${nfExistente}"
-                           style="text-align:center; font-size:1.1rem; font-weight:600; letter-spacing:1px;"
-                           onkeydown="if(event.key==='Enter') confirmarEmissaoComNF('${id}')">
-                </div>
-                <div class="modal-actions modal-actions-no-border">
-                    <button type="button" onclick="confirmarEmissaoComNF('${id}')" style="background:#22C55E; min-width:140px;">Confirmar</button>
-                    <button type="button" onclick="fecharModalEmissaoNF('${id}')" class="cancel-close" style="min-width:100px;">Cancelar</button>
+            <div class="modal-content ir-modal-confirm" style="max-width:460px;">
+                <button class="close-modal ir-close" onclick="fecharModalEmissaoNF('${id}')">✕</button>
+                <p style="font-size:1.05rem;margin-bottom:1rem;font-weight:600;">Informe o número da NF para confirmar a emissão do pedido ${pedido.codigo}</p>
+                <input type="text" id="emissaoNFInput" placeholder="Ex: 3000" value="${nfExistente}" style="text-align:center;font-size:1.1rem;font-weight:600;letter-spacing:1px;margin:0 auto;max-width:220px;" onkeydown="if(event.key==='Enter') confirmarEmissaoComNF('${id}')">
+                <div class="ir-confirm-actions" style="margin-top:1.5rem;">
+                    <button type="button" onclick="confirmarEmissaoComNF('${id}')" class="ir-btn-green">Confirmar</button>
+                    <button type="button" onclick="fecharModalEmissaoNF('${id}')" class="ir-btn-red">Cancelar</button>
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     setTimeout(() => document.getElementById('emissaoNFInput')?.focus(), 100);
 }
@@ -1565,7 +1054,6 @@ function fecharModalEmissaoNF(id) {
         modal.style.animation = 'fadeOut 0.2s ease forwards';
         setTimeout(() => {
             modal.remove();
-            // Desmarcar checkbox se o usuário cancelou
             const cb = document.getElementById(`check-${id}`);
             if (cb) cb.checked = false;
         }, 200);
@@ -1575,39 +1063,24 @@ function fecharModalEmissaoNF(id) {
 async function confirmarEmissaoComNF(id) {
     const input = document.getElementById('emissaoNFInput');
     const nf = input?.value?.trim() || '';
-
-    if (!nf) {
-        showMessage('Informe o número da NF!', 'error');
-        return;
-    }
-
-    // Fechar modal
+    if (!nf) { showMessage('Informe o número da NF!', 'error'); return; }
     const modal = document.getElementById('emissaoNFModal');
     if (modal) modal.remove();
-
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
-    // Verificar se há itens com código de estoque
     const items = Array.isArray(pedido.items) ? pedido.items : [];
     const hasStockCode = items.some(item => item.codigoEstoque && item.codigoEstoque.trim() !== '');
-
-    if (hasStockCode) {
-        await executarEmissao(id, nf);
-    } else {
-        await executarEmissaoSemEstoque(id, nf);
-    }
+    if (hasStockCode) await executarEmissao(id, nf);
+    else await executarEmissaoSemEstoque(id, nf);
 }
 
 async function executarEmissao(id, numero_nf = null) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
     const items = Array.isArray(pedido.items) ? pedido.items : [];
-
     try {
         const checkboxLabel = document.querySelector(`label[for="check-${id}"]`);
         if (checkboxLabel) { checkboxLabel.style.opacity = '0.5'; checkboxLabel.style.pointerEvents = 'none'; }
-
         for (const item of items) {
             if (!item.codigoEstoque) continue;
             const itemEstoque = estoqueCache[item.codigoEstoque];
@@ -1620,27 +1093,16 @@ async function executarEmissao(id, numero_nf = null) {
             });
             if (!resp.ok) throw new Error('Erro ao atualizar estoque');
         }
-
-        const payload = { 
-            status: 'emitida', 
-            data_emissao: new Date().toISOString() 
-        };
-        if (numero_nf !== null) {
-            payload.numero_nf = numero_nf;
-        }
-
+        const payload = { status: 'emitida', data_emissao: new Date().toISOString() };
+        if (numero_nf !== null) payload.numero_nf = numero_nf;
         const response = await fetch(`${API_URL}/pedidos/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
             body: JSON.stringify(payload)
         });
-
         if (!response.ok) throw new Error('Erro ao atualizar pedido');
-
         await Promise.all([loadPedidos(), loadEstoque()]);
-
         if (checkboxLabel) { checkboxLabel.style.opacity = '1'; checkboxLabel.style.pointerEvents = 'auto'; }
-
         showMessage(`Pedido ${pedido.codigo} emitido`, 'success');
     } catch (error) {
         console.error('Erro ao emitir:', error);
@@ -1654,30 +1116,19 @@ async function executarEmissaoSemEstoque(id, numero_nf = null) {
     try {
         const pedido = pedidos.find(p => p.id === id);
         if (!pedido) return;
-
         const checkboxLabel = document.querySelector(`label[for="check-${id}"]`);
         if (checkboxLabel) { checkboxLabel.style.opacity = '0.5'; checkboxLabel.style.pointerEvents = 'none'; }
-
-        const payload = {
-            status: 'emitida',
-            data_emissao: new Date().toISOString()
-        };
-        if (numero_nf !== null) {
-            payload.numero_nf = numero_nf;
-        }
-
+        const payload = { status: 'emitida', data_emissao: new Date().toISOString() };
+        if (numero_nf !== null) payload.numero_nf = numero_nf;
         const response = await fetch(`${API_URL}/pedidos/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
             body: JSON.stringify(payload)
         });
-
         if (!response.ok) throw new Error('Erro ao atualizar pedido');
-
         await loadPedidos();
-
         if (checkboxLabel) { checkboxLabel.style.opacity = '1'; checkboxLabel.style.pointerEvents = 'auto'; }
-        showMessage(`Pedido ${pedido.codigo} emitido sem referência de estoque`, 'error');
+        showMessage(`Pedido ${pedido.codigo} emitido sem referência de estoque`, 'warning');
     } catch (error) {
         console.error('Erro ao emitir:', error);
         showMessage('Erro ao emitir pedido', 'error');
@@ -1722,70 +1173,48 @@ async function executarReverterEmissao(id) {
     }
 }
 
-// ============================================
-// DEFINIR NÚMERO DA NF (coluna da tabela)
-// ============================================
+// ─── NF MODAL NA COLUNA ──────────────────────────────────────────────────────
 function abrirModalDefinirNF(id) {
     if (!userCanToggleEmissao()) return;
-
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
     const existing = document.getElementById('definirNFModal');
     if (existing) existing.remove();
-
     const modalHTML = `
         <div class="modal-overlay" id="definirNFModal" style="display:flex;">
-            <div class="modal-content modal-delete" style="max-width:420px; min-height:260px;">
-                <button class="close-modal" onclick="fecharModalDefinirNF()">✕</button>
-                <div style="margin-bottom:1.5rem; padding: 0 0.25rem; margin-top:1rem;">
-                    <p style="font-size:1.05rem; margin-bottom:1rem; font-weight:600;">Qual é o número da NF para este pedido?</p>
-                    <input type="text"
-                           id="definirNFInput"
-                           placeholder="Número da NF"
-                           value="${pedido.numero_nf ? pedido.numero_nf.replace(/"/g, '&quot;') : ''}"
-                           style="text-align:center; font-size:1.1rem; font-weight:600; letter-spacing:1px;"
-                           onkeydown="if(event.key==='Enter') confirmarDefinirNF('${id}')">
-                </div>
-                <div class="modal-actions modal-actions-no-border">
-                    <button type="button" onclick="confirmarDefinirNF('${id}')" style="background:#22C55E; min-width:140px;">Salvar</button>
-                    <button type="button" onclick="fecharModalDefinirNF()" class="cancel-close" style="min-width:100px;">Cancelar</button>
+            <div class="modal-content ir-modal-confirm" style="max-width:460px;">
+                <button class="close-modal ir-close" onclick="fecharModalDefinirNF()">✕</button>
+                <p style="font-size:1.05rem;margin-bottom:1rem;font-weight:600;">Qual é o número da NF para este pedido?</p>
+                <input type="text" id="definirNFInput" placeholder="Número da NF" value="${pedido.numero_nf ? pedido.numero_nf.replace(/"/g, '&quot;') : ''}" style="text-align:center;font-size:1.1rem;font-weight:600;letter-spacing:1px;margin:0 auto;max-width:220px;" onkeydown="if(event.key==='Enter') confirmarDefinirNF('${id}')">
+                <div class="ir-confirm-actions" style="margin-top:1.5rem;">
+                    <button type="button" onclick="confirmarDefinirNF('${id}')" class="ir-btn-green">Salvar</button>
+                    <button type="button" onclick="fecharModalDefinirNF()" class="ir-btn-red">Cancelar</button>
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     setTimeout(() => document.getElementById('definirNFInput')?.focus(), 100);
 }
 
 function fecharModalDefinirNF() {
     const modal = document.getElementById('definirNFModal');
-    if (modal) {
-        modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(() => modal.remove(), 200);
-    }
+    if (modal) { modal.style.animation = 'fadeOut 0.2s ease forwards'; setTimeout(() => modal.remove(), 200); }
 }
 
 async function confirmarDefinirNF(id) {
     if (!userCanToggleEmissao()) return;
-
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
     const input = document.getElementById('definirNFInput');
     const valor = input?.value?.trim() || '';
-
     fecharModalDefinirNF();
-
     try {
         const response = await fetch(`${API_URL}/pedidos/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
             body: JSON.stringify({ numero_nf: valor || null })
         });
-
         if (!response.ok) throw new Error('Erro ao salvar número da NF');
-
         await loadPedidos();
         showMessage(`Nº NF do pedido ${pedido.codigo} atualizado`, 'success');
     } catch (error) {
@@ -1794,256 +1223,95 @@ async function confirmarDefinirNF(id) {
     }
 }
 
-// ============================================
-// GERAR ETIQUETA AUTOMÁTICA (com modal para NF)
-// ============================================
+// ─── ETIQUETA ────────────────────────────────────────────────────────────────
 function gerarEtiqueta(id) {
     const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) {
-        showMessage('Pedido não encontrado!', 'error');
-        return;
-    }
-
+    if (!pedido) { showMessage('Pedido não encontrado!', 'error'); return; }
     if (!pedido.quantidade || parseInt(pedido.quantidade) === 0) {
         showMessage('Este pedido não possui quantidade total informada!', 'error');
         return;
     }
-
     showNFModal(id);
 }
 
 function showNFModal(pedidoId) {
     const existing = document.getElementById('nfModal');
     if (existing) existing.remove();
-
     const pedidoRef = pedidos.find(p => p.id === pedidoId);
     const nfExistente = pedidoRef?.numero_nf ? pedidoRef.numero_nf.replace(/"/g, '&quot;') : '';
-
     const modalHTML = `
         <div class="modal-overlay" id="nfModal" style="display:flex;">
-            <div class="modal-content modal-delete" style="max-width:420px; min-height:260px;">
-                <button class="close-modal" onclick="closeNFModal()">✕</button>
-                <div style="margin-bottom:1.5rem; padding: 0 0.25rem; margin-top:1rem;">
-                    <input type="text"
-                           id="nfInput"
-                           placeholder="Número da NF"
-                           value="${nfExistente}"
-                           style="text-align:center; font-size:1.1rem; font-weight:600; letter-spacing:1px;"
-                           onkeydown="if(event.key==='Enter') confirmarGerarEtiqueta('${pedidoId}')">
-                </div>
-                <div class="modal-actions modal-actions-no-border">
-                    <button type="button" onclick="confirmarGerarEtiqueta('${pedidoId}')" style="background:#22C55E; min-width:140px;">Gerar Etiqueta</button>
-                    <button type="button" onclick="closeNFModal()" class="cancel-close" style="min-width:100px;">Cancelar</button>
+            <div class="modal-content ir-modal-confirm" style="max-width:460px;">
+                <button class="close-modal ir-close" onclick="closeNFModal()">✕</button>
+                <input type="text" id="nfInput" placeholder="Número da NF" value="${nfExistente}" style="text-align:center;font-size:1.1rem;font-weight:600;letter-spacing:1px;margin:0 auto;max-width:220px;" onkeydown="if(event.key==='Enter') confirmarGerarEtiqueta('${pedidoId}')">
+                <div class="ir-confirm-actions" style="margin-top:1.5rem;">
+                    <button type="button" onclick="confirmarGerarEtiqueta('${pedidoId}')" class="ir-btn-green">Gerar Etiqueta</button>
+                    <button type="button" onclick="closeNFModal()" class="ir-btn-red">Cancelar</button>
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     setTimeout(() => document.getElementById('nfInput')?.focus(), 100);
 }
 
 function closeNFModal() {
     const modal = document.getElementById('nfModal');
-    if (modal) {
-        modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(() => modal.remove(), 200);
-    }
+    if (modal) { modal.style.animation = 'fadeOut 0.2s ease forwards'; setTimeout(() => modal.remove(), 200); }
 }
 
 function confirmarGerarEtiqueta(pedidoId) {
     const nf = document.getElementById('nfInput')?.value?.trim();
-    if (!nf) {
-        showMessage('Informe o número da NF!', 'error');
-        return;
-    }
-
+    if (!nf) { showMessage('Informe o número da NF!', 'error'); return; }
     closeNFModal();
-
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
-
     let municipio = '';
     const enderecoPartes = pedido.endereco.split(',');
-    municipio = enderecoPartes.length > 1
-        ? enderecoPartes[enderecoPartes.length - 1].trim()
-        : pedido.endereco;
-
-    imprimirEtiquetasAutomatico(
-        nf,
-        parseInt(pedido.quantidade),
-        pedido.razao_social,
-        municipio,
-        pedido.endereco,
-        pedido.local_entrega || ''
-    );
+    municipio = enderecoPartes.length > 1 ? enderecoPartes[enderecoPartes.length - 1].trim() : pedido.endereco;
+    imprimirEtiquetasAutomatico(nf, parseInt(pedido.quantidade), pedido.razao_social, municipio, pedido.endereco, pedido.local_entrega || '');
 }
 
 function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, endereco, infoAdicional) {
     let labelsContent = '';
-    
     for (let i = 1; i <= totalVolumes; i++) {
-        labelsContent += `
-            <div class='label-container'>
-                <div class='logo-container'>
-                    <img src='/apps/imagens/ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'>
-                    <div>
-                        <div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div>
-                        <div class='cnpj'>CNPJ: 33.149.502/0001-38</div>
-                    </div>
-                </div>
-                <div class='nf-volume-container'>
-                    <div class='nf-volume'>NF: ${nf}</div>
-                    <div class='volume'>VOLUME: ${i}/${totalVolumes}</div>
-                </div>
-                <hr>
-                <div class='section-title'>DESTINATÁRIO:</div>
-                <div class='section'>${destinatario}</div>
-                <div class='section'>${endereco}</div>
-                ${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}
-            </div>
-        `;
+        labelsContent += `<div class='label-container'><div class='logo-container'><img src='/apps/imagens/ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'><div><div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div><div class='cnpj'>CNPJ: 33.149.502/0001-38</div></div></div><div class='nf-volume-container'><div class='nf-volume'>NF: ${nf}</div><div class='volume'>VOLUME: ${i}/${totalVolumes}</div></div><hr><div class='section-title'>DESTINATÁRIO:</div><div class='section'>${destinatario}</div><div class='section'>${endereco}</div>${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}</div>`;
     }
-    
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Etiquetas NF ${nf}</title>
-            <style>
-                @page {
-                    size: 100mm 150mm;
-                    margin: 2mm;
-                }
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    font-size: 12px;
-                    text-align: left;
-                    margin: 0;
-                    padding: 0;
-                }
-                .label-container {
-                    width: 94mm;
-                    height: 144mm;
-                    padding: 2mm;
-                    box-sizing: border-box;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-start;
-                    overflow: hidden;
-                    page-break-after: always;
-                }
-                .logo-container {
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 10px;
-                }
-                .logo-container img {
-                    max-width: 100px;
-                    max-height: 100px;
-                    margin-right: 15px;
-                }
-                .header, .cnpj, .section-title {
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                .header {
-                    font-size: 14px;
-                    line-height: 1.2;
-                }
-                .cnpj {
-                    font-size: 12px;
-                }
-                .nf-volume-container {
-                    text-align: center;
-                    border: 1px solid black;
-                    padding: 5px;
-                    margin: 10px 0;
-                }
-                .nf-volume {
-                    font-size: 30px;
-                    font-weight: bold;
-                    margin-bottom: 2px;
-                }
-                .volume {
-                    font-size: 20px;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                .section {
-                    line-height: 1.2;
-                    word-wrap: break-word;
-                    margin-top: 2px;
-                }
-                .additional-info {
-                    margin-top: 10px;
-                }
-                hr {
-                    border: none;
-                    border-top: 1px solid #000;
-                    margin: 10px 0;
-                }
-            </style>
-        </head>
-        <body>
-            ${labelsContent}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.onafterprint = function() { 
-                            window.close(); 
-                        };
-                    }, 500);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
+    printWindow.document.write(`<html><head><title>Etiquetas NF ${nf}</title><style>@page{size:100mm 150mm;margin:2mm;}body{font-family:'Segoe UI',Tahoma,sans-serif;font-size:12px;text-align:left;margin:0;padding:0;}.label-container{width:94mm;height:144mm;padding:2mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;page-break-after:always;}.logo-container{display:flex;align-items:center;margin-bottom:10px;}.logo-container img{max-width:100px;max-height:100px;margin-right:15px;}.header,.cnpj,.section-title{font-weight:bold;margin-bottom:5px;}.header{font-size:14px;line-height:1.2;}.cnpj{font-size:12px;}.nf-volume-container{text-align:center;border:1px solid black;padding:5px;margin:10px 0;}.nf-volume{font-size:30px;font-weight:bold;margin-bottom:2px;}.volume{font-size:20px;font-weight:bold;margin-bottom:5px;}.section{line-height:1.2;word-wrap:break-word;margin-top:2px;}.additional-info{margin-top:10px;}hr{border:none;border-top:1px solid #000;margin:10px 0;}</style></head><body>${labelsContent}<script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close();};},500);};<\/script></body></html>`);
     printWindow.document.close();
-    
     showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
 }
 
-// ============================================
-// EXCLUIR PEDIDO
-// ============================================
+// ─── EXCLUIR ─────────────────────────────────────────────────────────────────
 function confirmarExcluirPedido(id) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
-
     const existing = document.getElementById('deleteModal');
     if (existing) existing.remove();
-
     const modalHTML = `
         <div class="modal-overlay" id="deleteModal" style="display:flex;">
-            <div class="modal-content modal-delete" style="max-width:420px; min-height:220px;">
-                <button class="close-modal" onclick="document.getElementById('deleteModal').remove()">✕</button>
-                <div style="padding: 1.5rem 0.25rem 0.5rem; text-align:center;">
-                    <p style="font-size:1.05rem; margin-bottom:0.5rem;">Deseja excluir o <strong>Pedido Nº ${pedido.codigo}</strong>?</p>
-                    <p style="color: var(--text-secondary); font-size:0.9rem;">Esta ação não pode ser desfeita.</p>
-                </div>
-                <div class="modal-actions modal-actions-no-border">
-                    <button type="button" onclick="excluirPedido('${id}', ${pedido.codigo})" style="background:#DC2626; min-width:140px;">Confirmar Exclusão</button>
-                    <button type="button" onclick="document.getElementById('deleteModal').remove()" class="cancel-close" style="min-width:100px;">Cancelar</button>
+            <div class="modal-content ir-modal-confirm">
+                <button class="close-modal ir-close" onclick="document.getElementById('deleteModal').remove()">✕</button>
+                <p style="font-size:1.05rem;margin-bottom:0.5rem;">Deseja excluir o <strong>Pedido Nº ${pedido.codigo}</strong>?</p>
+                <p style="color: var(--text-secondary); font-size:0.9rem;margin-bottom:1.5rem;">Esta ação não pode ser desfeita.</p>
+                <div class="ir-confirm-actions">
+                    <button type="button" onclick="excluirPedido('${id}', ${pedido.codigo})" class="ir-btn-green">Confirmar Exclusão</button>
+                    <button type="button" onclick="document.getElementById('deleteModal').remove()" class="ir-btn-red">Cancelar</button>
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 async function excluirPedido(id, codigo) {
     const modal = document.getElementById('deleteModal');
     if (modal) modal.remove();
-
     try {
         const response = await fetch(`${API_URL}/pedidos/${id}`, {
             method: 'DELETE',
             headers: { 'X-Session-Token': sessionToken }
         });
-
         if (!response.ok) throw new Error('Erro ao excluir pedido');
-
         await loadPedidos();
         showMessage(`Pedido ${codigo} excluído`, 'error');
     } catch (err) {
@@ -2051,14 +1319,3 @@ async function excluirPedido(id, codigo) {
         showMessage('Erro ao excluir pedido', 'error');
     }
 }
-
-
-function atualizarQuantidadeTotalAutomatica() {
- const total = document.getElementById('quantidade'); if (!total) return;
- const modal = document.getElementById('formModal') || document;
- const fields = Array.from(modal.querySelectorAll('input[id^="quantidade-"]'));
- const sum = fields.reduce((n,el)=>{ const v=Number(String(el.value||'').replace(',','.')); return n+(Number.isFinite(v)?v:0); },0);
- total.value = String(sum);
-}
-document.addEventListener('input', e => { if (e.target && (/^quantidade-/.test(e.target.id||'') || /qtd|quantidade/i.test(e.target.name||''))) atualizarQuantidadeTotalAutomatica(); });
-document.addEventListener('change', e => { if (e.target && (/^quantidade-/.test(e.target.id||'') || /qtd|quantidade/i.test(e.target.name||''))) atualizarQuantidadeTotalAutomatica(); });
