@@ -15,8 +15,10 @@ let state = {
 
 let isOnline = true;
 let sessionToken = null;
+let precoTabIdx = 0;
+const PRECO_TABS = ['produto', 'valores'];
 
-document.addEventListener('DOMContentLoaded', function() { verificarAutenticacao(); });
+document.addEventListener('DOMContentLoaded', function () { verificarAutenticacao(); });
 
 // ─── AUTENTICAÇÃO ─────────────────────────────────────────────────────────────
 function verificarAutenticacao() {
@@ -43,18 +45,22 @@ function verificarAutenticacao() {
         if (!sessionToken) sessionToken = sessionStorage.getItem('tabelaPrecosSession');
     }
 
-    if (!sessionToken) { mostrarTelaAcessoNegado(); return; }
+    if (!sessionToken) {
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
+        return;
+    }
+
+    if (window.IR) IR.setToken(sessionToken);
     inicializarApp();
 }
 
 function mostrarTelaAcessoNegado(mensagem) {
     mensagem = mensagem || 'NÃO AUTORIZADO';
-    var portalUrl = window.location.origin + '/portal';
     document.body.innerHTML =
         '<div class="access-denied">' +
         '<h1>' + escHtml(mensagem) + '</h1>' +
         '<p>Somente usuários autenticados podem acessar esta área.</p>' +
-        '<a href="' + portalUrl + '">Ir para o Portal</a>' +
+        '<a href="/portal">Ir para o Portal</a>' +
         '</div>';
 }
 
@@ -62,8 +68,7 @@ function mostrarTelaAcessoNegado(mensagem) {
 function inicializarApp() {
     carregarTudo();
 
-    // Verifica conexão a cada 15s
-    setInterval(async function() {
+    setInterval(async function () {
         var online = await verificarConexao();
         if (online && !isOnline) {
             isOnline = true;
@@ -73,8 +78,7 @@ function inicializarApp() {
         }
     }, 15000);
 
-    // Atualiza dados a cada 30s se online e sem carregamento em andamento
-    setInterval(function() {
+    setInterval(function () {
         if (isOnline && !state.isLoading) loadPrecos(state.currentPage);
     }, 30000);
 }
@@ -85,12 +89,11 @@ function getHeaders() {
     return headers;
 }
 
-// ─── FETCH COM TIMEOUT ────────────────────────────────────────────────────────
 async function fetchWithTimeout(url, options, timeout) {
-    options  = options  || {};
-    timeout  = timeout  || 10000;
+    options = options || {};
+    timeout = timeout || 10000;
     var controller = new AbortController();
-    var timeoutId  = setTimeout(function() { controller.abort(); }, timeout);
+    var timeoutId = setTimeout(function () { controller.abort(); }, timeout);
     try {
         var response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
         clearTimeout(timeoutId);
@@ -101,7 +104,6 @@ async function fetchWithTimeout(url, options, timeout) {
     }
 }
 
-// ─── VERIFICAR CONEXÃO ────────────────────────────────────────────────────────
 async function verificarConexao() {
     try {
         var response = await fetchWithTimeout(
@@ -111,7 +113,7 @@ async function verificarConexao() {
         );
         if (response.status === 401) {
             sessionStorage.removeItem(SESSION_KEY);
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return false;
         }
         return response.ok;
@@ -120,10 +122,20 @@ async function verificarConexao() {
     }
 }
 
-function formatDateTime(value) { if (!value) return ''; const d = new Date(value); if (Number.isNaN(d.getTime())) return String(value); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', hour12:false}); }
+function formatDateTime(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    var dia = String(d.getDate()).padStart(2, '0');
+    var mes = String(d.getMonth() + 1).padStart(2, '0');
+    var ano = d.getFullYear();
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    return dia + '/' + mes + '/' + ano + ' ' + hh + ':' + mm;
+}
 
-// ─── SINCRONIZAR DADOS ────────────────────────────────────────────────────────
-window.sincronizarDados = async function() {
+// ─── SINCRONIZAR ─────────────────────────────────────────────────────────────
+window.sincronizarDados = async function () {
     var btn = document.querySelector('.sync-btn');
     if (btn) { btn.classList.add('spinning'); btn.style.pointerEvents = 'none'; }
     try {
@@ -132,11 +144,11 @@ window.sincronizarDados = async function() {
     } catch (e) {
         showToast('Erro ao sincronizar', 'error');
     } finally {
-        if (btn) setTimeout(function() { btn.classList.remove('spinning'); btn.style.pointerEvents = ''; }, 600);
+        if (btn) setTimeout(function () { btn.classList.remove('spinning'); btn.style.pointerEvents = ''; }, 600);
     }
 };
 
-// ─── ATUALIZA LISTA DE MARCAS ─────────────────────────────────────────────────
+// ─── MARCAS ─────────────────────────────────────────────────────────────────
 async function atualizarMarcasDisponiveis() {
     try {
         var response = await fetchWithTimeout(
@@ -147,7 +159,7 @@ async function atualizarMarcasDisponiveis() {
 
         if (response.status === 401) {
             sessionStorage.removeItem(SESSION_KEY);
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
@@ -155,9 +167,8 @@ async function atualizarMarcasDisponiveis() {
             var marcas = await response.json();
             state.marcasDisponiveis = Array.isArray(marcas) ? marcas : [];
         } else {
-            // Fallback: extrai marcas dos preços já carregados
             var nomes = {};
-            state.precos.forEach(function(p) {
+            state.precos.forEach(function (p) {
                 var nome = (p.marca_nome || p.marca || '').trim().toUpperCase();
                 if (nome) nomes[nome] = true;
             });
@@ -165,18 +176,16 @@ async function atualizarMarcasDisponiveis() {
         }
     } catch (e) {
         console.error('Erro ao atualizar marcas:', e);
-        // Fallback silencioso — não bloqueia o fluxo
     }
     renderMarcaSelect();
 }
 
-// ─── RENDER DO SELETOR DE MARCA ────────────────────────────────────────────────
 function renderMarcaSelect() {
     var select = document.getElementById('marcaSelect');
     if (!select) return;
     var selecionada = state.marcaSelecionada;
     select.innerHTML = '<option value="TODAS">TODAS</option>';
-    state.marcasDisponiveis.forEach(function(nome) {
+    state.marcasDisponiveis.forEach(function (nome) {
         var option = document.createElement('option');
         option.value = nome;
         option.textContent = nome;
@@ -185,8 +194,7 @@ function renderMarcaSelect() {
     });
 }
 
-// ─── SELECIONAR MARCA ─────────────────────────────────────────────────────────
-window.selecionarMarca = function(nome) {
+window.selecionarMarca = function (nome) {
     state.marcaSelecionada = nome || 'TODAS';
     state.searchTerm = '';
     var searchInput = document.getElementById('search');
@@ -195,10 +203,8 @@ window.selecionarMarca = function(nome) {
     loadPrecos(1);
 };
 
-// ─── CARREGAR TUDO (inicial) ───────────────────────────────────────────────────
 async function carregarTudo() {
     try {
-        // Carrega preços primeiro, depois extrai marcas do resultado como fallback
         await loadPrecos(state.currentPage);
         await atualizarMarcasDisponiveis();
     } catch (err) {
@@ -206,7 +212,7 @@ async function carregarTudo() {
     }
 }
 
-// ─── LOAD PRECOS ──────────────────────────────────────────────────────────────
+// ─── CARREGAR PREÇOS ─────────────────────────────────────────────────────────
 async function loadPrecos(page) {
     page = page || 1;
     if (state.isLoading) return;
@@ -230,7 +236,7 @@ async function loadPrecos(page) {
 
         if (response.status === 401) {
             sessionStorage.removeItem(SESSION_KEY);
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
@@ -246,14 +252,14 @@ async function loadPrecos(page) {
         var result = await response.json();
 
         if (Array.isArray(result)) {
-            state.precos      = result.map(normalizePreco);
+            state.precos = result.map(normalizePreco);
             state.totalRecords = result.length;
-            state.totalPages  = 1;
+            state.totalPages = 1;
             state.currentPage = 1;
         } else {
-            state.precos      = (result.data || []).map(normalizePreco);
+            state.precos = (result.data || []).map(normalizePreco);
             state.totalRecords = typeof result.total === 'number' ? result.total : state.precos.length;
-            state.totalPages  = result.totalPages || 1;
+            state.totalPages = result.totalPages || 1;
             state.currentPage = result.page || page;
         }
 
@@ -275,28 +281,28 @@ async function loadPrecos(page) {
 
 function normalizePreco(p) {
     return {
-        id:         p.id,
-        marca:      (p.marca     || '').trim().toUpperCase(),
-        codigo:     (p.codigo    || '').trim(),
-        preco:      parseFloat(p.preco) || 0,
-        descricao:  (p.descricao || '').trim().toUpperCase(),
-        timestamp:  p.ultima_atualizacao || p.timestamp || null,
+        id: p.id,
+        marca: (p.marca || '').trim().toUpperCase(),
+        codigo: (p.codigo || '').trim(),
+        preco: parseFloat(p.preco) || 0,
+        descricao: (p.descricao || '').trim().toUpperCase(),
+        timestamp: p.ultima_atualizacao || p.timestamp || null,
         atualizado_por: p.atualizado_por || '',
         ultima_atualizacao: p.ultima_atualizacao || p.timestamp || null,
         marca_nome: (p.marca_nome || p.marca || '').trim().toUpperCase()
     };
 }
 
-// ─── FILTRO / BUSCA ───────────────────────────────────────────────────────────
+// ─── BUSCA COM DEBOUNCE ──────────────────────────────────────────────────────
 var searchDebounceTimer = null;
-window.filterPrecos = function() {
+window.filterPrecos = function () {
     var input = document.getElementById('search');
     state.searchTerm = input ? (input.value || '').trim() : '';
     clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(function() { loadPrecos(1); }, 300);
+    searchDebounceTimer = setTimeout(function () { loadPrecos(1); }, 300);
 };
 
-// ─── RENDER DA TABELA ─────────────────────────────────────────────────────────
+// ─── RENDER TABELA ───────────────────────────────────────────────────────────
 function renderPrecos() {
     var container = document.getElementById('precosTableBody');
     if (!container) return;
@@ -306,14 +312,15 @@ function renderPrecos() {
         return;
     }
 
-    container.innerHTML = state.precos.map(function(p) {
+    container.innerHTML = state.precos.map(function (p) {
         var precoFormatado = 'R$ ' + parseFloat(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var atualizadoPor = String(p.atualizado_por || '').trim().split(/\s+/)[0].toUpperCase() || '—';
         return '<tr>' +
             '<td><strong>' + escHtml(p.marca_nome || p.marca || '') + '</strong></td>' +
             '<td>' + escHtml(p.codigo) + '</td>' +
             '<td>' + precoFormatado + '</td>' +
             '<td>' + escHtml(p.descricao) + '</td>' +
-            '<td>' + escHtml(String(p.atualizado_por || '—').trim().split(/\s+/)[0].toUpperCase()) + '</td>' +
+            '<td>' + escHtml(atualizadoPor) + '</td>' +
             '<td style="color:var(--text-secondary);font-size:0.85rem;">' + getTimeAgo(p.ultima_atualizacao || p.timestamp) + '</td>' +
             '<td class="actions-cell" style="text-align:center;">' +
             '<button onclick="window.editPreco(\'' + escHtml(String(p.id)) + '\')" class="action-btn edit">Editar</button>' +
@@ -322,7 +329,6 @@ function renderPrecos() {
     }).join('');
 }
 
-// ─── ESCAPE HTML ──────────────────────────────────────────────────────────────
 function escHtml(str) {
     return String(str || '')
         .replace(/&/g, '&amp;')
@@ -332,7 +338,7 @@ function escHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// ─── PAGINAÇÃO ────────────────────────────────────────────────────────────────
+// ─── PAGINAÇÃO ───────────────────────────────────────────────────────────────
 function renderPaginacao() {
     var existing = document.getElementById('paginacaoContainer');
     if (existing) existing.remove();
@@ -341,11 +347,10 @@ function renderPaginacao() {
     if (!tableCard) return;
 
     var total = state.totalPages;
-    var atual  = state.currentPage;
+    var atual = state.currentPage;
     var inicio = state.totalRecords === 0 ? 0 : (atual - 1) * PAGE_SIZE + 1;
-    var fim    = Math.min(atual * PAGE_SIZE, state.totalRecords);
+    var fim = Math.min(atual * PAGE_SIZE, state.totalRecords);
 
-    // Gera array de páginas com reticências
     var paginas = [];
     if (total <= 7) {
         for (var i = 1; i <= total; i++) paginas.push(i);
@@ -357,7 +362,7 @@ function renderPaginacao() {
         paginas.push(total);
     }
 
-    var botoesHTML = paginas.map(function(p) {
+    var botoesHTML = paginas.map(function (p) {
         if (p === '...') return '<span class="pag-ellipsis">&hellip;</span>';
         var cls = 'pag-btn' + (p === atual ? ' pag-btn-active' : '');
         return '<button class="' + cls + '" onclick="loadPrecos(' + p + ')">' + p + '</button>';
@@ -380,30 +385,34 @@ function renderPaginacao() {
     tableCard.appendChild(div);
 }
 
-// ─── MODAL DE FORMULÁRIO ──────────────────────────────────────────────────────
-window.toggleForm = function() { showFormModal(null); };
+// ─── MODAL ───────────────────────────────────────────────────────────────────
+window.toggleForm = function () { showFormModal(null); };
 
 function showFormModal(editingId) {
-    // Remove modal anterior se existir
     var modalExistente = document.getElementById('formModal');
     if (modalExistente) modalExistente.remove();
 
     var isEditing = editingId !== null && editingId !== undefined && editingId !== '';
-    var preco = isEditing ? state.precos.find(function(p) { return String(p.id) === String(editingId); }) : null;
+    var preco = isEditing ? state.precos.find(function (p) { return String(p.id) === String(editingId); }) : null;
 
-    var marcaAtual   = preco ? escHtml(preco.marca_nome || preco.marca || '') : '';
-    var codigoAtual  = preco ? escHtml(preco.codigo    || '') : '';
-    var precoAtual   = preco ? parseFloat(preco.preco).toFixed(2) : '';
-    var descAtual    = preco ? escHtml(preco.descricao  || '') : '';
+    var marcaAtual = preco ? escHtml(preco.marca_nome || preco.marca || '') : '';
+    var codigoAtual = preco ? escHtml(preco.codigo || '') : '';
+    var precoAtual = preco ? parseFloat(preco.preco).toFixed(2) : '';
+    var descAtual = preco ? escHtml(preco.descricao || '') : '';
     var atualizadoPor = preco ? escHtml(preco.atualizado_por || '') : '';
     var ultimaAtualizacao = preco ? escHtml(preco.ultima_atualizacao || preco.timestamp || '') : '';
-    var sessionData = {}; try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); } catch (_) {}
-    var nomeSessao = sessionData.name || sessionData.nome || sessionData.fullName || sessionData.user?.name || sessionData.user?.nome || '';
+
+    var sessionData = {};
+    try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); } catch (_) {}
+    var nomeSessao = sessionData.name || sessionData.nome || sessionData.fullName || '';
     var primeiroNome = (String(nomeSessao).trim().split(/\s+/)[0] || String(atualizadoPor).trim().split(/\s+/)[0] || '').toUpperCase();
+
+    var atualizadoPorValue = ultimaAtualizacao ? (primeiroNome || atualizadoPor) : '';
+    var ultimaAtualizacaoValue = ultimaAtualizacao ? formatDateTime(ultimaAtualizacao) : '';
 
     document.body.insertAdjacentHTML('beforeend',
         '<div class="modal-overlay" id="formModal" style="display:flex;">' +
-        '<div class="modal-content large">' +
+        '<div class="modal-content">' +
         '<div class="modal-header">' +
         '<h3 class="modal-title">' + (isEditing ? 'Editar Preço' : 'Novo Preço') + '</h3>' +
         '<button class="close-modal" onclick="closeFormModal(true)">&#x2715;</button>' +
@@ -414,67 +423,79 @@ function showFormModal(editingId) {
         '<button type="button" class="tab-btn active" onclick="switchPrecoTab(&quot;produto&quot;)">Produto</button>' +
         '<button type="button" class="tab-btn" onclick="switchPrecoTab(&quot;valores&quot;)">Valores</button>' +
         '</div>' +
-        '<div class="tab-content active" id="preco-tab-produto"><div class="form-grid">' +
+        '<div class="tab-content active" id="preco-tab-produto">' +
+        '<div class="form-grid">' +
         '<div class="form-group"><label for="modalMarca">Marca *</label><input type="text" id="modalMarca" value="' + marcaAtual + '" required autocomplete="off"></div>' +
         '<div class="form-group"><label for="modalCodigo">Código *</label><input type="text" id="modalCodigo" value="' + codigoAtual + '" required autocomplete="off"></div>' +
-        '<div class="form-group"><label for="modalAtualizadoPor">Atualizado por</label><input type="text" id="modalAtualizadoPor" value="' + (ultimaAtualizacao ? (primeiroNome || atualizadoPor) : '') + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
-        '<div class="form-group"><label for="modalUltimaAtualizacao">Última Atualização</label><input type="text" id="modalUltimaAtualizacao" value="' + (ultimaAtualizacao ? escHtml(formatDateTime(ultimaAtualizacao)) : '') + '" readonly></div>' +
-        '<div class="form-group"><label for="modalDescricao">Descrição *</label><textarea id="modalDescricao" rows="2" required>' + descAtual + '</textarea></div>' +
-        '</div></div>' +
-        '<div class="tab-content" id="preco-tab-valores"><div class="form-grid"><div class="form-group"><label for="modalPreco">Preço (R$) *</label><input type="number" id="modalPreco" step="0.01" min="0.01" value="' + precoAtual + '" required></div></div></div>' +
-        '<div class="modal-actions"><button type="button" id="precoBtnPrev" onclick="precoPrevTab()" class="secondary" style="display:none">Anterior</button><button type="button" id="precoBtnNext" onclick="precoNextTab()" class="secondary">Próximo</button>' +
+        '<div class="form-group"><label for="modalAtualizadoPor">Atualizado por</label><input type="text" id="modalAtualizadoPor" value="' + escHtml(atualizadoPorValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
+        '<div class="form-group"><label for="modalUltimaAtualizacao">Última Atualização</label><input type="text" id="modalUltimaAtualizacao" value="' + escHtml(ultimaAtualizacaoValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
+        '<div class="form-group full-width"><label for="modalDescricao">Descrição *</label><textarea id="modalDescricao" rows="2" required>' + descAtual + '</textarea></div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="tab-content" id="preco-tab-valores">' +
+        '<div class="form-grid">' +
+        '<div class="form-group full-width"><label for="modalPreco">Preço (R$) *</label><input type="number" id="modalPreco" step="0.01" min="0.01" value="' + precoAtual + '" required></div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+        '<button type="button" id="precoBtnPrev" onclick="precoPrevTab()" class="secondary tab-prev" style="display:none">Anterior</button>' +
+        '<button type="button" id="precoBtnNext" onclick="precoNextTab()" class="secondary tab-next">Próximo</button>' +
         '<button type="submit" class="save">' + (isEditing ? 'Atualizar' : 'Salvar') + '</button>' +
-        '<button type="button" onclick="closeFormModal(true)" class="danger">Cancelar</button>' +
-        '</div></form></div></div>');
+        '<button type="button" onclick="closeFormModal(true)" class="cancel-close">Cancelar</button>' +
+        '</div>' +
+        '</form>' +
+        '</div>' +
+        '</div>');
 
-    precoTabIdx = 0; showPrecoTab(0);
-    setTimeout(function() {
-        function autoResize(el) {
+    precoTabIdx = 0;
+    showPrecoTab(0);
+
+    setTimeout(function () {
+        var autoResize = function (el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
-        }
-
+        };
         var ta = document.getElementById('modalDescricao');
         if (ta) {
             autoResize(ta);
-            ta.addEventListener('input', function(e) {
+            ta.addEventListener('input', function (e) {
                 var start = e.target.selectionStart;
                 e.target.value = e.target.value.toUpperCase();
                 try { e.target.setSelectionRange(start, start); } catch (_) {}
                 autoResize(e.target);
             });
         }
-
         var marcaInput = document.getElementById('modalMarca');
         if (marcaInput) {
-            marcaInput.addEventListener('input', function(e) {
+            marcaInput.addEventListener('input', function (e) {
                 var start = e.target.selectionStart;
                 e.target.value = e.target.value.toUpperCase();
                 try { e.target.setSelectionRange(start, start); } catch (_) {}
             });
         }
-
-        // Foca no primeiro campo
         var firstInput = document.getElementById('modalMarca');
         if (firstInput) firstInput.focus();
     }, 50);
 }
 
-var PRECO_TABS = ['produto', 'valores'];
-var precoTabIdx = 0;
 function showPrecoTab(i) {
     precoTabIdx = Math.max(0, Math.min(PRECO_TABS.length - 1, i));
-    document.querySelectorAll('#formModal .tab-btn').forEach(function(b, k) { b.classList.toggle('active', k === precoTabIdx); });
-    document.querySelectorAll('#formModal .tab-content').forEach(function(c) { c.classList.remove('active'); });
+    document.querySelectorAll('#formModal .tab-btn').forEach(function (b, k) {
+        b.classList.toggle('active', k === precoTabIdx);
+    });
+    document.querySelectorAll('#formModal .tab-content').forEach(function (c) {
+        c.classList.remove('active');
+    });
     var el = document.getElementById('preco-tab-' + PRECO_TABS[precoTabIdx]);
     if (el) el.classList.add('active');
     var prev = document.getElementById('precoBtnPrev'), next = document.getElementById('precoBtnNext');
     if (prev) prev.style.display = precoTabIdx > 0 ? 'inline-flex' : 'none';
     if (next) next.style.display = precoTabIdx < PRECO_TABS.length - 1 ? 'inline-flex' : 'none';
 }
-window.switchPrecoTab = function(name) { showPrecoTab(PRECO_TABS.indexOf(name)); };
-window.precoNextTab = function() { showPrecoTab(precoTabIdx + 1); };
-window.precoPrevTab = function() { showPrecoTab(precoTabIdx - 1); };
+
+window.switchPrecoTab = function (name) { showPrecoTab(PRECO_TABS.indexOf(name)); };
+window.precoNextTab = function () { showPrecoTab(precoTabIdx + 1); };
+window.precoPrevTab = function () { showPrecoTab(precoTabIdx - 1); };
 
 function closeFormModal(showCancelMessage) {
     var modal = document.getElementById('formModal');
@@ -482,22 +503,22 @@ function closeFormModal(showCancelMessage) {
     var editId = document.getElementById('modalEditId') ? document.getElementById('modalEditId').value : '';
     if (showCancelMessage) showToast(editId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
     modal.style.animation = 'fadeOut 0.2s ease forwards';
-    setTimeout(function() { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
+    setTimeout(function () { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
 }
 
-// ─── SUBMIT DO FORMULÁRIO ─────────────────────────────────────────────────────
+// ─── SUBMIT ──────────────────────────────────────────────────────────────────
 async function handleSubmit(event) {
     event.preventDefault();
 
     var editId = (document.getElementById('modalEditId').value || '').trim();
 
-    var marcaVal    = (document.getElementById('modalMarca').value    || '').trim().toUpperCase();
-    var codigoVal   = (document.getElementById('modalCodigo').value   || '').trim();
-    var precoVal    = parseFloat(document.getElementById('modalPreco').value);
+    var marcaVal = (document.getElementById('modalMarca').value || '').trim().toUpperCase();
+    var codigoVal = (document.getElementById('modalCodigo').value || '').trim();
+    var precoVal = parseFloat(document.getElementById('modalPreco').value);
     var descricaoVal = (document.getElementById('modalDescricao').value || '').trim().toUpperCase();
 
     if (!marcaVal || !codigoVal || !descricaoVal) {
-        showToast('Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        showToast(window.IR ? IR.ERRO_CAMPOS_OBRIGATORIOS : 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
         return;
     }
 
@@ -512,9 +533,9 @@ async function handleSubmit(event) {
     }
 
     var formData = {
-        marca:     marcaVal,
-        codigo:    codigoVal,
-        preco:     precoVal,
+        marca: marcaVal,
+        codigo: codigoVal,
+        preco: precoVal,
         descricao: descricaoVal,
         atualizado_por: (document.getElementById('modalAtualizadoPor')?.value || '').trim(),
         ultima_atualizacao: new Date().toISOString()
@@ -524,8 +545,8 @@ async function handleSubmit(event) {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Aguarde...'; }
 
     try {
-        var url     = editId ? API_URL + '/precos/' + editId : API_URL + '/precos';
-        var method  = editId ? 'PUT' : 'POST';
+        var url = editId ? API_URL + '/precos/' + editId : API_URL + '/precos';
+        var method = editId ? 'PUT' : 'POST';
         var headers = Object.assign({ 'Content-Type': 'application/json' }, getHeaders());
 
         var response = await fetchWithTimeout(
@@ -536,26 +557,25 @@ async function handleSubmit(event) {
 
         if (response.status === 401) {
             sessionStorage.removeItem(SESSION_KEY);
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
         if (response.status === 409) {
-            var errData = await response.json().catch(function() { return {}; });
+            var errData = await response.json().catch(function () { return {}; });
             showToast(errData.error || 'Código já cadastrado', 'error');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = editId ? 'Atualizar' : 'Salvar'; }
             return;
         }
 
         if (!response.ok) {
-            var err = await response.json().catch(function() { return {}; });
+            var err = await response.json().catch(function () { return {}; });
             throw new Error(err.error || 'Erro ' + response.status);
         }
 
         closeFormModal(false);
         showToast(editId ? 'Item atualizado com sucesso' : 'Item cadastrado com sucesso', 'success');
 
-        // Atualiza marcas e recarrega a página atual (ou volta pra 1 em novo registro)
         await atualizarMarcasDisponiveis();
         await loadPrecos(editId ? state.currentPage : 1);
     } catch (error) {
@@ -567,13 +587,13 @@ async function handleSubmit(event) {
     }
 }
 
-// ─── EDITAR / EXCLUIR ─────────────────────────────────────────────────────────
-window.editPreco = function(id) {
+// ─── EDITAR / EXCLUIR ────────────────────────────────────────────────────────
+window.editPreco = function (id) {
     if (!id) return;
     showFormModal(id);
 };
 
-window.deletePreco = function(id) {
+window.deletePreco = function (id) {
     if (!id) return;
     showDeleteModal(id);
 };
@@ -584,20 +604,22 @@ function showDeleteModal(id) {
 
     document.body.insertAdjacentHTML('beforeend',
         '<div class="modal-overlay" id="deleteModal" style="display:flex;">' +
-        '<div class="modal-content modal-delete">' +
-        '<button class="close-modal" onclick="closeDeleteModal()">&#x2715;</button>' +
-        '<div class="modal-message-delete">Tem certeza que deseja excluir este preço?</div>' +
-        '<div class="modal-actions modal-actions-no-border">' +
-        '<button type="button" onclick="confirmDelete(\'' + escHtml(String(id)) + '\')" class="danger">Sim</button>' +
-        '<button type="button" onclick="closeDeleteModal()" class="danger">Não</button>' +
-        '</div></div></div>');
+        '<div class="modal-content ir-modal-confirm">' +
+        '<button class="close-modal ir-close" onclick="closeDeleteModal()">&#x2715;</button>' +
+        '<div class="ir-confirm-msg">Tem certeza que deseja excluir este preço?</div>' +
+        '<div class="ir-confirm-actions">' +
+        '<button type="button" class="ir-btn-green" onclick="confirmDelete(\'' + escHtml(String(id)) + '\')">Sim</button>' +
+        '<button type="button" class="ir-btn-red" onclick="closeDeleteModal()">Não</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>');
 }
 
 function closeDeleteModal() {
     var modal = document.getElementById('deleteModal');
     if (modal) {
         modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(function() { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
+        setTimeout(function () { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
     }
 }
 
@@ -618,7 +640,7 @@ async function confirmDelete(id) {
 
         if (response.status === 401) {
             sessionStorage.removeItem(SESSION_KEY);
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
@@ -628,13 +650,10 @@ async function confirmDelete(id) {
             return;
         }
 
-        if (!response.ok) {
-            throw new Error('Erro ' + response.status);
-        }
+        if (!response.ok) throw new Error('Erro ' + response.status);
 
         showToast('Preço excluído com sucesso!', 'success');
 
-        // Se era o único item da página atual, volta pra página anterior
         var pageToLoad = (state.precos.length === 1 && state.currentPage > 1)
             ? state.currentPage - 1
             : state.currentPage;
@@ -642,46 +661,35 @@ async function confirmDelete(id) {
         await atualizarMarcasDisponiveis();
         await loadPrecos(pageToLoad);
     } catch (error) {
-        var msg = error.name === 'AbortError'
-            ? 'Timeout: operação demorou muito'
-            : 'Erro ao excluir preço';
+        var msg = error.name === 'AbortError' ? 'Timeout: operação demorou muito' : 'Erro ao excluir preço';
         showToast(msg, 'error');
     }
 }
 
-// ─── FECHA MODAL GENÉRICO ─────────────────────────────────────────────────────
-window.closeModal = function(id) {
-    var modal = document.getElementById(id);
-    if (modal) {
-        modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(function() { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
-    }
-};
-
-// ─── TEMPO RELATIVO ───────────────────────────────────────────────────────────
+// ─── TEMPO RELATIVO ──────────────────────────────────────────────────────────
 function getTimeAgo(timestamp) {
     if (!timestamp) return 'Sem data';
     var past = new Date(timestamp);
     if (isNaN(past.getTime())) return 'Data inválida';
     var diff = Math.floor((Date.now() - past.getTime()) / 1000);
-    if (diff < 0)      return 'agora';
-    if (diff < 60)     return diff + 's';
-    if (diff < 3600)   return Math.floor(diff / 60) + 'min';
-    if (diff < 86400)  return Math.floor(diff / 3600) + 'h';
+    if (diff < 0) return 'agora';
+    if (diff < 60) return diff + 's';
+    if (diff < 3600) return Math.floor(diff / 60) + 'min';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
     if (diff < 604800) return Math.floor(diff / 86400) + 'd';
     return past.toLocaleDateString('pt-BR');
 }
 
-// ─── TOAST ────────────────────────────────────────────────────────────────────
+// ─── TOAST ───────────────────────────────────────────────────────────────────
 function showToast(message, type) {
     type = type || 'success';
-    document.querySelectorAll('.floating-message').forEach(function(m) { m.remove(); });
+    document.querySelectorAll('.floating-message').forEach(function (m) { m.remove(); });
     var div = document.createElement('div');
     div.className = 'floating-message ' + type;
     div.textContent = String(message || '');
     document.body.appendChild(div);
-    setTimeout(function() {
+    setTimeout(function () {
         div.style.animation = 'slideOut 0.3s ease forwards';
-        setTimeout(function() { if (div.parentNode) div.parentNode.removeChild(div); }, 300);
+        setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, 300);
     }, 3000);
 }
