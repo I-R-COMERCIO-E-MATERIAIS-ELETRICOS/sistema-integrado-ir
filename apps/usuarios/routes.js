@@ -45,7 +45,6 @@ module.exports = function (supabase, supabaseAdmin) {
         next();
     }
 
-    // ─── MÓDULOS DISPONÍVEIS ─────────────────────────────────
     router.get('/meta/modules', requireAdmin, (req, res) => {
         res.json([
             { id: 'licitacoes',      name: 'Licitações' },
@@ -61,7 +60,6 @@ module.exports = function (supabase, supabaseAdmin) {
         ]);
     });
 
-    // ─── LISTA DE FUNCIONÁRIOS ───────────────────────────────
     router.get('/employees', requireAdmin, async (req, res) => {
         const { data, error } = await supabaseAdmin
             .from('profiles')
@@ -71,7 +69,6 @@ module.exports = function (supabase, supabaseAdmin) {
         res.json(data || []);
     });
 
-    // ─── LISTAR ──────────────────────────────────────────────
     router.get('/', requireAdmin, async (req, res) => {
         try {
             const { data, error } = await supabaseAdmin
@@ -85,7 +82,6 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── CRIAR ───────────────────────────────────────────────
     router.post('/', requireAdmin, async (req, res) => {
         const { username, name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         if (!username || !name || !sector || !password) {
@@ -136,7 +132,6 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── ATUALIZAR ───────────────────────────────────────────
     router.put('/:id', requireAdmin, async (req, res) => {
         const { name, sector, password, is_active, contact_email, contact_phone, apps } = req.body;
         const { id } = req.params;
@@ -179,7 +174,6 @@ module.exports = function (supabase, supabaseAdmin) {
         }
     });
 
-    // ─── EXCLUIR ─────────────────────────────────────────────
     router.delete('/:id', requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
