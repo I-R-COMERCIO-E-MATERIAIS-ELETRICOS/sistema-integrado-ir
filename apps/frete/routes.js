@@ -1,20 +1,15 @@
 const { podeConfirmar } = require('../../lib/helpers');
-// ============================================
-// FRETE ROUTES — /api/fretes
-// ============================================
-const express = require('express');
 
 module.exports = function (supabase) {
+    const express = require('express');
     const router = express.Router();
 
-    // ─── LISTAR FRETES ──────────────────────────────────────────────────────────
     router.get('/', async (req, res) => {
         try {
             const { data, error } = await supabase
                 .from('controle_frete')
                 .select('*')
                 .order('data_emissao', { ascending: false });
-
             if (error) throw error;
             res.json(data);
         } catch (err) {
@@ -23,18 +18,12 @@ module.exports = function (supabase) {
         }
     });
 
-    // ─── BUSCAR FRETE POR ID ─────────────────────────────────────────────────────
     router.get('/:id', async (req, res) => {
         try {
             const { data, error } = await supabase
-                .from('controle_frete')
-                .select('*')
-                .eq('id', req.params.id)
-                .single();
-
+                .from('controle_frete').select('*').eq('id', req.params.id).single();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Frete não encontrado' });
-
             res.json(data);
         } catch (err) {
             console.error('Erro ao buscar frete:', err.message);
@@ -42,7 +31,6 @@ module.exports = function (supabase) {
         }
     });
 
-    // ─── CRIAR FRETE ─────────────────────────────────────────────────────────────
     router.post('/', async (req, res) => {
         try {
             const {
@@ -53,28 +41,21 @@ module.exports = function (supabase) {
             } = req.body;
 
             if (!numero_nf || !nome_orgao) {
-                return res.status(400).json({ error: 'numero_nf e nome_orgao são obrigatórios' });
+                return res.status(400).json({ error: 'Verifique se todas as informações obrigatórias estão preenchidas' });
             }
 
-            // Calcular status automaticamente
             const tiposSemStatus = ['CANCELADA', 'DEVOLUCAO', 'DEVOLVIDA'];
             let status;
-            if (tiposSemStatus.includes(tipo_nf)) {
-                status = null;
-            } else if (data_entrega) {
-                status = 'ENTREGUE';
-            } else {
-                status = 'EM_TRANSITO';
-            }
+            if (tiposSemStatus.includes(tipo_nf)) status = null;
+            else if (data_entrega) status = 'ENTREGUE';
+            else status = 'EM_TRANSITO';
 
             let obsJson = '[]';
             if (observacoes) {
                 try {
                     obsJson = typeof observacoes === 'string' ? observacoes : JSON.stringify(observacoes);
-                    JSON.parse(obsJson); // valida
-                } catch {
-                    obsJson = '[]';
-                }
+                    JSON.parse(obsJson);
+                } catch { obsJson = '[]'; }
             }
 
             const payload = {
@@ -98,16 +79,10 @@ module.exports = function (supabase) {
             };
 
             const { data, error } = await supabase
-                .from('controle_frete')
-                .insert([payload])
-                .select()
-                .single();
-
+                .from('controle_frete').insert([payload]).select().single();
             if (error) throw error;
 
-            // Sincronizar tabela vendas de forma assíncrona
             sincronizarVendas(supabase, data, 'CONTROLE_FRETE').catch(console.error);
-
             res.status(201).json(data);
         } catch (err) {
             console.error('Erro ao criar frete:', err.message);
@@ -115,7 +90,6 @@ module.exports = function (supabase) {
         }
     });
 
-    // ─── ATUALIZAR FRETE (PUT completo) ─────────────────────────────────────────
     router.put('/:id', async (req, res) => {
         try {
             const {
@@ -125,25 +99,18 @@ module.exports = function (supabase) {
                 data_entrega, observacoes, cotacao
             } = req.body;
 
-            // Calcular status automaticamente
             const tiposSemStatus = ['CANCELADA', 'DEVOLUCAO', 'DEVOLVIDA'];
             let status;
-            if (tiposSemStatus.includes(tipo_nf)) {
-                status = null;
-            } else if (data_entrega) {
-                status = 'ENTREGUE';
-            } else {
-                status = 'EM_TRANSITO';
-            }
+            if (tiposSemStatus.includes(tipo_nf)) status = null;
+            else if (data_entrega) status = 'ENTREGUE';
+            else status = 'EM_TRANSITO';
 
             let obsJson = '[]';
             if (observacoes) {
                 try {
                     obsJson = typeof observacoes === 'string' ? observacoes : JSON.stringify(observacoes);
                     JSON.parse(obsJson);
-                } catch {
-                    obsJson = '[]';
-                }
+                } catch { obsJson = '[]'; }
             }
 
             const payload = {
@@ -168,18 +135,11 @@ module.exports = function (supabase) {
             };
 
             const { data, error } = await supabase
-                .from('controle_frete')
-                .update(payload)
-                .eq('id', req.params.id)
-                .select()
-                .single();
-
+                .from('controle_frete').update(payload).eq('id', req.params.id).select().single();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Frete não encontrado' });
 
-            // Sincronizar tabela vendas de forma assíncrona
             sincronizarVendas(supabase, data, 'CONTROLE_FRETE').catch(console.error);
-
             res.json(data);
         } catch (err) {
             console.error('Erro ao atualizar frete:', err.message);
@@ -187,27 +147,17 @@ module.exports = function (supabase) {
         }
     });
 
-    // ─── PATCH — ATUALIZAÇÃO PARCIAL (ex: status do checkbox) ──────────────────
     router.patch('/:id', async (req, res) => {
         try {
             if (req.body && ('status' in req.body || 'data_entrega' in req.body) && !podeConfirmar(req.user, 'ALMOXARIFADO')) {
                 return res.status(403).json({ error: 'Somente o setor Almoxarifado e administradores podem realizar esta ação' });
             }
             const updates = { ...req.body, updated_at: new Date().toISOString() };
-
             const { data, error } = await supabase
-                .from('controle_frete')
-                .update(updates)
-                .eq('id', req.params.id)
-                .select()
-                .single();
-
+                .from('controle_frete').update(updates).eq('id', req.params.id).select().single();
             if (error) throw error;
             if (!data) return res.status(404).json({ error: 'Frete não encontrado' });
-
-            // Sincronizar tabela vendas de forma assíncrona
             sincronizarVendas(supabase, data, 'CONTROLE_FRETE').catch(console.error);
-
             res.json(data);
         } catch (err) {
             console.error('Erro ao fazer patch no frete:', err.message);
@@ -215,33 +165,16 @@ module.exports = function (supabase) {
         }
     });
 
-    // ─── DELETAR FRETE ───────────────────────────────────────────────────────────
     router.delete('/:id', async (req, res) => {
         try {
-            // Busca o frete antes de deletar para sincronizar vendas
             const { data: freteExistente } = await supabase
-                .from('controle_frete')
-                .select('numero_nf, vendedor')
-                .eq('id', req.params.id)
-                .single();
-
-            const { error } = await supabase
-                .from('controle_frete')
-                .delete()
-                .eq('id', req.params.id);
-
+                .from('controle_frete').select('numero_nf, vendedor').eq('id', req.params.id).single();
+            const { error } = await supabase.from('controle_frete').delete().eq('id', req.params.id);
             if (error) throw error;
-
-            // Remover da tabela vendas de forma assíncrona
             if (freteExistente) {
-                supabase
-                    .from('vendas')
-                    .delete()
-                    .eq('id_controle_frete', req.params.id)
-                    .then(() => {})
-                    .catch(console.error);
+                supabase.from('vendas').delete().eq('id_controle_frete', req.params.id)
+                    .then(() => {}).catch(console.error);
             }
-
             res.json({ success: true, message: 'Frete excluído com sucesso' });
         } catch (err) {
             console.error('Erro ao deletar frete:', err.message);
@@ -255,8 +188,6 @@ module.exports = function (supabase) {
 // ─── SINCRONIZAÇÃO COM TABELA VENDAS ────────────────────────────────────────
 async function sincronizarVendas(supabase, frete, origem) {
     if (!frete || !frete.numero_nf || !frete.vendedor) return;
-
-    // Mapear status do frete para status de pagamento/frete na tabela vendas
     const statusFreteMap = {
         'EM_TRANSITO': 'EM TRÂNSITO',
         'ENTREGUE': 'ENTREGUE',
@@ -264,9 +195,7 @@ async function sincronizarVendas(supabase, frete, origem) {
         'EXTRAVIADO': 'EXTRAVIADO',
         'DEVOLVIDO': 'DEVOLVIDO'
     };
-
     const statusFrete = statusFreteMap[frete.status] || frete.status || null;
-
     const tipoNfMap = {
         'ENVIO': 'ENVIO',
         'CANCELADA': 'CANCELADA',
@@ -276,7 +205,6 @@ async function sincronizarVendas(supabase, frete, origem) {
         'DEVOLVIDA': 'DEVOLVIDA'
     };
     const tipoNf = tipoNfMap[frete.tipo_nf] || frete.tipo_nf || null;
-
     const payload = {
         numero_nf: frete.numero_nf,
         origem: 'CONTROLE_FRETE',
@@ -296,22 +224,11 @@ async function sincronizarVendas(supabase, frete, origem) {
         id_controle_frete: frete.id,
         updated_at: new Date().toISOString()
     };
-
-    // Verifica se já existe na tabela vendas por id_controle_frete
     const { data: existente } = await supabase
-        .from('vendas')
-        .select('id')
-        .eq('id_controle_frete', frete.id)
-        .single();
-
+        .from('vendas').select('id').eq('id_controle_frete', frete.id).single();
     if (existente) {
-        await supabase
-            .from('vendas')
-            .update(payload)
-            .eq('id_controle_frete', frete.id);
+        await supabase.from('vendas').update(payload).eq('id_controle_frete', frete.id);
     } else {
-        await supabase
-            .from('vendas')
-            .insert([{ ...payload, prioridade: 1 }]);
+        await supabase.from('vendas').insert([{ ...payload, prioridade: 1 }]);
     }
 }
