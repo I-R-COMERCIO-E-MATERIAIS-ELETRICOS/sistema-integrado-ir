@@ -48,6 +48,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
 
+    // Sinaliza ao iframe qual é o token atual (módulos podem aguardar via postMessage)
+    try { IR.setToken(accessToken); } catch (_) {}
+
     try {
         const res = await fetch('/api/portal/modules', {
             headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -64,15 +67,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInfo = data.user;
         modules = data.modules || [];
 
-        // Monta sidebar e escreve a saudação
         renderSidebar();
         escreverSaudacao();
 
-        // Revela o dashboard com fade
-        const dash = document.getElementById('dashboard');
-        requestAnimationFrame(() => dash.classList.add('ready'));
+        // Dashboard entra com fade mais suave e levemente mais tarde,
+        // deixando a saudação respirar.
+        setTimeout(() => {
+            const dash = document.getElementById('dashboard');
+            if (dash) requestAnimationFrame(() => dash.classList.add('ready'));
+        }, 900);
 
-        // Abre o primeiro módulo permitido (sai escondido atrás da saudação)
+        // Abre o primeiro módulo permitido (oculto atrás da saudação)
         const primeiro = modules.find(m => m.allowed);
         if (primeiro) {
             openModule(primeiro);
@@ -98,7 +103,8 @@ function esconderSaudacao() {
     const el = document.getElementById('greetingOverlay');
     if (el && !el.classList.contains('hide')) {
         el.classList.add('hide');
-        setTimeout(() => el.remove(), 500);
+        // Sai suave e levemente mais demorado
+        setTimeout(() => el.remove(), 1200);
     }
     clearTimeout(greetingTimeout);
 }
@@ -114,10 +120,9 @@ function agendarAvisoExpediente() {
         const now = new Date();
         const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
         const dow = br.getDay();
-        if (dow === 0 || dow === 6) return;
+        if (dow === 0 || dow === 6) { encerrarSilenciosamente(); return; }
 
         const mins = br.getHours() * 60 + br.getMinutes();
-        if (dow === 0 || dow === 6) { encerrarSilenciosamente(); return; }
         const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;
         const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;
 
@@ -129,9 +134,7 @@ function agendarAvisoExpediente() {
             document.body.appendChild(el);
         }
 
-        if (mins >= fim) {
-            encerrarSilenciosamente();
-        }
+        if (mins >= fim) encerrarSilenciosamente();
     };
     tick();
     setInterval(tick, 30000);
@@ -162,11 +165,8 @@ function renderSidebar() {
             <span class="module-icon">${MODULE_ICONS[m.id] || ''}</span>
             <span class="module-label">${m.name}</span>
         `;
-        if (m.allowed) {
-            el.addEventListener('click', () => openModule(m));
-        } else {
-            el.disabled = true;
-        }
+        if (m.allowed) el.addEventListener('click', () => openModule(m));
+        else el.disabled = true;
         nav.appendChild(el);
     });
 }
@@ -195,7 +195,6 @@ function openModule(mod) {
         iframe.src = `${mod.url}?sessionToken=${encodeURIComponent(accessToken)}`;
         iframe.title = mod.name;
         iframe.addEventListener('load', () => {
-            // Fallback curto: 1.8s após o load do iframe
             clearTimeout(loaderTimeouts[mod.id]);
             loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 1800);
         });
@@ -214,32 +213,23 @@ function esconderLoader(moduleId) {
         loader.classList.add('done');
         setTimeout(() => loader.remove(), 350);
     }
-    // Primeira carga: some também com a saudação
-    if (document.getElementById('greetingOverlay')) {
-        esconderSaudacao();
-    }
+    if (document.getElementById('greetingOverlay')) esconderSaudacao();
 }
 
 window.addEventListener('message', (event) => {
     const data = event.data || {};
 
-    if (data.type === 'ir-session-expired') {
+    if (data.type === 'ir-session-expired' || data.type === 'ir-access-denied') {
         sessionStorage.removeItem('irToken');
         sessionStorage.removeItem('irUser');
-        sessionStorage.removeItem('pedidosSession');
         window.location.href = '/';
         return;
     }
 
     if (data.type === 'ir-module-denied') {
-        // O módulo nunca exibe "acesso negado" dentro do iframe.
-        // Retornamos ao portal, que recalcula as permissões e mostra o estado correto.
         const token = sessionStorage.getItem('irToken');
-        if (token) {
-            window.location.href = `/portal?access_token=${encodeURIComponent(token)}`;
-        } else {
-            window.location.href = '/';
-        }
+        if (token) window.location.href = `/portal?access_token=${encodeURIComponent(token)}`;
+        else window.location.href = '/';
         return;
     }
 
