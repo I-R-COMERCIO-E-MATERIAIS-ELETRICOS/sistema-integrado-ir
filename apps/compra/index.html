@@ -6,30 +6,12 @@
     <title>Ordem de Compra</title>
     <link rel="icon" type="image/png" href="/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="/compra/styles.css">
+    <link rel="stylesheet" href="/shared/ui-refined.css">
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script>
         const PORTAL_URL = window.location.origin;
         const DEVELOPMENT_MODE = false;
     </script>
-<style>
-/* Ajustes transversais: desktop, modais e conteúdo sem cortes */
-:root { --primary: #ff521d; --warning-color: #ff521d; --btn-view: #ff521d; }
-html, body { width:100%; min-width:0; max-width:100%; }
-body { overflow-x:auto; }
-.container, .app-content, main, .main-content { max-width:100%; }
-.modal-overlay { padding:clamp(10px, 2vw, 28px); }
-.modal-content { max-width:min(96vw, 1100px); max-height:92vh; overflow:auto; }
-.modal-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
-.modal-actions button.danger, .modal-actions button.cancel-close, .modal-actions button.cancel, .modal-actions button[onclick*="closeFormModal"], .modal-actions button[onclick*="closeModal"] { background:#dc2626 !important; color:#fff !important; }
-.modal-actions button.success, .modal-actions button[onclick*="confirmDelete"], .modal-actions button[onclick*="confirmLogout"] { background:#16a34a !important; color:#fff !important; }
-input[readonly], textarea[readonly], select:disabled { cursor:not-allowed !important; }
-.form-grid > .form-group, .form-row > .form-group { min-width:0; }
-input, select, textarea { max-width:100%; }
-table { max-width:100%; }
-.table-container, .table-wrapper, .table-responsive { max-width:100%; overflow-x:auto; }
-#unsupportedDevice { display:none; }
-@media (max-width: 767px) { body > *:not(#unsupportedDevice) { display:none !important; } #unsupportedDevice { position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:28px; background:#fff; color:#111827; text-align:center; font:600 18px/1.5 system-ui,sans-serif; } }
-</style>
 </head>
 <body>
     <div class="app-content">
@@ -46,11 +28,9 @@ table { max-width:100%; }
                         </svg>
                         Nova Ordem
                     </button>
-
                 </div>
             </div>
 
-            <!-- Dashboard Cards -->
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-icon stat-icon-default">
@@ -104,7 +84,6 @@ table { max-width:100%; }
                 </div>
             </div>
 
-            <!-- Search Bar with Filters -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,7 +91,7 @@ table { max-width:100%; }
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
                     <input type="text" id="search" placeholder="Pesquisar" oninput="filterOrdens()">
-                    
+
                     <div class="search-bar-filters">
                         <div class="filter-dropdown-inline">
                             <select id="filterResponsavel" onchange="filterOrdens()">
@@ -149,8 +128,13 @@ table { max-width:100%; }
                         </div>
                     </div>
 
-                    <button class="sync-btn" onclick="abrirModalDuplicar()" title="Duplicar ordem" aria-label="Duplicar ordem"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>
-                    <button class="sync-btn" onclick="syncData()" title="Sincronizar">
+                    <button class="sync-btn" onclick="abrirModalDuplicar()" title="Duplicar ordem" aria-label="Duplicar ordem">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="8" y="8" width="13" height="13" rx="2"/>
+                            <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    </button>
+                    <button class="sync-btn" id="btnSync" onclick="syncData()" title="Sincronizar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -159,7 +143,6 @@ table { max-width:100%; }
                 </div>
             </div>
 
-            <!-- Table Card -->
             <div class="card table-card">
                 <div style="overflow-x: auto;">
                     <table>
@@ -204,14 +187,15 @@ table { max-width:100%; }
                 <div class="tab-content" id="info-tab-pagamento"></div>
             </div>
             <div class="modal-actions">
-                <button type="button" id="btnInfoPrevious" onclick="previousInfoTab()" class="secondary" style="display: none;">Anterior</button>
-                <button type="button" id="btnInfoNext" onclick="nextInfoTab()" class="secondary">Próximo</button>
-                <button type="button" id="btnInfoClose" onclick="closeInfoModal()" class="secondary">Fechar</button>
+                <button type="button" id="btnInfoPrevious" onclick="previousInfoTab()" class="secondary tab-prev" style="display: none;">Anterior</button>
+                <button type="button" id="btnInfoNext" onclick="nextInfoTab()" class="secondary tab-next">Próximo</button>
+                <button type="button" id="btnInfoClose" onclick="closeInfoModal()" class="cancel-close">Fechar</button>
             </div>
         </div>
     </div>
 
+    <script src="/shared/ir-common.js"></script>
     <script src="/compra/script.js"></script>
-<div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
+    <div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
 </body>
 </html>
