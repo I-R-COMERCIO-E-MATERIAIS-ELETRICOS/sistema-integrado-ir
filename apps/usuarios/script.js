@@ -11,14 +11,17 @@ let state = {
     editingId: null,
     selectedModules: [],
     userActive: true,
-    adminMode: false
+    adminMode: false,
+    currentTab: 0
 };
 let accessToken = null;
 let deleteTargetId = null;
 
+const TABS = ['info', 'modules', 'credentials'];
+
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
-    const fromUrl = p.get('access_token');
+    const fromUrl = p.get('access_token') || p.get('sessionToken');
     if (fromUrl) {
         sessionStorage.setItem('irToken', fromUrl);
         window.history.replaceState({}, '', window.location.pathname);
@@ -36,6 +39,7 @@ function getHeaders() {
 }
 
 function showDenied(msg) {
+    if (window.IR && IR.denied) return IR.denied(msg || 'ACESSO NEGADO');
     document.body.innerHTML = `
         <div class="access-denied">
             <h1>${msg || 'ACESSO NEGADO'}</h1>
@@ -47,6 +51,7 @@ function showDenied(msg) {
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { showDenied('SESSÃO EXPIRADA'); return; }
+    if (window.IR) IR.setToken(accessToken);
     await carregarModulos();
     await carregarEmployees();
     await carregarUsuarios();
@@ -154,10 +159,11 @@ function abrirModalUsuario(editId) {
     state.editingId = editId || null;
     const u = editId ? state.users.find(x => x.id === editId) : null;
     state.adminMode = u?.is_admin === true;
+    state.currentTab = 0;
 
     document.getElementById('userModalTitle').textContent = editId ? 'Editar Usuário' : 'Novo Usuário';
     document.getElementById('modalName').value = u?.name || '';
-    document.getElementById('modalSector').value = u?.sector || 'Operacional';
+    document.getElementById('modalSector').value = u?.sector || 'Almoxarifado';
     document.getElementById('modalContactEmail').value = u?.contact_email || '';
     document.getElementById('modalContactPhone').value = u?.contact_phone || '';
     document.getElementById('modalUsername').value = u?.username || '';
@@ -184,13 +190,27 @@ window.fecharModalUsuario = function (cancelado) {
 };
 
 window.mostrarTab = function (tab) {
+    state.currentTab = TABS.indexOf(tab);
     document.querySelectorAll('#userModal .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
     });
     document.querySelectorAll('#userModal .tab-content').forEach(c => {
         c.classList.toggle('active', c.dataset.pane === tab);
     });
+    atualizarNavegacaoAbas();
 };
+
+window.navegarTab = function (dir) {
+    const novo = Math.max(0, Math.min(TABS.length - 1, state.currentTab + dir));
+    if (novo !== state.currentTab) mostrarTab(TABS[novo]);
+};
+
+function atualizarNavegacaoAbas() {
+    const btnPrev = document.getElementById('btnTabPrev');
+    const btnNext = document.getElementById('btnTabNext');
+    if (btnPrev) btnPrev.style.display = state.currentTab === 0 ? 'none' : 'inline-flex';
+    if (btnNext) btnNext.style.display = state.currentTab === TABS.length - 1 ? 'none' : 'inline-flex';
+}
 
 window.toggleStatusUsuario = function () {
     if (state.adminMode) return;
@@ -203,12 +223,10 @@ function atualizarCardStatus() {
     const text = document.getElementById('statusCardText');
     if (!card) return;
     if (state.userActive) {
-        card.classList.remove('inactive');
-        card.classList.add('active');
+        card.classList.remove('inactive'); card.classList.add('active');
         text.textContent = 'Selecione para desativar';
     } else {
-        card.classList.remove('active');
-        card.classList.add('inactive');
+        card.classList.remove('active'); card.classList.add('inactive');
         text.textContent = 'Selecione para ativar';
     }
     card.classList.toggle('disabled', state.adminMode);
@@ -223,10 +241,7 @@ function renderModulosDashboard() {
         el.className = 'dashboard-card module-card' + (selected ? ' selected' : '');
         el.dataset.moduleId = m.id;
         el.textContent = m.name;
-        el.onclick = () => {
-            if (state.adminMode) return;
-            toggleModulo(m.id);
-        };
+        el.onclick = () => { if (state.adminMode) return; toggleModulo(m.id); };
         wrap.appendChild(el);
     });
 }
@@ -269,9 +284,12 @@ window.handleSubmit = async function (e) {
     const username = document.getElementById('modalUsername').value.trim();
     const password = document.getElementById('modalPassword').value;
 
-    if (!name || !sector) { showToast('Verifique se todas as informações obrigatórias estão preenchidas', 'error'); return; }
+    if (!name || !sector) {
+        showToast(window.IR?.ERRO_CAMPOS_OBRIGATORIOS || 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        return;
+    }
     if (!state.editingId && (!username || !password)) {
-        showToast('Usuário e senha obrigatórios', 'error');
+        showToast(window.IR?.ERRO_CAMPOS_OBRIGATORIOS || 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
         return;
     }
 
