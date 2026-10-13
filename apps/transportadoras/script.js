@@ -35,9 +35,11 @@ async function verificarAutenticacao() {
     }
 
     if (!sessionToken) {
-        mostrarTelaAcessoNegado();
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
         return;
     }
+
+    if (window.IR) IR.setToken(sessionToken);
 
     try {
         const verifyRes = await fetch(`${PORTAL_URL}/api/verify-session`, {
@@ -51,7 +53,7 @@ async function verificarAutenticacao() {
                 currentUser = sessionData.session;
                 sessionStorage.setItem('transpUserData', JSON.stringify(currentUser));
             } else {
-                mostrarTelaAcessoNegado('Sua sessão expirou');
+                if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
                 return;
             }
         }
@@ -66,10 +68,10 @@ async function verificarAutenticacao() {
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
     document.body.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
+        <div class="access-denied">
+            <h1>${mensagem}</h1>
+            <p>Somente usuários autenticados podem acessar esta área.</p>
+            <a href="${PORTAL_URL}">Ir para o Portal</a>
         </div>
     `;
 }
@@ -80,6 +82,7 @@ function inicializarApp() {
 }
 
 function showMessage(message, type = 'success') {
+    if (window.IR && IR.toast) return IR.toast(message, type);
     const div = document.createElement('div');
     div.className = `floating-message ${type}`;
     div.textContent = message;
@@ -90,9 +93,7 @@ function showMessage(message, type = 'success') {
     }, 2000);
 }
 
-// ============================================
-// CARREGAR TRANSPORTADORAS
-// ============================================
+// ─── CARREGAR ────────────────────────────────────────────────────────────────
 async function loadTransportadoras() {
     try {
         const response = await fetch(`${API_URL}/transportadoras`, {
@@ -101,7 +102,7 @@ async function loadTransportadoras() {
         });
         if (response.status === 401) {
             sessionStorage.removeItem('transpSession');
-            mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
             return;
         }
         if (!response.ok) return;
@@ -112,9 +113,7 @@ async function loadTransportadoras() {
     }
 }
 
-// ============================================
-// FILTRO E TABELA
-// ============================================
+// ─── FILTRO E TABELA ─────────────────────────────────────────────────────────
 function filterTransportadoras() {
     renderTable();
 }
@@ -148,8 +147,8 @@ function renderTable() {
             <td>${escapeHtml(t.email)}</td>
             <td class="actions-cell">
                 <div class="actions">
-                    <button onclick="editTransportadora('${t.id}')" class="action-btn edit" style="background:#6B7280;">Editar</button>
-                    <button onclick="deleteTransportadora('${t.id}', '${escapeHtml(t.nome).replace(/'/g, "\\'")}')" class="action-btn delete" style="background:#EF4444;">Excluir</button>
+                    <button onclick="editTransportadora('${t.id}')" class="action-btn edit">Editar</button>
+                    <button onclick="deleteTransportadora('${t.id}')" class="action-btn delete">Excluir</button>
                 </div>
             </td>
         </tr>
@@ -157,18 +156,12 @@ function renderTable() {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+    return String(str || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
 
-// ============================================
-// MODAL DE FORMULÁRIO (COM NAVEGAÇÃO)
-// ============================================
+// ─── NAVEGAÇÃO DE ABAS ───────────────────────────────────────────────────────
 function switchTab(tabId) {
     const index = tabs.indexOf(tabId);
     if (index !== -1) currentTab = index;
@@ -182,30 +175,25 @@ function switchTab(tabId) {
 }
 
 function nextTab() {
-    if (currentTab < tabs.length - 1) {
-        switchTab(tabs[currentTab + 1]);
-    }
+    if (currentTab < tabs.length - 1) switchTab(tabs[currentTab + 1]);
 }
 
 function previousTab() {
-    if (currentTab > 0) {
-        switchTab(tabs[currentTab - 1]);
-    }
+    if (currentTab > 0) switchTab(tabs[currentTab - 1]);
 }
 
 function updateNavButtons() {
     const btnPrev = document.getElementById('btnPrevious');
     const btnNext = document.getElementById('btnNext');
-    const btnSave = document.getElementById('btnSave');
     if (btnPrev) btnPrev.style.display = currentTab === 0 ? 'none' : 'inline-flex';
     if (btnNext) btnNext.style.display = currentTab === tabs.length - 1 ? 'none' : 'inline-flex';
-    if (btnSave) btnSave.style.display = 'inline-flex';
 }
 
+// ─── FORM ────────────────────────────────────────────────────────────────────
 function openFormModal() {
     editingId = null;
     document.getElementById('formTitle').textContent = 'Nova Transportadora';
-    document.getElementById('btnSave').textContent = 'Salvar';  // texto "Salvar" para nova
+    document.getElementById('btnSave').textContent = 'Salvar';
     resetForm();
     currentTab = 0;
     switchTab('tab-geral');
@@ -241,9 +229,7 @@ function renderRegioesSelectors(selected) {
         btn.textContent = reg;
         btn.className = 'chip-selector';
         if (selected.includes(reg)) btn.classList.add('selected');
-        btn.onclick = () => {
-            btn.classList.toggle('selected');
-        };
+        btn.onclick = () => btn.classList.toggle('selected');
         container.appendChild(btn);
     });
 }
@@ -258,9 +244,7 @@ function renderEstadosSelectors(selected) {
         btn.textContent = uf;
         btn.className = 'chip-selector';
         if (selected.includes(uf)) btn.classList.add('selected');
-        btn.onclick = () => {
-            btn.classList.toggle('selected');
-        };
+        btn.onclick = () => btn.classList.toggle('selected');
         container.appendChild(btn);
     });
 }
@@ -280,7 +264,7 @@ function editTransportadora(id) {
     if (!t) return;
     editingId = id;
     document.getElementById('formTitle').textContent = `Editar: ${t.nome}`;
-    document.getElementById('btnSave').textContent = 'Atualizar';  // texto "Atualizar" para edição
+    document.getElementById('btnSave').textContent = 'Atualizar';
     document.getElementById('nome').value = t.nome || '';
     document.getElementById('representante').value = t.representante || '';
     document.getElementById('email').value = t.email || '';
@@ -304,7 +288,7 @@ async function saveTransportadora() {
     const email = document.getElementById('email').value.trim();
 
     if (!nome || !email) {
-        showMessage('Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        showMessage(window.IR ? IR.ERRO_CAMPOS_OBRIGATORIOS : 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
         return;
     }
 
@@ -341,19 +325,15 @@ async function saveTransportadora() {
     }
 }
 
-// ============================================
-// EXCLUSÃO COM MODAL PERSONALIZADO
-// ============================================
-function deleteTransportadora(id, nome) {
+// ─── EXCLUSÃO ────────────────────────────────────────────────────────────────
+function deleteTransportadora(id) {
     pendingDeleteId = id;
+    const t = transportadoras.find(x => x.id === id);
+    const nome = t ? escapeHtml(t.nome) : 'esta transportadora';
     document.getElementById('deleteModalMessage').textContent = `Tem certeza que deseja excluir a transportadora "${nome}"?`;
     document.getElementById('deleteModal').classList.add('show');
-    // Configurar classes
-    const confirmBtn = document.getElementById('confirmDeleteBtn');
-    confirmBtn.className = 'danger';   // vermelho
-    const cancelBtn = document.querySelector('#deleteModal .modal-actions-no-border button:last-child');
-    if (cancelBtn) cancelBtn.className = 'success'; // verde
 
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
     const newBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
     newBtn.onclick = confirmDelete;
@@ -366,14 +346,15 @@ function closeDeleteModal() {
 
 async function confirmDelete() {
     if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    const nome = transportadoras.find(t => t.id === id)?.nome || 'Transportadora';
     try {
-        const response = await fetch(`${API_URL}/transportadoras/${pendingDeleteId}`, {
+        const response = await fetch(`${API_URL}/transportadoras/${id}`, {
             method: 'DELETE',
             headers: { 'X-Session-Token': sessionToken }
         });
         if (!response.ok) throw new Error('Erro ao excluir');
         await loadTransportadoras();
-        const nome = transportadoras.find(t => t.id === pendingDeleteId)?.nome || 'Transportadora';
         showMessage(`${nome} excluída`, 'error');
         closeDeleteModal();
     } catch (e) {
