@@ -12,142 +12,76 @@ let lastDataHash = '';
 let sessionToken = null;
 let podeMarcarFrete = false;
 let currentMonth = new Date();
-const meses = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
+const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-const mesesAbrev = ['JAN', 'FEB', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-
-console.log('✅ Controle de Frete iniciado');
-console.log('📍 API URL:', API_URL);
-console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
-
-// ============================================
-// INICIALIZAÇÃO
-// ============================================
 document.addEventListener('DOMContentLoaded', () => {
     if (DEVELOPMENT_MODE) {
-        console.log('<svg aria-label="Alerta" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20h15.6a2 2 0 0 0 1.7-2.6L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/></svg> MODO DESENVOLVIMENTO ATIVADO');
         sessionToken = 'dev-mode';
         inicializarApp();
     } else {
         verificarAutenticacao();
     }
-    
     setTimeout(setupEventDelegation, 100);
 });
 
-// ============================================
-// EVENT DELEGATION PARA BOTÕES
-// ============================================
 function setupEventDelegation() {
-    console.log('🔧 Configurando Event Delegation...');
-    
-    document.body.addEventListener('change', function(e) {
+    document.body.addEventListener('change', function (e) {
         if (e.target.type === 'checkbox' && e.target.classList.contains('styled-checkbox')) {
             const row = e.target.closest('tr[data-id]');
-            if (!podeMarcarFrete) { e.target.checked = !e.target.checked; showToast('Somente Almoxarifado e administradores podem alterar', 'error'); return; }
+            if (!podeMarcarFrete) {
+                e.target.checked = !e.target.checked;
+                showToast('Somente Almoxarifado e administradores podem alterar', 'error');
+                return;
+            }
             if (row) {
                 const id = row.getAttribute('data-id');
-                console.log('☑️ Checkbox alterado via delegation - ID:', id);
                 window.handleCheckboxChange(id);
             }
         }
     });
-    
-    console.log('✅ Event Delegation configurado');
 }
 
-// ============================================
-// HANDLERS DE EVENTOS (EXPOSTOS GLOBALMENTE)
-// ============================================
-window.handleViewClick = function(id) {
-    console.log('👁️ Visualizar frete:', id);
+window.handleViewClick = function (id) {
     const frete = fretes.find(f => String(f.id) === String(id));
-    if (!frete) {
-        showToast('Frete não encontrado!', 'error');
-        return;
-    }
+    if (!frete) { showToast('Frete não encontrado!', 'error'); return; }
     mostrarModalVisualizacao(frete, 0);
 };
 
-window.handleViewObsClick = function(id) {
-    console.log('👁️ Visualizar observações do frete:', id);
+window.handleViewObsClick = function (id) {
     const frete = fretes.find(f => String(f.id) === String(id));
-    if (!frete) {
-        showToast('Frete não encontrado!', 'error');
-        return;
-    }
+    if (!frete) { showToast('Frete não encontrado!', 'error'); return; }
     mostrarModalVisualizacao(frete, 3);
 };
 
-window.handleEditClick = function(id) {
-    console.log('✏️ Editar frete:', id);
+window.handleEditClick = function (id) {
     const frete = fretes.find(f => String(f.id) === String(id));
-    if (!frete) {
-        showToast('Frete não encontrado!', 'error');
-        return;
-    }
+    if (!frete) { showToast('Frete não encontrado!', 'error'); return; }
     showFormModal(String(id));
 };
 
-window.handleDeleteClick = async function(id) {
+window.handleDeleteClick = async function (id) {
     try {
-        console.log('🗑️ Tentando excluir frete:', id);
         const idStr = String(id);
         const freteToDelete = fretes.find(f => String(f.id) === idStr);
-        if (!freteToDelete) {
-            console.error('❌ Frete não encontrado:', id);
-            showToast('Frete não encontrado!', 'error');
-            return;
-        }
+        if (!freteToDelete) { showToast('Frete não encontrado!', 'error'); return; }
         const numeroNF = freteToDelete.numero_nf || 'sem número';
-        console.log('📋 Frete encontrado - NF:', numeroNF);
-        
-        if (typeof window.showConfirm !== 'function') {
-            console.error('❌ showConfirm não está definido!');
-            const confirmar = confirm(`Tem certeza que deseja excluir esta NF?`);
-            if (!confirmar) return;
-        } else {
-            console.log('✅ Abrindo modal de confirmação...');
-            const confirmar = await window.showConfirm(
-                `Tem certeza que deseja excluir esta NF?`,
-                {
-                    title: 'Confirmar Exclusão',
-                    confirmText: 'Sim',
-                    cancelText: 'Cancelar',
-                    type: 'danger'
-                }
-            );
-            if (!confirmar) {
-                console.log('❌ Exclusão cancelada pelo usuário');
-                return;
-            }
-        }
-        
-        console.log('✅ Usuário confirmou exclusão');
-        console.log('🗑️ Deletando NF:', numeroNF);
-        
+
+        const confirmar = await showConfirm(`Tem certeza que deseja excluir a NF ${numeroNF}?`);
+        if (!confirmar) return;
+
         fretes = fretes.filter(f => String(f.id) !== idStr);
         updateAllFilters();
         updateDashboard();
         filterFretes();
-        showToast(`NF ${numeroNF} Excluído`, 'error');
-        
+        showToast(`NF ${numeroNF} excluída`, 'error');
+
         if (isOnline || DEVELOPMENT_MODE) {
             fetch(`${API_URL}/fretes/${idStr}`, {
                 method: 'DELETE',
-                headers: {
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                },
+                headers: { 'X-Session-Token': sessionToken, 'Accept': 'application/json' },
                 mode: 'cors'
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Erro ao deletar no servidor');
-                console.log('✅ Deletado no servidor com sucesso');
-            })
+            .then(response => { if (!response.ok) throw new Error('Erro ao deletar no servidor'); })
             .catch(error => {
                 console.error('❌ Erro ao deletar no servidor:', error);
                 if (freteToDelete) {
@@ -165,105 +99,68 @@ window.handleDeleteClick = async function(id) {
     }
 };
 
-window.handleRowClick = function(event, id) {
-    if (event.target.closest('.checkbox-wrapper') || 
-        event.target.closest('.action-btn') ||
-        event.target.tagName === 'INPUT' ||
-        event.target.tagName === 'LABEL') {
-        return;
-    }
+window.handleRowClick = function (event, id) {
+    if (event.target.closest('.checkbox-wrapper') || event.target.closest('.action-btn') ||
+        event.target.tagName === 'INPUT' || event.target.tagName === 'LABEL') return;
     window.handleViewClick(id);
 };
 
-// ============================================
-// MODAL DE DATA DE ENTREGA (com número da NF)
-// ============================================
+// ─── MODAL DE DATA DE ENTREGA ────────────────────────────────────────────────
 function showDatePickerModal(numero_nf, defaultDate = null) {
     return new Promise((resolve) => {
         const today = new Date().toISOString().split('T')[0];
         const value = defaultDate || today;
         const displayNF = numero_nf || 'sem número';
-
         const modalHTML = `
             <div class="modal-overlay" id="datePickerModal" style="display: flex; z-index: 10002;">
-                <div class="modal-content confirm-modal-content" style="max-width: 420px;">
-                    <button class="close-modal" id="datePickerClose">✕</button>
-                    <div style="padding: 1.5rem 0.25rem 0.5rem; text-align: center;">
-                        <p style="font-size: 1.05rem; margin-bottom: 1rem; font-weight: 600;">
-                            Informe a data de entrega para a NF ${displayNF}
-                        </p>
-                        <input type="date" id="datePickerInput" value="${value}" style="text-align: center; font-size: 1.1rem; padding: 10px; width: 100%; max-width: 220px;">
-                    </div>
-                    <div class="modal-actions modal-actions-no-border" style="justify-content: center;">
-                        <button type="button" id="datePickerConfirm" style="background: #22C55E; min-width: 140px;">Confirmar</button>
-                        <button type="button" id="datePickerCancel" class="danger" style="min-width: 100px;">Cancelar</button>
+                <div class="modal-content ir-modal-confirm" style="max-width: 460px;">
+                    <button class="close-modal ir-close" id="datePickerClose">✕</button>
+                    <p style="font-size:1.05rem;margin-bottom:1rem;font-weight:600;">Informe a data de entrega para a NF ${displayNF}</p>
+                    <input type="date" id="datePickerInput" value="${value}" style="text-align:center;font-size:1.1rem;padding:10px;width:100%;max-width:220px;margin:0 auto;">
+                    <div class="ir-confirm-actions" style="margin-top:1.5rem;">
+                        <button type="button" id="datePickerConfirm" class="ir-btn-green">Confirmar</button>
+                        <button type="button" id="datePickerCancel" class="ir-btn-red">Cancelar</button>
                     </div>
                 </div>
-            </div>
-        `;
-
+            </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         const modal = document.getElementById('datePickerModal');
         const input = document.getElementById('datePickerInput');
         const confirmBtn = document.getElementById('datePickerConfirm');
         const cancelBtn = document.getElementById('datePickerCancel');
         const closeBtn = document.getElementById('datePickerClose');
-
         const closeModal = (result) => {
-            if (modal) {
-                modal.style.animation = 'fadeOut 0.2s ease forwards';
-                setTimeout(() => { modal.remove(); resolve(result); }, 200);
-            } else {
-                resolve(result);
-            }
+            if (modal) { modal.style.animation = 'fadeOut 0.2s ease forwards'; setTimeout(() => { modal.remove(); resolve(result); }, 200); }
+            else resolve(result);
         };
-
         confirmBtn.addEventListener('click', () => {
             const date = input.value;
-            if (!date) {
-                showToast('Selecione uma data válida', 'error');
-                return;
-            }
+            if (!date) { showToast('Selecione uma data válida', 'error'); return; }
             closeModal(date);
         });
-
         cancelBtn.addEventListener('click', () => closeModal(null));
         closeBtn.addEventListener('click', () => closeModal(null));
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal(null);
-        });
-
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(null); });
         input.focus();
     });
 }
 
-// ============================================
-// HANDLE CHECKBOX (com modal de data)
-// ============================================
-window.handleCheckboxChange = async function(id) {
-    console.log('☑️ Checkbox alterado:', id);
+// ─── CHECKBOX ────────────────────────────────────────────────────────────────
+window.handleCheckboxChange = async function (id) {
     const idStr = String(id);
     const frete = fretes.find(f => String(f.id) === idStr);
     if (!frete) return;
-    
     const tiposPermitidos = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
     const tipoNf = frete.tipo_nf || 'ENVIO';
     if (!tiposPermitidos.includes(tipoNf)) return;
-    
-    // Se o status atual é ENTREGUE, queremos desmarcar (reverter)
+
     if (frete.status === 'ENTREGUE') {
-        // Reverter para EM_TRANSITO sem modal
         const updateData = { status: 'EM_TRANSITO', data_entrega: null };
-        
         if (isOnline || DEVELOPMENT_MODE) {
             try {
                 const response = await fetch(`${API_URL}/fretes/${idStr}`, {
                     method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-Token': sessionToken,
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken, 'Accept': 'application/json' },
                     body: JSON.stringify(updateData),
                     mode: 'cors'
                 });
@@ -279,36 +176,27 @@ window.handleCheckboxChange = async function(id) {
             } catch (error) {
                 console.error('❌ Erro ao atualizar status:', error);
                 showToast('Erro ao atualizar status', 'error');
-                // Reverter checkbox visualmente
                 const cb = document.getElementById(`check-${idStr}`);
                 if (cb) cb.checked = true;
             }
         }
         return;
     }
-    
-    // Caso contrário, está marcando como ENTREGUE -> abrir modal para data
+
     const dataEscolhida = await showDatePickerModal(frete.numero_nf, frete.data_entrega || undefined);
     if (dataEscolhida === null) {
-        // Usuário cancelou: desmarcar o checkbox
         const cb = document.getElementById(`check-${idStr}`);
         if (cb) cb.checked = false;
         showToast('Confirmação de entrega revogada', 'error');
         return;
     }
-    
-    // Atualizar com a data escolhida
+
     const updateData = { status: 'ENTREGUE', data_entrega: dataEscolhida };
-    
     if (isOnline || DEVELOPMENT_MODE) {
         try {
             const response = await fetch(`${API_URL}/fretes/${idStr}`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken, 'Accept': 'application/json' },
                 body: JSON.stringify(updateData),
                 mode: 'cors'
             });
@@ -324,45 +212,24 @@ window.handleCheckboxChange = async function(id) {
         } catch (error) {
             console.error('❌ Erro ao atualizar status:', error);
             showToast('Erro ao atualizar status', 'error');
-            // Reverter checkbox
             const cb = document.getElementById(`check-${idStr}`);
             if (cb) cb.checked = false;
         }
     }
 };
 
-// ============================================
-// MODAL DE VISUALIZAÇÃO (com suporte a aba ativa)
-// ============================================
+// ─── VISUALIZAÇÃO ────────────────────────────────────────────────────────────
 function mostrarModalVisualizacao(frete, activeTabIndex = 0) {
     let observacoesArray = [];
     if (frete.observacoes) {
         try {
-            observacoesArray = typeof frete.observacoes === 'string' 
-                ? JSON.parse(frete.observacoes) 
-                : frete.observacoes;
-        } catch (e) {
-            console.error('Erro ao parsear observações:', e);
-        }
+            observacoesArray = typeof frete.observacoes === 'string' ? JSON.parse(frete.observacoes) : frete.observacoes;
+        } catch (e) {}
     }
-
-    const observacoesHTML = observacoesArray.length > 0 
-        ? observacoesArray.map(obs => `
-            <div class="observacao-item-view">
-                <div class="observacao-header">
-                    <div class="observacao-info">
-                        <span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span>
-                    </div>
-                </div>
-                <p class="observacao-texto">${obs.texto}</p>
-            </div>
-        `).join('')
+    const observacoesHTML = observacoesArray.length > 0
+        ? observacoesArray.map(obs => `<div class="observacao-item-view"><div class="observacao-header"><div class="observacao-info"><span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span></div></div><p class="observacao-texto">${obs.texto}</p></div>`).join('')
         : '<p style="color: var(--text-secondary); font-style: italic; text-align: center; padding: 1rem;">Nenhuma observação registrada</p>';
-
-    const displayValue = (val) => {
-        if (!val || val === 'NÃO INFORMADO') return '-';
-        return val;
-    };
+    const displayValue = (val) => (!val || val === 'NÃO INFORMADO') ? '-' : val;
 
     const modalHTML = `
         <div class="modal-overlay" id="viewModal" style="display: flex;">
@@ -371,7 +238,6 @@ function mostrarModalVisualizacao(frete, activeTabIndex = 0) {
                     <h3 class="modal-title">Detalhes do Frete</h3>
                     <button class="close-modal" onclick="closeViewModal()">✕</button>
                 </div>
-                
                 <div class="tabs-container">
                     <div class="tabs-nav">
                         <button class="tab-btn ${activeTabIndex === 0 ? 'active' : ''}" onclick="switchViewTab(0)">Dados da Nota</button>
@@ -379,10 +245,8 @@ function mostrarModalVisualizacao(frete, activeTabIndex = 0) {
                         <button class="tab-btn ${activeTabIndex === 2 ? 'active' : ''}" onclick="switchViewTab(2)">Transporte</button>
                         <button class="tab-btn ${activeTabIndex === 3 ? 'active' : ''}" onclick="switchViewTab(3)">Observações</button>
                     </div>
-
                     <div class="tab-content ${activeTabIndex === 0 ? 'active' : ''}" id="view-tab-nota">
-                        <div class="info-section">
-                            <h4>Dados da Nota Fiscal</h4>
+                        <div class="info-section"><h4>Dados da Nota Fiscal</h4>
                             <p><strong>Número NF:</strong> ${frete.numero_nf || '-'}</p>
                             <p><strong>Data Emissão:</strong> ${frete.data_emissao ? formatDate(frete.data_emissao) : '-'}</p>
                             <p><strong>Documento:</strong> ${displayValue(frete.documento)}</p>
@@ -391,19 +255,15 @@ function mostrarModalVisualizacao(frete, activeTabIndex = 0) {
                             <p><strong>Vendedor:</strong> ${displayValue(frete.vendedor)}</p>
                         </div>
                     </div>
-
                     <div class="tab-content ${activeTabIndex === 1 ? 'active' : ''}" id="view-tab-orgao">
-                        <div class="info-section">
-                            <h4>Dados do Órgão</h4>
+                        <div class="info-section"><h4>Dados do Órgão</h4>
                             <p><strong>Nome do Órgão:</strong> ${frete.nome_orgao || '-'}</p>
                             <p><strong>Contato:</strong> ${displayValue(frete.contato_orgao)}</p>
                             <p><strong>Cidade-UF (Destino):</strong> ${displayValue(frete.cidade_destino)}</p>
                         </div>
                     </div>
-
                     <div class="tab-content ${activeTabIndex === 2 ? 'active' : ''}" id="view-tab-transporte">
-                        <div class="info-section">
-                            <h4>Dados do Transporte</h4>
+                        <div class="info-section"><h4>Dados do Transporte</h4>
                             <p><strong>Transportadora:</strong> ${displayValue(frete.transportadora)}</p>
                             <p><strong>Valor do Frete:</strong> R$ ${frete.valor_frete ? parseFloat(frete.valor_frete).toFixed(2) : '0,00'}</p>
                             <p><strong>Data Coleta:</strong> ${frete.data_coleta ? formatDate(frete.data_coleta) : '-'}</p>
@@ -413,54 +273,33 @@ function mostrarModalVisualizacao(frete, activeTabIndex = 0) {
                             ${frete.cotacao ? `<p><strong>Cotação:</strong> ${frete.cotacao}</p>` : ''}
                         </div>
                     </div>
-
                     <div class="tab-content ${activeTabIndex === 3 ? 'active' : ''}" id="view-tab-observacoes">
-                        <div class="info-section">
-                            <h4>Observações</h4>
-                            <div class="observacoes-list-view">
-                                ${observacoesHTML}
-                            </div>
-                        </div>
+                        <div class="info-section"><h4>Observações</h4><div class="observacoes-list-view">${observacoesHTML}</div></div>
                     </div>
                 </div>
-
                 <div class="modal-actions">
-                    <button class="secondary" onclick="closeViewModal()">Fechar</button>
+                    <button class="cancel-close" onclick="closeViewModal()">Fechar</button>
                 </div>
             </div>
-        </div>
-    `;
-
+        </div>`;
     const existingModal = document.getElementById('viewModal');
     if (existingModal) existingModal.remove();
-    
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-window.closeViewModal = function() {
+window.closeViewModal = function () {
     const modal = document.getElementById('viewModal');
-    if (modal) {
-        modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(() => modal.remove(), 200);
-    }
+    if (modal) { modal.style.animation = 'fadeOut 0.2s ease forwards'; setTimeout(() => modal.remove(), 200); }
+};
+window.switchViewTab = function (index) {
+    document.querySelectorAll('#viewModal .tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+    document.querySelectorAll('#viewModal .tab-content').forEach((content, i) => content.classList.toggle('active', i === index));
 };
 
-window.switchViewTab = function(index) {
-    document.querySelectorAll('#viewModal .tab-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', i === index);
-    });
-    document.querySelectorAll('#viewModal .tab-content').forEach((content, i) => {
-        content.classList.toggle('active', i === index);
-    });
-};
-
-// ============================================
-// AUTENTICAÇÃO
-// ============================================
+// ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
 function verificarAutenticacao() {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('sessionToken');
-
     if (tokenFromUrl) {
         sessionToken = tokenFromUrl;
         sessionStorage.setItem('controleFreteSession', tokenFromUrl);
@@ -468,12 +307,10 @@ function verificarAutenticacao() {
     } else {
         sessionToken = sessionStorage.getItem('controleFreteSession');
     }
-
     if (!sessionToken) {
-        mostrarTelaAcessoNegado();
+        if (window.IR) IR.denied('Sessão expirada'); else mostrarTelaAcessoNegado();
         return;
     }
-
     (async () => {
         if (window.IR) { IR.setToken(sessionToken); podeMarcarFrete = await IR.podeConfirmar('ALMOXARIFADO'); }
         inicializarApp();
@@ -481,24 +318,14 @@ function verificarAutenticacao() {
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({ type: /expir|sess[aã]o/i.test(mensagem) ? 'ir-session-expired' : 'ir-module-denied', module: location.pathname.split('/')[1] }, '*'); return; }
-    document.body.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
-        </div>
-    `;
+    document.body.innerHTML = `<div class="access-denied"><h1>${mensagem}</h1><p>Somente usuários autenticados podem acessar esta área.</p><a href="${PORTAL_URL}">Ir para o Portal</a></div>`;
 }
 
 function inicializarApp() {
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            inicializarApp();
-        });
+        document.addEventListener('DOMContentLoaded', () => { inicializarApp(); });
         return;
     }
-    
     updateDisplay();
     checkServerStatus();
     setInterval(checkServerStatus, 15000);
@@ -506,108 +333,59 @@ function inicializarApp() {
     loadTransportadoras();
 }
 
-// ============================================
-// CONEXÃO E STATUS
-// ============================================
+// ─── CONEXÃO ─────────────────────────────────────────────────────────────────
 async function checkServerStatus() {
     try {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
-        }
-
-        const response = await fetch(`${API_URL}/fretes`, {
-            method: 'GET',
-            headers: headers,
-            mode: 'cors'
-        });
-
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+        const response = await fetch(`${API_URL}/fretes`, { method: 'GET', headers, mode: 'cors' });
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('controleFreteSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return false;
         }
-
         const wasOffline = !isOnline;
         isOnline = response.ok;
-        
-        if (wasOffline && isOnline) {
-            console.log('✅ Servidor ONLINE');
-            await loadFretes();
-        }
-        
-        updateConnectionStatus();
+        if (wasOffline && isOnline) await loadFretes();
         return isOnline;
     } catch (error) {
-        console.error('❌ Erro ao verificar servidor:', error);
         isOnline = false;
-        updateConnectionStatus();
         return false;
     }
 }
 
-function updateConnectionStatus() {
-    // Removido
-}
-
-// ============================================
-// CARREGAMENTO DE DADOS
-// ============================================
+// ─── CARREGAMENTO ────────────────────────────────────────────────────────────
 async function loadFretes(showMessage = false) {
     if (!isOnline && !DEVELOPMENT_MODE) {
-        if (showMessage) {
-            showToast('Sistema offline. Não foi possível sincronizar.', 'error');
-        }
+        if (showMessage) showToast('Sistema offline. Não foi possível sincronizar.', 'error');
         return;
     }
-
     try {
         const timestamp = new Date().getTime();
         const response = await fetch(`${API_URL}/fretes?_t=${timestamp}`, {
             method: 'GET',
-            headers: { 
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
-            },
+            headers: { 'X-Session-Token': sessionToken, 'Accept': 'application/json', 'Cache-Control': 'no-cache' },
             mode: 'cors'
         });
-
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('controleFreteSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
-
-        if (!response.ok) {
-            if (showMessage) {
-                showToast('Erro ao sincronizar dados', 'error');
-            }
-            return;
-        }
-
+        if (!response.ok) { if (showMessage) showToast('Erro ao sincronizar dados', 'error'); return; }
         const data = await response.json();
         fretes = data;
         lastDataHash = JSON.stringify(fretes.map(f => f.id));
-        
-        console.log(`✅ ${fretes.length} fretes carregados`);
-        
         updateAllFilters();
         updateDashboard();
         filterFretes();
-        
         if (!sessionStorage.getItem('alertaAtrasosExibido')) {
             setTimeout(() => verificarNotasAtrasadas(), 1000);
             sessionStorage.setItem('alertaAtrasosExibido', 'true');
         }
     } catch (error) {
         console.error('❌ Erro ao carregar:', error);
-        if (showMessage) {
-            showToast('Erro ao sincronizar dados', 'error');
-        }
+        if (showMessage) showToast('Erro ao sincronizar dados', 'error');
     }
 }
 
@@ -615,281 +393,134 @@ async function loadTransportadoras() {
     try {
         const response = await fetch(`${API_URL}/transportadoras`, {
             method: 'GET',
-            headers: {
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: { 'X-Session-Token': sessionToken, 'Accept': 'application/json' },
             mode: 'cors'
         });
         if (!response.ok) return;
         const data = await response.json();
         transportadorasList = data.map(t => t.nome || t.transportadora || t).filter(Boolean).sort();
         updateTransportadoraFilter();
-    } catch (err) {
-        console.error('Erro ao carregar transportadoras:', err);
-    }
+    } catch (err) { console.error('Erro ao carregar transportadoras:', err); }
 }
 
-window.sincronizarDados = async function() {
-    console.log('🔄 Sincronizando dados...');
+window.sincronizarDados = async function () {
     const syncButtons = document.querySelectorAll('button[onclick="sincronizarDados()"]');
     syncButtons.forEach(btn => {
         const svg = btn.querySelector('svg');
-        if (svg) {
-            svg.style.animation = 'spin 1s linear infinite';
-        }
+        if (svg) svg.style.animation = 'spin 1s linear infinite';
     });
     showToast('Dados sincronizados', 'success');
     await loadFretes(true);
     setTimeout(() => {
         syncButtons.forEach(btn => {
             const svg = btn.querySelector('svg');
-            if (svg) {
-                svg.style.animation = '';
-            }
+            if (svg) svg.style.animation = '';
         });
     }, 1000);
 };
 
 function startPolling() {
     loadFretes();
-    setInterval(() => {
-        if (isOnline) loadFretes();
-    }, 10000);
+    setInterval(() => { if (isOnline) loadFretes(); }, 10000);
 }
 
-// ============================================
-// NAVEGAÇÃO POR MESES
-// ============================================
+// ─── NAVEGAÇÃO POR MESES ─────────────────────────────────────────────────────
 function updateDisplay() {
     const display = document.getElementById('currentMonth');
-    if (display) {
-        display.textContent = `${meses[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
-    }
+    if (display) display.textContent = `${meses[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
     updateDashboard();
     filterFretes();
 }
 
-window.changeMonth = function(direction) {
+window.changeMonth = function (direction) {
     currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
     updateDisplay();
 };
 
-// ============================================
-// DASHBOARD ATUALIZADO
-// ============================================
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function updateDashboard() {
     const statEntregues = document.getElementById('statEntregues');
     const statForaPrazo = document.getElementById('statForaPrazo');
     const statTransito = document.getElementById('statTransito');
     const statValorTotal = document.getElementById('statValorTotal');
     const statFrete = document.getElementById('statFrete');
-    
-    if (!statEntregues || !statForaPrazo || !statTransito || !statValorTotal || !statFrete) {
-        console.warn('<svg aria-label="Alerta" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20h15.6a2 2 0 0 0 1.7-2.6L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/></svg> Elementos do dashboard não encontrados');
-        return;
-    }
-    
-    // Filtro por mês atual para a maioria dos indicadores
+    if (!statEntregues) return;
+
     const fretesMesAtual = fretes.filter(f => {
         const data = new Date(f.data_emissao + 'T00:00:00');
         return data.getMonth() === currentMonth.getMonth() && data.getFullYear() === currentMonth.getFullYear();
     });
-
     const tiposComStatus = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
-    
-    // Filtro para tipos que possuem status (usado para Entregues e Fora do Prazo)
-    const fretesComStatusMesAtual = fretesMesAtual.filter(f => {
-        const tipo = f.tipo_nf || 'ENVIO';
-        return tiposComStatus.includes(tipo);
-    });
-    
-    // Todos os fretes com status (para Fora do Prazo e Em Trânsito universal)
-    const fretesComStatusTodos = fretes.filter(f => {
-        const tipo = f.tipo_nf || 'ENVIO';
-        return tiposComStatus.includes(tipo);
-    });
-    
-    // Fretes do tipo ENVIO (para somar valores)
+    const fretesComStatusMesAtual = fretesMesAtual.filter(f => tiposComStatus.includes(f.tipo_nf || 'ENVIO'));
+    const fretesComStatusTodos = fretes.filter(f => tiposComStatus.includes(f.tipo_nf || 'ENVIO'));
     const fretesEnvio = fretesMesAtual.filter(f => !f.tipo_nf || f.tipo_nf === 'ENVIO');
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    
-    // ── Entregues (apenas mês atual) ──
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const entregues = fretesComStatusMesAtual.filter(f => f.status === 'ENTREGUE').length;
-    
-    // ── Em Trânsito (TODOS, independente do mês) ──
     const transito = fretesComStatusTodos.filter(f => f.status === 'EM_TRANSITO').length;
-    
-    // ── Fora do Prazo (TODOS, independente do mês) ──
     const foraPrazo = fretesComStatusTodos.filter(f => {
         if (f.status === 'ENTREGUE') return false;
         if (!f.previsao_entrega) return false;
-        const previsao = new Date(f.previsao_entrega + 'T00:00:00');
-        previsao.setHours(0, 0, 0, 0);
+        const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
         return previsao < hoje;
     }).length;
-    
-    // ── Valores (apenas mês atual e tipo ENVIO) ──
     const valorTotal = fretesEnvio.reduce((sum, f) => sum + parseFloat(f.valor_nf || 0), 0);
     const freteTotal = fretesEnvio.reduce((sum, f) => sum + parseFloat(f.valor_frete || 0), 0);
-    
-    // Atualiza os textos
+
     statEntregues.textContent = entregues;
     statForaPrazo.textContent = foraPrazo;
     statTransito.textContent = transito;
     statValorTotal.textContent = `R$ ${valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     statFrete.textContent = `R$ ${freteTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    
-    // ── Badge de alerta para Fora do Prazo ──
+
     const cardForaPrazo = document.getElementById('cardForaPrazo');
     if (!cardForaPrazo) return;
-    
     let pulseBadge = cardForaPrazo.querySelector('.pulse-badge');
-    if (pulseBadge) {
-        pulseBadge.remove();
-    }
-    
+    if (pulseBadge) pulseBadge.remove();
     if (foraPrazo > 0) {
         cardForaPrazo.classList.add('has-alert');
         pulseBadge = document.createElement('div');
         pulseBadge.className = 'pulse-badge';
         pulseBadge.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-        `;
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>`;
         cardForaPrazo.appendChild(pulseBadge);
     } else {
         cardForaPrazo.classList.remove('has-alert');
     }
 }
 
-// ============================================
-// MODAL DE CONFIRMAÇÃO
-// ============================================
+// ─── CONFIRM ─────────────────────────────────────────────────────────────────
 function showConfirm(message, options = {}) {
-    return new Promise((resolve) => {
-        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
-
-        const modalHTML = `
-            <div class="modal-overlay" id="confirmModal" style="display: flex !important; z-index: 10001 !important;">
-                <div class="modal-content confirm-modal-content" style="max-width: 450px !important;">
-                    <button class="close-modal" id="confirmModalClose">✕</button>
-                    <div class="confirm-modal-body">
-                        <h3 class="confirm-modal-title">${message}</h3>
-                    </div>
-                    <div class="modal-actions confirm-modal-actions">
-                        <button class="${type === 'danger' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
-                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        const modal = document.getElementById('confirmModal');
-        const confirmBtn = document.getElementById('modalConfirmBtn');
-        const cancelBtn = document.getElementById('modalCancelBtn');
-        const closeBtn = document.getElementById('confirmModalClose');
-
-        if (modal) {
-            modal.style.display = 'flex';
-            modal.style.opacity = '1';
-        }
-
-        const closeModal = (result) => {
-            if (modal) {
-                modal.style.animation = 'fadeOut 0.2s ease forwards';
-                setTimeout(() => { 
-                    modal.remove(); 
-                    resolve(result); 
-                }, 200);
-            } else {
-                resolve(result);
-            }
-        };
-
-        if (confirmBtn) confirmBtn.addEventListener('click', () => closeModal(true));
-        if (cancelBtn) cancelBtn.addEventListener('click', () => closeModal(false));
-        if (closeBtn) closeBtn.addEventListener('click', () => closeModal(false));
-        
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeModal(false);
-                }
-            });
-        }
-
-        if (!document.querySelector('#modalAnimations')) {
-            const style = document.createElement('style');
-            style.id = 'modalAnimations';
-            style.textContent = `@keyframes fadeOut { to { opacity: 0; } }`;
-            document.head.appendChild(style);
-        }
-    });
+    if (window.IR && IR.confirm) return IR.confirm(message, options);
+    return Promise.resolve(confirm(message));
 }
 
-window.showConfirm = showConfirm;
+// ─── FORM ────────────────────────────────────────────────────────────────────
+window.toggleForm = function () { showFormModal(null); };
 
-// ============================================
-// FORMULÁRIO COM OBSERVAÇÕES (ABAS REORGANIZADAS)
-// ============================================
-window.toggleForm = function() {
-    console.log('🆕 Abrindo formulário para novo frete');
-    showFormModal(null);
-};
-
-window.showFormModal = function(editingId = null) {
-    setTimeout(() => { const el = document.getElementById('vendedor'); if (el && window.IR) IR.preencherVendedores(el, el.dataset.selected); }, 0);
-    console.log('📝 showFormModal chamada com ID:', editingId);
+window.showFormModal = function (editingId = null) {
+    setTimeout(() => {
+        const el = document.getElementById('vendedor');
+        if (el && window.IR) IR.preencherVendedores(el, el.dataset.selected);
+    }, 0);
     const isEditing = editingId !== null;
     let frete = null;
-    
     if (isEditing) {
-        const idStr = String(editingId);
-        frete = fretes.find(f => String(f.id) === idStr);
-        if (!frete) {
-            showToast('Frete não encontrado!', 'error');
-            return;
-        }
-        console.log('✏️ Editando frete:', frete);
-    } else {
-        console.log('🆕 Criando novo frete');
+        frete = fretes.find(f => String(f.id) === String(editingId));
+        if (!frete) { showToast('Frete não encontrado!', 'error'); return; }
     }
-
     let observacoesArray = [];
     if (frete && frete.observacoes) {
         try {
-            observacoesArray = typeof frete.observacoes === 'string' 
-                ? JSON.parse(frete.observacoes) 
-                : frete.observacoes;
-        } catch (e) {
-            console.error('Erro ao parsear observações:', e);
-        }
+            observacoesArray = typeof frete.observacoes === 'string' ? JSON.parse(frete.observacoes) : frete.observacoes;
+        } catch (e) {}
     }
-
-    const observacoesHTML = observacoesArray.length > 0 
-        ? observacoesArray.map((obs, idx) => `
-            <div class="observacao-item" data-index="${idx}">
-                <div class="observacao-header">
-                    <div class="observacao-info">
-                        <span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span>
-                    </div>
-                    <button type="button" class="btn-remove-obs" onclick="removerObservacao(${idx})" title="Remover">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <p class="observacao-texto">${obs.texto}</p>
-            </div>
-        `).join('')
+    const observacoesHTML = observacoesArray.length > 0
+        ? observacoesArray.map((obs, idx) => `<div class="observacao-item" data-index="${idx}"><div class="observacao-header"><div class="observacao-info"><span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span></div><button type="button" class="btn-remove-obs" onclick="removerObservacao(${idx})" title="Remover">✕</button></div><p class="observacao-texto">${obs.texto}</p></div>`).join('')
         : '<p style="color: var(--text-secondary); font-style: italic; text-align: center; padding: 2rem;">Nenhuma observação registrada</p>';
 
     const modalHTML = `
@@ -899,7 +530,6 @@ window.showFormModal = function(editingId = null) {
                     <h3 class="modal-title">${isEditing ? 'Editar Frete' : 'Novo Frete'}</h3>
                     <button class="close-modal" onclick="closeFormModal(true)">✕</button>
                 </div>
-                
                 <div class="tabs-container">
                     <div class="tabs-nav">
                         <button class="tab-btn active" onclick="switchFormTab(0)">Dados da Nota</button>
@@ -907,30 +537,16 @@ window.showFormModal = function(editingId = null) {
                         <button class="tab-btn" onclick="switchFormTab(2)">Transporte</button>
                         <button class="tab-btn" onclick="switchFormTab(3)">Observações</button>
                     </div>
-
                     <form id="freteForm" onsubmit="handleSubmit(event)">
                         <input type="hidden" id="editId" value="${editingId || ''}">
                         <input type="hidden" id="observacoesData" value='${JSON.stringify(observacoesArray)}'>
-                        
-                        <!-- ABA DADOS DA NOTA (inclui vendedor) -->
+
                         <div class="tab-content active" id="tab-nota">
                             <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="numero_nf">Número da NF *</label>
-                                    <input type="text" id="numero_nf" value="${frete?.numero_nf || ''}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="data_emissao">Data de Emissão</label>
-                                    <input type="date" id="data_emissao" value="${frete?.data_emissao || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="documento">Documento</label>
-                                    <input type="text" id="documento" value="${frete?.documento || ''}" placeholder="2025NE0000">
-                                </div>
-                                <div class="form-group">
-                                    <label for="valor_nf">Valor da Nota (R$)</label>
-                                    <input type="number" id="valor_nf" step="0.01" min="0" value="${frete?.valor_nf || ''}">
-                                </div>
+                                <div class="form-group"><label for="numero_nf">Número da NF *</label><input type="text" id="numero_nf" value="${frete?.numero_nf || ''}" required></div>
+                                <div class="form-group"><label for="data_emissao">Data de Emissão</label><input type="date" id="data_emissao" value="${frete?.data_emissao || ''}"></div>
+                                <div class="form-group"><label for="documento">Documento</label><input type="text" id="documento" value="${frete?.documento || ''}" placeholder="2025NE0000"></div>
+                                <div class="form-group"><label for="valor_nf">Valor da Nota (R$)</label><input type="number" id="valor_nf" step="0.01" min="0" value="${frete?.valor_nf || ''}"></div>
                                 <div class="form-group">
                                     <label for="tipo_nf">Tipo de NF</label>
                                     <select id="tipo_nf" onchange="handleTipoNfChange()">
@@ -942,70 +558,37 @@ window.showFormModal = function(editingId = null) {
                                         <option value="DEVOLVIDA" ${frete?.tipo_nf === 'DEVOLVIDA' ? 'selected' : ''}>Devolvida</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label for="vendedor">Vendedor Responsável</label>
-                                    <select id="vendedor" data-selected="${frete?.vendedor || ''}"><option value="">Selecione...</option></select>
-                                </div>
+                                <div class="form-group"><label for="vendedor">Vendedor Responsável</label><select id="vendedor" data-selected="${frete?.vendedor || ''}"><option value="">Selecione...</option></select></div>
                             </div>
                         </div>
 
-                        <!-- ABA ÓRGÃO (inclui cidade destino) -->
                         <div class="tab-content" id="tab-orgao">
                             <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="nome_orgao">Nome do Órgão *</label>
-                                    <input type="text" id="nome_orgao" value="${frete?.nome_orgao || ''}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="contato_orgao">Contato do Órgão</label>
-                                    <input type="text" id="contato_orgao" value="${frete?.contato_orgao || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cidade_destino">Cidade-UF (Destino)</label>
-                                    <input type="text" id="cidade_destino" value="${frete?.cidade_destino || ''}" placeholder="Ex: São Paulo-SP">
-                                </div>
+                                <div class="form-group"><label for="nome_orgao">Nome do Órgão *</label><input type="text" id="nome_orgao" value="${frete?.nome_orgao || ''}" required></div>
+                                <div class="form-group"><label for="contato_orgao">Contato do Órgão</label><input type="text" id="contato_orgao" value="${frete?.contato_orgao || ''}"></div>
+                                <div class="form-group"><label for="cidade_destino">Cidade-UF (Destino)</label><input type="text" id="cidade_destino" value="${frete?.cidade_destino || ''}" placeholder="Ex: São Paulo-SP"></div>
                             </div>
                         </div>
 
-                        <!-- ABA TRANSPORTE (substitui cidade destino por cotação) -->
                         <div class="tab-content" id="tab-transporte">
                             <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="transportadora">Transportadora</label>
+                                <div class="form-group"><label for="transportadora">Transportadora</label>
                                     <select id="transportadora">
                                         <option value="">Selecione...</option>
                                         ${(transportadorasList.length > 0 ? transportadorasList : []).map(t => `<option value="${t}" ${frete?.transportadora === t ? 'selected' : ''}>${t}</option>`).join('')}
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label for="valor_frete">Valor do Frete (R$)</label>
-                                    <input type="number" id="valor_frete" step="0.01" min="0" value="${frete?.valor_frete || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="data_coleta">Data da Coleta *</label>
-                                    <input type="date" id="data_coleta" value="${frete?.data_coleta || ''}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="previsao_entrega">Previsão de Entrega</label>
-                                    <input type="date" id="previsao_entrega" value="${frete?.previsao_entrega || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="data_entrega">Data de Entrega</label>
-                                    <input type="date" id="data_entrega" value="${frete?.data_entrega || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cotacao">Cotação</label>
-                                    <input type="text" id="cotacao" value="${frete?.cotacao || ''}" placeholder="Ex: 123">
-                                </div>
+                                <div class="form-group"><label for="valor_frete">Valor do Frete (R$)</label><input type="number" id="valor_frete" step="0.01" min="0" value="${frete?.valor_frete || ''}"></div>
+                                <div class="form-group"><label for="data_coleta">Data da Coleta *</label><input type="date" id="data_coleta" value="${frete?.data_coleta || ''}" required></div>
+                                <div class="form-group"><label for="previsao_entrega">Previsão de Entrega</label><input type="date" id="previsao_entrega" value="${frete?.previsao_entrega || ''}"></div>
+                                <div class="form-group"><label for="data_entrega">Data de Entrega</label><input type="date" id="data_entrega" value="${frete?.data_entrega || ''}"></div>
+                                <div class="form-group"><label for="cotacao">Cotação</label><input type="text" id="cotacao" value="${frete?.cotacao || ''}" placeholder="Ex: 123"></div>
                             </div>
                         </div>
 
                         <div class="tab-content" id="tab-observacoes">
                             <div class="observacoes-section">
-                                <div class="observacoes-list" id="observacoesList">
-                                    ${observacoesHTML}
-                                </div>
-                                
+                                <div class="observacoes-list" id="observacoesList">${observacoesHTML}</div>
                                 <div class="nova-observacao">
                                     <label for="novaObservacao">Nova Observação</label>
                                     <textarea id="novaObservacao" placeholder="Digite sua observação aqui..." rows="3"></textarea>
@@ -1020,65 +603,47 @@ window.showFormModal = function(editingId = null) {
                             </div>
                         </div>
 
-                        <div class="modal-actions form-tab-actions">
-                            <button type="button" class="tab-nav-btn" id="formBtnAnterior" onclick="navigateFormTab(-1)" style="display: none;">Anterior</button>
-                            <button type="button" class="tab-nav-btn" id="formBtnProximo" onclick="navigateFormTab(1)">Próximo</button>
+                        <div class="modal-actions">
+                            <button type="button" class="tab-nav-btn tab-prev" id="formBtnAnterior" onclick="navigateFormTab(-1)" style="display: none;">Anterior</button>
+                            <button type="button" class="tab-nav-btn tab-next" id="formBtnProximo" onclick="navigateFormTab(1)">Próximo</button>
                             <button type="submit" class="save">${editingId ? 'Atualizar' : 'Salvar'}</button>
-                            <button type="button" class="secondary" onclick="closeFormModal(true)">Cancelar</button>
+                            <button type="button" class="cancel-close" onclick="closeFormModal(true)">Cancelar</button>
                         </div>
                     </form>
                 </div>
             </div>
-        </div>
-    `;
-
+        </div>`;
     const existingModal = document.getElementById('formModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
+    if (existingModal) existingModal.remove();
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
     const camposMaiusculas = ['numero_nf', 'documento', 'nome_orgao', 'contato_orgao', 'cidade_destino'];
     camposMaiusculas.forEach(campoId => {
         const campo = document.getElementById(campoId);
-        if (campo) {
-            campo.addEventListener('input', (e) => {
-                const start = e.target.selectionStart;
-                e.target.value = e.target.value.toUpperCase();
-                e.target.setSelectionRange(start, start);
-            });
-        }
+        if (campo) campo.addEventListener('input', (e) => {
+            const start = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(start, start);
+        });
     });
-    
-    setTimeout(() => document.getElementById('numero_nf')?.focus(), 100);
-    
-    console.log('✅ Modal de formulário criado e exibido');
+    setTimeout(() => {
+        if (window.IR) IR.preencherVendedores(document.getElementById('vendedor'), frete?.vendedor);
+        document.getElementById('numero_nf')?.focus();
+    }, 100);
 };
 
-// ============================================
-// FUNÇÕES DE OBSERVAÇÕES
-// ============================================
-window.adicionarObservacao = function() {
+window.adicionarObservacao = function () {
     const textarea = document.getElementById('novaObservacao');
     const texto = textarea.value.trim();
-    if (!texto) {
-        showToast('Digite uma observação primeiro', 'error');
-        return;
-    }
+    if (!texto) { showToast('Digite uma observação primeiro', 'error'); return; }
     const observacoesDataField = document.getElementById('observacoesData');
     let observacoes = JSON.parse(observacoesDataField.value || '[]');
-    observacoes.push({
-        texto: texto,
-        timestamp: new Date().toISOString()
-        // Username removido
-    });
+    observacoes.push({ texto, timestamp: new Date().toISOString() });
     observacoesDataField.value = JSON.stringify(observacoes);
     textarea.value = '';
     atualizarListaObservacoes();
 };
 
-window.removerObservacao = function(index) {
+window.removerObservacao = function (index) {
     const observacoesDataField = document.getElementById('observacoesData');
     let observacoes = JSON.parse(observacoesDataField.value || '[]');
     observacoes.splice(index, 1);
@@ -1093,55 +658,37 @@ function atualizarListaObservacoes() {
     if (observacoes.length === 0) {
         container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic; text-align: center; padding: 2rem;">Nenhuma observação registrada</p>';
     } else {
-        container.innerHTML = observacoes.map((obs, idx) => `
-            <div class="observacao-item" data-index="${idx}">
-                <div class="observacao-header">
-                    <div class="observacao-info">
-                        <span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span>
-                    </div>
-                    <button type="button" class="btn-remove-obs" onclick="removerObservacao(${idx})" title="Remover">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <p class="observacao-texto">${obs.texto}</p>
-            </div>
-        `).join('');
+        container.innerHTML = observacoes.map((obs, idx) => `<div class="observacao-item" data-index="${idx}"><div class="observacao-header"><div class="observacao-info"><span class="observacao-data">${new Date(obs.timestamp).toLocaleString('pt-BR')}</span></div><button type="button" class="btn-remove-obs" onclick="removerObservacao(${idx})" title="Remover">✕</button></div><p class="observacao-texto">${obs.texto}</p></div>`).join('');
     }
 }
 
-window.handleTipoNfChange = function() {
-    // Placeholder
-};
+window.handleTipoNfChange = function () {};
 
-window.closeFormModal = function(showCancelMessage = false) {
+window.closeFormModal = function (showCancelMessage = false) {
     const modal = document.getElementById('formModal');
     if (modal) {
         const editId = document.getElementById('editId')?.value;
         const isEditing = editId && editId !== '';
-        if (showCancelMessage) {
-            showToast(isEditing ? 'Atualização Cancelada' : 'Registro Cancelado', 'error');
-        }
+        if (showCancelMessage) showToast(isEditing ? 'Atualização Cancelada' : 'Registro Cancelado', 'error');
         modal.style.animation = 'fadeOut 0.2s ease forwards';
         setTimeout(() => modal.remove(), 200);
     }
 };
 
-// ============================================
-// SISTEMA DE ABAS
-// ============================================
-window.navigateFormTab = function(direction) {
+// ─── ABAS DO FORM ────────────────────────────────────────────────────────────
+window.navigateFormTab = function (direction) {
     const tabButtons = document.querySelectorAll('#formModal .tab-btn');
     const currentActive = Array.from(tabButtons).findIndex(btn => btn.classList.contains('active'));
     const newIndex = Math.max(0, Math.min(tabButtons.length - 1, currentActive + direction));
-    if (newIndex !== currentActive) {
-        switchFormTab(newIndex);
-    }
-    updateFormTabNavButtons(newIndex, tabButtons.length);
+    if (newIndex !== currentActive) switchFormTab(newIndex);
 };
-
+window.switchFormTab = function (index) {
+    const tabButtons = document.querySelectorAll('#formModal .tab-btn');
+    const tabContents = document.querySelectorAll('#formModal .tab-content');
+    tabButtons.forEach((btn, i) => btn.classList.toggle('active', i === index));
+    tabContents.forEach((content, i) => content.classList.toggle('active', i === index));
+    updateFormTabNavButtons(index, tabButtons.length);
+};
 function updateFormTabNavButtons(currentIndex, totalTabs) {
     const btnAnterior = document.getElementById('formBtnAnterior');
     const btnProximo = document.getElementById('formBtnProximo');
@@ -1149,27 +696,11 @@ function updateFormTabNavButtons(currentIndex, totalTabs) {
     if (btnProximo) btnProximo.style.display = currentIndex === totalTabs - 1 ? 'none' : 'inline-flex';
 }
 
-window.switchFormTab = function(index) {
-    const tabButtons = document.querySelectorAll('#formModal .tab-btn');
-    const tabContents = document.querySelectorAll('#formModal .tab-content');
-    tabButtons.forEach((btn, i) => {
-        btn.classList.toggle('active', i === index);
-    });
-    tabContents.forEach((content, i) => {
-        content.classList.toggle('active', i === index);
-    });
-    updateFormTabNavButtons(index, tabButtons.length);
-};
-
-// ============================================
-// SUBMIT (inclui cotacao)
-// ============================================
-window.handleSubmit = async function(event) {
+// ─── SUBMIT ──────────────────────────────────────────────────────────────────
+window.handleSubmit = async function (event) {
     if (event) event.preventDefault();
-
     const observacoesField = document.getElementById('observacoesData');
     const observacoesValue = observacoesField ? observacoesField.value : '[]';
-
     const formData = {
         numero_nf: document.getElementById('numero_nf').value.trim(),
         data_emissao: document.getElementById('data_emissao').value || new Date().toISOString().split('T')[0],
@@ -1188,50 +719,39 @@ window.handleSubmit = async function(event) {
         cotacao: document.getElementById('cotacao').value.trim() || null,
         observacoes: observacoesValue
     };
-
+    if (!formData.numero_nf || !formData.nome_orgao) {
+        showToast(window.IR ? IR.ERRO_CAMPOS_OBRIGATORIOS : 'Verifique se todas as informações obrigatórias estão preenchidas', 'error');
+        return;
+    }
     const editId = document.getElementById('editId').value;
-
     if (editId) {
         const freteExistente = fretes.find(f => String(f.id) === String(editId));
-        if (freteExistente) {
-            formData.timestamp = freteExistente.timestamp;
-        }
+        if (freteExistente) formData.timestamp = freteExistente.timestamp;
     }
-
     if (!isOnline && !DEVELOPMENT_MODE) {
         showToast('Sistema offline. Dados não foram salvos.', 'error');
         closeFormModal();
         return;
     }
-
     try {
         const url = editId ? `${API_URL}/fretes/${editId}` : `${API_URL}/fretes`;
         const method = editId ? 'PUT' : 'POST';
-
         const response = await fetch(url, {
             method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken, 'Accept': 'application/json' },
             body: JSON.stringify(formData),
             mode: 'cors'
         });
-
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('controleFreteSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            if (window.IR) IR.denied('Sua sessão expirou'); else mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
-
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.details || 'Erro ao salvar');
         }
-
         const savedData = await response.json();
-
         if (editId) {
             await loadFretes(false);
             showToast(`NF ${formData.numero_nf || savedData.numero_nf} Atualizado`, 'success');
@@ -1243,9 +763,7 @@ window.handleSubmit = async function(event) {
             updateDashboard();
             filterFretes();
         }
-        
         closeFormModal();
-
     } catch (error) {
         console.error('❌ Erro:', error);
         showToast(`Erro: ${error.message}`, 'error');
@@ -1253,9 +771,7 @@ window.handleSubmit = async function(event) {
     }
 };
 
-// ============================================
-// FILTROS - ATUALIZAÇÃO DINÂMICA
-// ============================================
+// ─── FILTROS ─────────────────────────────────────────────────────────────────
 function updateAllFilters() {
     updateStatusFilter();
     updateTransportadoraFilter();
@@ -1267,27 +783,19 @@ function updateTransportadoraFilter() {
     if (transportadorasList.length > 0) {
         transportadoras = new Set(transportadorasList);
         fretes.forEach(f => {
-            if (f.transportadora?.trim() && f.transportadora !== 'NÃO INFORMADO') {
-                transportadoras.add(f.transportadora.trim());
-            }
+            if (f.transportadora?.trim() && f.transportadora !== 'NÃO INFORMADO') transportadoras.add(f.transportadora.trim());
         });
     } else {
         transportadoras = new Set();
-        fretes.forEach(f => {
-            if (f.transportadora?.trim()) {
-                transportadoras.add(f.transportadora.trim());
-            }
-        });
+        fretes.forEach(f => { if (f.transportadora?.trim()) transportadoras.add(f.transportadora.trim()); });
     }
-
     const select = document.getElementById('filterTransportadora');
     if (select) {
         const currentValue = select.value;
         select.innerHTML = '<option value="">Todas Transportadoras</option>';
         Array.from(transportadoras).sort().forEach(t => {
             const option = document.createElement('option');
-            option.value = t;
-            option.textContent = t;
+            option.value = t; option.textContent = t;
             select.appendChild(option);
         });
         select.value = currentValue;
@@ -1296,20 +804,14 @@ function updateTransportadoraFilter() {
 
 function updateVendedorFilter() {
     const vendedores = new Set();
-    fretes.forEach(f => {
-        if (f.vendedor?.trim()) {
-            vendedores.add(f.vendedor.trim());
-        }
-    });
-
+    fretes.forEach(f => { if (f.vendedor?.trim()) vendedores.add(f.vendedor.trim()); });
     const select = document.getElementById('filterVendedor');
     if (select) {
         const currentValue = select.value;
         select.innerHTML = '<option value="">Todos Vendedores</option>';
         Array.from(vendedores).sort().forEach(v => {
             const option = document.createElement('option');
-            option.value = v;
-            option.textContent = v;
+            option.value = v; option.textContent = v;
             select.appendChild(option);
         });
         select.value = currentValue;
@@ -1317,26 +819,17 @@ function updateVendedorFilter() {
 }
 
 function updateStatusFilter() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const statusSet = new Set();
     let temForaDoPrazo = false;
-    
     fretes.forEach(f => {
-        if (f.status?.trim()) {
-            statusSet.add(f.status.trim());
-        }
+        if (f.status?.trim()) statusSet.add(f.status.trim());
         const isTipoEnvio = !f.tipo_nf || f.tipo_nf === 'ENVIO';
         if (isTipoEnvio && f.status !== 'ENTREGUE' && f.previsao_entrega) {
-            const previsao = new Date(f.previsao_entrega + 'T00:00:00');
-            previsao.setHours(0, 0, 0, 0);
-            if (previsao < hoje) {
-                temForaDoPrazo = true;
-            }
+            const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
+            if (previsao < hoje) temForaDoPrazo = true;
         }
     });
-
     const select = document.getElementById('filterStatus');
     if (select) {
         const currentValue = select.value;
@@ -1347,92 +840,54 @@ function updateStatusFilter() {
             optionForaPrazo.textContent = 'Fora do Prazo';
             select.appendChild(optionForaPrazo);
         }
-        const statusMap = {
-            'EM_TRANSITO': 'Em Trânsito',
-            'ENTREGUE': 'Entregue'
-        };
+        const statusMap = { 'EM_TRANSITO': 'Em Trânsito', 'ENTREGUE': 'Entregue' };
         Array.from(statusSet).sort().forEach(s => {
             const option = document.createElement('option');
-            option.value = s;
-            option.textContent = statusMap[s] || s;
+            option.value = s; option.textContent = statusMap[s] || s;
             select.appendChild(option);
         });
         select.value = currentValue;
     }
 }
 
-// ============================================
-// FILTROS E RENDERIZAÇÃO
-// ============================================
 function filterFretes() {
     const searchTerm = document.getElementById('search')?.value.toLowerCase() || '';
     const filterTransportadora = document.getElementById('filterTransportadora')?.value || '';
     const filterStatus = document.getElementById('filterStatus')?.value || '';
     const filterVendedor = document.getElementById('filterVendedor')?.value || '';
-    
     let filtered = [...fretes];
-
     filtered = filtered.filter(f => {
         const dataEmissao = new Date(f.data_emissao + 'T00:00:00');
         return dataEmissao.getMonth() === currentMonth.getMonth() && dataEmissao.getFullYear() === currentMonth.getFullYear();
     });
-
-    if (filterTransportadora) {
-        filtered = filtered.filter(f => f.transportadora === filterTransportadora);
-    }
-
-    if (filterVendedor) {
-        filtered = filtered.filter(f => f.vendedor === filterVendedor);
-    }
-
+    if (filterTransportadora) filtered = filtered.filter(f => f.transportadora === filterTransportadora);
+    if (filterVendedor) filtered = filtered.filter(f => f.vendedor === filterVendedor);
     if (filterStatus) {
         if (filterStatus === 'FORA_DO_PRAZO') {
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
             filtered = filtered.filter(f => {
                 const isTipoEnvio = !f.tipo_nf || f.tipo_nf === 'ENVIO';
                 if (!isTipoEnvio) return false;
                 if (f.status === 'ENTREGUE') return false;
                 if (!f.previsao_entrega) return false;
-                const previsao = new Date(f.previsao_entrega + 'T00:00:00');
-                previsao.setHours(0, 0, 0, 0);
+                const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
                 return previsao < hoje;
             });
         } else {
             filtered = filtered.filter(f => f.status === filterStatus);
         }
     }
-
     if (searchTerm) {
         filtered = filtered.filter(f => {
-            const searchFields = [
-                f.numero_nf,
-                f.transportadora,
-                f.nome_orgao,
-                f.cidade_destino,
-                f.vendedor,
-                f.documento,
-                f.contato_orgao,
-                f.cotacao
-            ];
-            return searchFields.some(field => 
-                field && field.toString().toLowerCase().includes(searchTerm)
-            );
+            const searchFields = [f.numero_nf, f.transportadora, f.nome_orgao, f.cidade_destino, f.vendedor, f.documento, f.contato_orgao, f.cotacao];
+            return searchFields.some(field => field && field.toString().toLowerCase().includes(searchTerm));
         });
     }
-
-    filtered.sort((a, b) => {
-        const numA = parseInt(a.numero_nf) || 0;
-        const numB = parseInt(b.numero_nf) || 0;
-        return numA - numB;
-    });
-    
+    filtered.sort((a, b) => (parseInt(a.numero_nf) || 0) - (parseInt(b.numero_nf) || 0));
     renderFretes(filtered);
 }
 
-// ============================================
-// RENDERIZAÇÃO COM ÍCONE DE OBSERVAÇÃO
-// ============================================
+// ─── RENDER ──────────────────────────────────────────────────────────────────
 function renderFretes(fretesToRender) {
     const container = document.getElementById('fretesContainer');
     if (!container) return;
@@ -1440,22 +895,14 @@ function renderFretes(fretesToRender) {
         container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum frete encontrado</div>';
         return;
     }
-
     const table = `
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 40px; text-align: center;">
-                            <span style="font-size: 1.1rem;">✓</span>
-                        </th>
-                        <th>NF</th>
-                        <th>Órgão</th>
-                        <th>Vendedor</th>
-                        <th>Transportadora</th>
-                        <th>Data Entrega</th>
-                        <th>Valor NF</th>
-                        <th>Status</th>
+                        <th style="width: 40px; text-align: center;"><span style="font-size: 1.1rem;">✓</span></th>
+                        <th>NF</th><th>Órgão</th><th>Vendedor</th><th>Transportadora</th>
+                        <th>Data Entrega</th><th>Valor NF</th><th>Status</th>
                         <th style="text-align: center; width: 60px;"></th>
                         <th style="text-align: center;">Ações</th>
                     </tr>
@@ -1466,20 +913,15 @@ function renderFretes(fretesToRender) {
                         const tiposComCheckbox = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
                         const tipoNf = f.tipo_nf || 'ENVIO';
                         const showCheckbox = tiposComCheckbox.includes(tipoNf);
-                        const displayValue = (val) => {
-                            if (!val || val === 'NÃO INFORMADO') return '-';
-                            return val;
-                        };
-
+                        const displayValue = (val) => (!val || val === 'NÃO INFORMADO') ? '-' : val;
                         let temObservacao = false;
                         if (f.observacoes) {
                             try {
                                 const obsArray = typeof f.observacoes === 'string' ? JSON.parse(f.observacoes) : f.observacoes;
                                 if (obsArray.length > 0) temObservacao = true;
-                            } catch(e) {}
+                            } catch (e) {}
                         }
-
-                        const alertIcon = temObservacao 
+                        const alertIcon = temObservacao
                             ? `<button class="action-btn alert-icon" onclick="handleViewObsClick('${f.id}')" title="Ver observações">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -1488,22 +930,9 @@ function renderFretes(fretesToRender) {
                                 </svg>
                                </button>`
                             : '';
-
-                        return `
-                        <tr class="${isEntregue ? 'row-entregue' : ''}" data-id="${f.id}" style="cursor: pointer;" onclick="handleRowClick(event, '${f.id}')">
+                        return `<tr class="${isEntregue ? 'row-entregue' : ''}" data-id="${f.id}" style="cursor: pointer;" onclick="handleRowClick(event, '${f.id}')">
                             <td style="text-align: center; padding: 8px;">
-                                ${showCheckbox ? `
-                                <div class="checkbox-wrapper">
-                                    <input 
-                                        type="checkbox" 
-                                        id="check-${f.id}"
-                                        ${isEntregue ? 'checked' : ''}
-                                        ${podeMarcarFrete ? '' : 'disabled title="Somente Almoxarifado e administradores"'}
-                                        class="styled-checkbox"
-                                    >
-                                    <label for="check-${f.id}" class="checkbox-label-styled"></label>
-                                </div>
-                                ` : ''}
+                                ${showCheckbox ? `<div class="checkbox-wrapper"><input type="checkbox" id="check-${f.id}" ${isEntregue ? 'checked' : ''} ${podeMarcarFrete ? '' : 'disabled title="Somente Almoxarifado e administradores"'} class="styled-checkbox"><label for="check-${f.id}" class="checkbox-label-styled"></label></div>` : ''}
                             </td>
                             <td><strong>${f.numero_nf || '-'}</strong></td>
                             <td style="max-width: 200px; word-wrap: break-word; white-space: normal;">${f.nome_orgao || '-'}</td>
@@ -1517,55 +946,35 @@ function renderFretes(fretesToRender) {
                                 <button class="action-btn edit" onclick="handleEditClick('${f.id}')" title="Editar">Editar</button>
                                 <button class="action-btn delete" onclick="handleDeleteClick('${f.id}')" title="Excluir">Excluir</button>
                             </td>
-                        </tr>
-                    `}).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
             </table>
-        </div>
-    `;
-    
+        </div>`;
     container.innerHTML = table;
 }
 
-// ============================================
-// BADGES E LABELS
-// ============================================
+// ─── BADGES ──────────────────────────────────────────────────────────────────
 function getTipoNfLabel(tipo) {
-    const labels = {
-        'ENVIO': 'Envio',
-        'CANCELADA': 'Cancelada',
-        'REMESSA_AMOSTRA': 'Remessa de Amostra',
-        'SIMPLES_REMESSA': 'Simples Remessa',
-        'DEVOLUCAO': 'Devolução',
-        'DEVOLVIDA': 'Devolvida'
-    };
+    const labels = { 'ENVIO': 'Envio', 'CANCELADA': 'Cancelada', 'REMESSA_AMOSTRA': 'Remessa de Amostra', 'SIMPLES_REMESSA': 'Simples Remessa', 'DEVOLUCAO': 'Devolução', 'DEVOLVIDA': 'Devolvida' };
     return labels[tipo] || tipo || 'Envio';
 }
 
 function getStatusBadgeForRender(frete) {
     const tiposSempreCinza = ['SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
     if (tiposSempreCinza.includes(frete.tipo_nf)) {
-        const tipoLabel = getTipoNfLabel(frete.tipo_nf);
-        return `<span class="badge badge-especial">${tipoLabel.toUpperCase()}</span>`;
+        return `<span class="badge badge-especial">${getTipoNfLabel(frete.tipo_nf).toUpperCase()}</span>`;
     }
-    const tiposEspeciais = ['CANCELADA'];
-    if (tiposEspeciais.includes(frete.tipo_nf)) {
-        const tipoLabel = getTipoNfLabel(frete.tipo_nf);
-        return `<span class="badge badge-especial">${tipoLabel.toUpperCase()}</span>`;
+    if (['CANCELADA'].includes(frete.tipo_nf)) {
+        return `<span class="badge badge-especial">${getTipoNfLabel(frete.tipo_nf).toUpperCase()}</span>`;
     }
-    const tiposDevolucao = ['DEVOLUCAO', 'DEVOLVIDA'];
-    if (tiposDevolucao.includes(frete.tipo_nf)) {
-        const tipoLabel = getTipoNfLabel(frete.tipo_nf);
-        return `<span class="badge badge-especial">${tipoLabel.toUpperCase()}</span>`;
+    if (['DEVOLUCAO', 'DEVOLVIDA'].includes(frete.tipo_nf)) {
+        return `<span class="badge badge-especial">${getTipoNfLabel(frete.tipo_nf).toUpperCase()}</span>`;
     }
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     if (frete.status !== 'ENTREGUE' && frete.previsao_entrega) {
-        const previsao = new Date(frete.previsao_entrega + 'T00:00:00');
-        previsao.setHours(0, 0, 0, 0);
-        if (previsao < hoje) {
-            return '<span class="badge devolvido">FORA DO PRAZO</span>';
-        }
+        const previsao = new Date(frete.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
+        if (previsao < hoje) return '<span class="badge devolvido">FORA DO PRAZO</span>';
     }
     return getStatusBadge(frete.status);
 }
@@ -1583,16 +992,14 @@ function getStatusBadge(status) {
     return `<span class="badge ${s.class}">${s.text}</span>`;
 }
 
-// ============================================
-// UTILIDADES
-// ============================================
+// ─── UTILS ───────────────────────────────────────────────────────────────────
 function formatDate(dateString) {
     if (!dateString) return '-';
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR');
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
 }
 
 function showToast(message, type) {
+    if (window.IR && IR.toast) return IR.toast(message, type);
     const oldMessages = document.querySelectorAll('.floating-message');
     oldMessages.forEach(msg => msg.remove());
     const messageDiv = document.createElement('div');
@@ -1605,61 +1012,40 @@ function showToast(message, type) {
     }, 3000);
 }
 
-// ============================================
-// ALERTA DE NOTAS EM ATRASO
-// ============================================
+// ─── ALERTA DE NOTAS ATRASADAS ───────────────────────────────────────────────
 function verificarNotasAtrasadas() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const tiposComStatus = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
-    const notasAtrasadas = fretes.filter(f => {
+    fretes.filter(f => {
         const tipo = f.tipo_nf || 'ENVIO';
         if (!tiposComStatus.includes(tipo)) return false;
         if (f.status === 'ENTREGUE') return false;
         if (!f.previsao_entrega) return false;
-        const previsao = new Date(f.previsao_entrega + 'T00:00:00');
-        previsao.setHours(0, 0, 0, 0);
+        const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
         return previsao < hoje;
-    });
-    if (notasAtrasadas.length === 0) return;
-    notasAtrasadas.sort((a, b) => {
-        const dataA = new Date(a.previsao_entrega);
-        const dataB = new Date(b.previsao_entrega);
-        return dataA - dataB;
     });
 }
 
-// ============================================
-// MODAL DE ALERTA FORA DO PRAZO
-// ============================================
+// ─── MODAL DE ALERTA FORA DO PRAZO ───────────────────────────────────────────
 let alertModalPage = 1;
 const ALERT_PAGE_SIZE = 4;
 let alertModalData = [];
 
-window.showAlertModal = function() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+window.showAlertModal = function () {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const tiposComStatus = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
     alertModalData = fretes.filter(f => {
         const tipo = f.tipo_nf || 'ENVIO';
         if (!tiposComStatus.includes(tipo)) return false;
         if (f.status === 'ENTREGUE') return false;
         if (!f.previsao_entrega) return false;
-        const previsao = new Date(f.previsao_entrega + 'T00:00:00');
-        previsao.setHours(0, 0, 0, 0);
+        const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
         return previsao < hoje;
     });
-    alertModalData.sort((a, b) => {
-        const dataA = new Date(a.previsao_entrega);
-        const dataB = new Date(b.previsao_entrega);
-        return dataA - dataB;
-    });
+    alertModalData.sort((a, b) => new Date(a.previsao_entrega) - new Date(b.previsao_entrega));
     alertModalPage = 1;
     renderAlertModalPage();
-    const alertModal = document.getElementById('alertModal');
-    if (alertModal) {
-        alertModal.style.display = 'flex';
-    }
+    document.getElementById('alertModal').style.display = 'flex';
 };
 
 function renderAlertModalPage() {
@@ -1667,17 +1053,14 @@ function renderAlertModalPage() {
     if (!modalBody) return;
     const foraDoPrazo = alertModalData;
     if (foraDoPrazo.length === 0) {
-        modalBody.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.3; margin-bottom: 1rem;">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 8l0 4"></path>
-                    <path d="M12 16l.01 0"></path>
-                </svg>
-                <p style="font-size: 1rem; font-weight: 600; margin: 0;">Nenhuma entrega fora do prazo</p>
-                <p style="font-size: 0.85rem; margin-top: 0.4rem;">Todas as entregas estão dentro do prazo previsto</p>
-            </div>
-        `;
+        modalBody.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.3; margin-bottom: 1rem;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p style="font-size: 1rem; font-weight: 600; margin: 0;">Nenhuma entrega fora do prazo</p>
+        </div>`;
         return;
     }
     const totalPages = Math.ceil(foraDoPrazo.length / ALERT_PAGE_SIZE);
@@ -1686,70 +1069,142 @@ function renderAlertModalPage() {
     modalBody.innerHTML = `
         <div style="overflow-x: auto;">
             <table style="font-size: 0.85rem;">
-                <thead>
-                    <tr>
-                        <th style="padding: 8px 10px;">Nº NF</th>
-                        <th style="padding: 8px 10px;">Emissão</th>
-                        <th style="padding: 8px 10px;">Órgão</th>
-                        <th style="padding: 8px 10px;">Vendedor</th>
-                        <th style="padding: 8px 10px;">Previsão</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${pageData.map(f => `
-                        <tr>
-                            <td style="padding: 8px 10px;"><strong>${f.numero_nf || '-'}</strong></td>
-                            <td style="padding: 8px 10px; white-space: nowrap;">${formatDate(f.data_emissao)}</td>
-                            <td style="padding: 8px 10px; max-width: 160px; word-break: break-word; white-space: normal;">${f.nome_orgao || '-'}</td>
-                            <td style="padding: 8px 10px; white-space: nowrap;">${f.vendedor && f.vendedor !== 'NÃO INFORMADO' ? f.vendedor : '-'}</td>
-                            <td style="padding: 8px 10px; white-space: nowrap; color: #EF4444; font-weight: 600;">${formatDate(f.previsao_entrega)}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
+                <thead><tr><th>Nº NF</th><th>Emissão</th><th>Órgão</th><th>Vendedor</th><th>Previsão</th></tr></thead>
+                <tbody>${pageData.map(f => `<tr>
+                    <td><strong>${f.numero_nf || '-'}</strong></td>
+                    <td style="white-space: nowrap;">${formatDate(f.data_emissao)}</td>
+                    <td style="max-width: 160px; word-break: break-word; white-space: normal;">${f.nome_orgao || '-'}</td>
+                    <td style="white-space: nowrap;">${f.vendedor && f.vendedor !== 'NÃO INFORMADO' ? f.vendedor : '-'}</td>
+                    <td style="white-space: nowrap; color: #EF4444; font-weight: 600;">${formatDate(f.previsao_entrega)}</td>
+                </tr>`).join('')}</tbody>
             </table>
         </div>
-        ${totalPages > 1 ? `
-        <div class="alert-pagination">
-            <button class="alert-page-btn" onclick="changeAlertPage(-1)" ${alertModalPage === 1 ? 'disabled' : ''}>‹</button>
-            <span class="alert-page-info">${alertModalPage} / ${totalPages}</span>
-            <button class="alert-page-btn" onclick="changeAlertPage(1)" ${alertModalPage === totalPages ? 'disabled' : ''}>›</button>
-        </div>
-        ` : ''}
-    `;
+        ${totalPages > 1 ? `<div class="alert-pagination"><button class="alert-page-btn" onclick="changeAlertPage(-1)" ${alertModalPage === 1 ? 'disabled' : ''}>‹</button><span class="alert-page-info">${alertModalPage} / ${totalPages}</span><button class="alert-page-btn" onclick="changeAlertPage(1)" ${alertModalPage === totalPages ? 'disabled' : ''}>›</button></div>` : ''}`;
 }
 
-window.changeAlertPage = function(direction) {
+window.changeAlertPage = function (direction) {
     const totalPages = Math.ceil(alertModalData.length / ALERT_PAGE_SIZE);
     alertModalPage = Math.max(1, Math.min(totalPages, alertModalPage + direction));
     renderAlertModalPage();
 };
 
-window.closeAlertModal = function() {
+window.closeAlertModal = function () {
     const alertModal = document.getElementById('alertModal');
-    if (alertModal) {
-        alertModal.style.display = 'none';
-    }
+    if (alertModal) alertModal.style.display = 'none';
 };
 
-window.addEventListener('beforeunload', () => {
-    sessionStorage.removeItem('alertShown');
-});
+window.addEventListener('beforeunload', () => { sessionStorage.removeItem('alertShown'); });
 
-console.log('✅ Script completo carregado com sucesso!');
-console.log('🔧 Funções exportadas para window:', {
-    toggleForm: typeof window.toggleForm,
-    showFormModal: typeof window.showFormModal,
-    handleEditClick: typeof window.handleEditClick,
-    handleSubmit: typeof window.handleSubmit
-});
+// ─── MODAL DASHBOARD COMPARATIVO ─────────────────────────────────────────────
+window.abrirDashboardComparativo = function () {
+    const modal = document.getElementById('dashboardModal');
+    const body = document.getElementById('dashboardModalBody');
+    if (!modal || !body) return;
 
+    const tiposComStatus = ['ENVIO', 'SIMPLES_REMESSA', 'REMESSA_AMOSTRA'];
+    const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const anoAtual = currentMonth.getFullYear();
+    const mesAtual = currentMonth.getMonth();
 
-// Dashboard comparativo: usa os indicadores visíveis e exclui Em Trânsito.
-window.abrirDashboardComparativo = function() {
- const cards = Array.from(document.querySelectorAll('.dashboard-card, .dashboard-item, .stat-card')).filter(c => !/em tr[aâ]nsito/i.test(c.innerText));
- const rows = cards.map(c => { const label = (c.querySelector('h3,h4,.dashboard-title,.stat-label')?.textContent || c.innerText.split('\n')[0] || 'Indicador').trim(); const value = (c.querySelector('.dashboard-value,.stat-value,.value,strong')?.textContent || (c.innerText.split('\n').slice(1).join(' ') || '0')).trim(); return {label,value}; });
- const old = document.getElementById('freteComparativoModal'); if(old) old.remove();
- const modal = document.createElement('div'); modal.id='freteComparativoModal'; modal.className='modal-overlay'; modal.style.display='flex';
- modal.innerHTML = `<div class="modal-content" style="width:min(900px,96vw);padding:24px"><div class="modal-header"><h3>Comparativo do dashboard</h3><button class="close-modal" aria-label="Fechar" onclick="document.getElementById('freteComparativoModal').remove()">×</button></div><p style="margin:8px 0 18px;color:var(--text-secondary)">Comparação mensal e anual dos indicadores, sem incluir Em Trânsito.</p><div class="table-container"><table><thead><tr><th>Indicador</th><th>Valor atual</th><th>Comparativo mensal</th><th>Comparativo anual</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.label.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</td><td>${r.value}</td><td>Consulte os registros do mês</td><td>Consulte os registros do ano</td></tr>`).join('')}</tbody></table></div><div class="modal-actions" style="justify-content:center;margin-top:20px"><button class="danger" onclick="document.getElementById('freteComparativoModal').remove()">Fechar</button></div></div>`;
- document.body.appendChild(modal);
+    function calcularMetricas(mes, ano) {
+        const lista = fretes.filter(f => {
+            const data = new Date(f.data_emissao + 'T00:00:00');
+            return data.getMonth() === mes && data.getFullYear() === ano;
+        });
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const entregues = lista.filter(f => tiposComStatus.includes(f.tipo_nf || 'ENVIO') && f.status === 'ENTREGUE').length;
+        const foraPrazo = lista.filter(f => {
+            const tipo = f.tipo_nf || 'ENVIO';
+            if (!tiposComStatus.includes(tipo)) return false;
+            if (f.status === 'ENTREGUE') return false;
+            if (!f.previsao_entrega) return false;
+            const previsao = new Date(f.previsao_entrega + 'T00:00:00'); previsao.setHours(0, 0, 0, 0);
+            return previsao < hoje;
+        }).length;
+        const faturado = lista.filter(f => !f.tipo_nf || f.tipo_nf === 'ENVIO')
+            .reduce((s, f) => s + parseFloat(f.valor_nf || 0), 0);
+        const frete = lista.filter(f => !f.tipo_nf || f.tipo_nf === 'ENVIO')
+            .reduce((s, f) => s + parseFloat(f.valor_frete || 0), 0);
+        return { entregues, foraPrazo, faturado, frete };
+    }
+
+    const atual = calcularMetricas(mesAtual, anoAtual);
+    const mesAnteriorIdx = mesAtual === 0 ? 11 : mesAtual - 1;
+    const anoMesAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
+    const anterior = calcularMetricas(mesAnteriorIdx, anoMesAnterior);
+    const mesmoMesAnoAnterior = calcularMetricas(mesAtual, anoAtual - 1);
+
+    const totalAno = { entregues: 0, foraPrazo: 0, faturado: 0, frete: 0 };
+    for (let m = 0; m < 12; m++) {
+        const met = calcularMetricas(m, anoAtual);
+        totalAno.entregues += met.entregues;
+        totalAno.foraPrazo += met.foraPrazo;
+        totalAno.faturado += met.faturado;
+        totalAno.frete += met.frete;
+    }
+
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const variacao = (atual, anterior) => {
+        if (anterior === 0) return atual === 0 ? '—' : '▲ novo';
+        const pct = ((atual - anterior) / anterior) * 100;
+        const sinal = pct >= 0 ? '▲' : '▼';
+        const cor = pct >= 0 ? '#16A34A' : '#DC2626';
+        return `<span style="color:${cor};font-weight:600;">${sinal} ${Math.abs(pct).toFixed(1)}%</span>`;
+    };
+
+    const linhas = [
+        { label: 'Entregas Realizadas', atual: atual.entregues, ant: anterior.entregues, ano: mesmoMesAnoAnterior.entregues, tot: totalAno.entregues },
+        { label: 'Fora do Prazo', atual: atual.foraPrazo, ant: anterior.foraPrazo, ano: mesmoMesAnoAnterior.foraPrazo, tot: totalAno.foraPrazo },
+        { label: 'Faturado (R$)', atual: fmt(atual.faturado), ant: fmt(anterior.faturado), ano: fmt(mesmoMesAnoAnterior.faturado), tot: fmt(totalAno.faturado), raw: true },
+        { label: 'Frete (R$)', atual: fmt(atual.frete), ant: fmt(anterior.frete), ano: fmt(mesmoMesAnoAnterior.frete), tot: fmt(totalAno.frete), raw: true }
+    ];
+
+    body.innerHTML = `
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;">Indicador</th>
+                        <th style="text-align:center;">${mesesNomes[mesAtual]}/${anoAtual}</th>
+                        <th style="text-align:center;">${mesesNomes[mesAnteriorIdx]}/${anoMesAnterior}</th>
+                        <th style="text-align:center;">Variação mensal</th>
+                        <th style="text-align:center;">${mesesNomes[mesAtual]}/${anoAtual - 1}</th>
+                        <th style="text-align:center;">Variação anual</th>
+                        <th style="text-align:center;">Total ${anoAtual}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${linhas.map(l => {
+                        let varMes, varAno;
+                        if (l.raw) {
+                            const parse = s => parseFloat(String(s).replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.')) || 0;
+                            varMes = variacao(parse(l.atual), parse(l.ant));
+                            varAno = variacao(parse(l.atual), parse(l.ano));
+                        } else {
+                            varMes = variacao(l.atual, l.ant);
+                            varAno = variacao(l.atual, l.ano);
+                        }
+                        return `<tr>
+                            <td style="font-weight:600;">${l.label}</td>
+                            <td style="text-align:center;font-weight:700;">${l.atual}</td>
+                            <td style="text-align:center;">${l.ant}</td>
+                            <td style="text-align:center;">${varMes}</td>
+                            <td style="text-align:center;">${l.ano}</td>
+                            <td style="text-align:center;">${varAno}</td>
+                            <td style="text-align:center;font-weight:600;">${l.tot}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p style="margin-top:1rem;font-size:0.85rem;color:var(--text-secondary);text-align:center;">
+            Comparativo baseado no mês selecionado (${mesesNomes[mesAtual]}/${anoAtual}) e no total acumulado de ${anoAtual}.
+        </p>`;
+
+    modal.classList.add('show');
+};
+
+window.closeDashboardModal = function () {
+    const modal = document.getElementById('dashboardModal');
+    if (modal) modal.classList.remove('show');
 };
