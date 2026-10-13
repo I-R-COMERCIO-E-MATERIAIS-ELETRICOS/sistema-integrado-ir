@@ -1,13 +1,13 @@
 // apps/precos/routes.js
 const express = require('express');
-const { randomUUID } = require('crypto'); // nativo do Node.js — sem dependência extra
+const { randomUUID } = require('crypto');
 
-module.exports = function(supabase) {
+module.exports = function (supabase) {
     const router = express.Router();
 
     router.head('/', (req, res) => res.status(200).end());
 
-    // ─── LISTA COMPLETA DE MARCAS DISTINTAS ──────────────────────────────────
+    // ─── MARCAS DISTINTAS ────────────────────────────────────────────────────
     router.get('/marcas', async (req, res) => {
         try {
             const { data, error } = await supabase
@@ -36,20 +36,20 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── LISTAGEM DE PREÇOS COM PAGINAÇÃO ─────────────────────────────────────
+    // ─── LISTAGEM PAGINADA ───────────────────────────────────────────────────
     router.get('/', async (req, res) => {
         try {
-            const page  = Math.max(1, parseInt(req.query.page)  || 1);
+            const page = Math.max(1, parseInt(req.query.page) || 1);
             const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 50), 50);
-            const marca  = (req.query.marca  || '').trim() || null;
+            const marca = (req.query.marca || '').trim() || null;
             const search = (req.query.search || '').trim() || null;
-            const from   = (page - 1) * limit;
-            const to     = from + limit - 1;
+            const from = (page - 1) * limit;
+            const to = from + limit - 1;
 
             let query = supabase
                 .from('precos')
                 .select('*', { count: 'exact' })
-                .order('marca',  { ascending: true })
+                .order('marca', { ascending: true })
                 .order('codigo', { ascending: true });
 
             if (marca && marca.toUpperCase() !== 'TODAS') {
@@ -57,7 +57,6 @@ module.exports = function(supabase) {
             }
 
             if (search) {
-                // Sanitiza o termo de busca para evitar problemas com caracteres especiais
                 const s = search.replace(/[%_\\]/g, '\\$&');
                 query = query.or(
                     `codigo.ilike.%${s}%,marca.ilike.%${s}%,descricao.ilike.%${s}%`
@@ -76,18 +75,18 @@ module.exports = function(supabase) {
             }
 
             const normalized = (data || []).map(p => ({
-                id:         p.id,
-                marca:      (p.marca     || '').trim().toUpperCase(),
-                codigo:     (p.codigo    || '').trim(),
-                preco:      parseFloat(p.preco) || 0,
-                descricao:  (p.descricao || '').trim().toUpperCase(),
-                timestamp:  p.ultima_atualizacao || p.timestamp || null,
+                id: p.id,
+                marca: (p.marca || '').trim().toUpperCase(),
+                codigo: (p.codigo || '').trim(),
+                preco: parseFloat(p.preco) || 0,
+                descricao: (p.descricao || '').trim().toUpperCase(),
+                timestamp: p.ultima_atualizacao || p.timestamp || null,
                 atualizado_por: p.atualizado_por || '',
                 ultima_atualizacao: p.ultima_atualizacao || p.timestamp || null,
-                marca_nome: (p.marca     || '').trim().toUpperCase()
+                marca_nome: (p.marca || '').trim().toUpperCase()
             }));
 
-            const total      = typeof count === 'number' ? count : normalized.length;
+            const total = typeof count === 'number' ? count : normalized.length;
             const totalPages = Math.max(1, Math.ceil(total / limit));
 
             res.json({ data: normalized, total, page, limit, totalPages });
@@ -97,12 +96,10 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── BUSCA POR ID ─────────────────────────────────────────────────────────
+    // ─── BUSCA POR ID ────────────────────────────────────────────────────────
     router.get('/:id', async (req, res) => {
         try {
             const id = req.params.id;
-
-            // Valida se o ID tem formato minimamente aceitável
             if (!id || id === 'undefined' || id === 'null') {
                 return res.status(400).json({ error: 'ID inválido' });
             }
@@ -111,22 +108,19 @@ module.exports = function(supabase) {
                 .from('precos')
                 .select('*')
                 .eq('id', id)
-                .maybeSingle(); // maybeSingle não lança erro quando não encontra
+                .maybeSingle();
 
             if (error) {
                 console.error('Supabase error (GET /:id):', JSON.stringify(error));
                 return res.status(500).json({ error: 'Erro ao buscar preço: ' + (error.message || error.code) });
             }
-
-            if (!data) {
-                return res.status(404).json({ error: 'Preço não encontrado' });
-            }
+            if (!data) return res.status(404).json({ error: 'Preço não encontrado' });
 
             res.json({
                 ...data,
-                marca:      (data.marca     || '').trim().toUpperCase(),
-                descricao:  (data.descricao || '').trim().toUpperCase(),
-                marca_nome: (data.marca     || '').trim().toUpperCase()
+                marca: (data.marca || '').trim().toUpperCase(),
+                descricao: (data.descricao || '').trim().toUpperCase(),
+                marca_nome: (data.marca || '').trim().toUpperCase()
             });
         } catch (e) {
             console.error('Erro inesperado ao buscar preço por id:', e);
@@ -134,7 +128,7 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── CRIAR PREÇO ──────────────────────────────────────────────────────────
+    // ─── CRIAR ───────────────────────────────────────────────────────────────
     router.post('/', async (req, res) => {
         try {
             const { marca, codigo, preco, descricao, atualizado_por, ultima_atualizacao } = req.body || {};
@@ -148,15 +142,14 @@ module.exports = function(supabase) {
                 return res.status(400).json({ error: 'Preço deve ser um número maior que zero' });
             }
 
-            const codigoNorm    = String(codigo).trim();
-            const marcaNorm     = String(marca).trim().toUpperCase();
+            const codigoNorm = String(codigo).trim();
+            const marcaNorm = String(marca).trim().toUpperCase();
             const descricaoNorm = String(descricao).trim().toUpperCase();
 
             if (!codigoNorm || !marcaNorm || !descricaoNorm) {
                 return res.status(400).json({ error: 'Campos não podem ser vazios após formatação' });
             }
 
-            // Verifica duplicata de código
             const { data: existing, error: checkError } = await supabase
                 .from('precos')
                 .select('id')
@@ -164,10 +157,9 @@ module.exports = function(supabase) {
                 .maybeSingle();
 
             if (checkError) {
-                console.error('Supabase error (POST / - check duplicate):', JSON.stringify(checkError));
+                console.error('Supabase error (POST - check duplicate):', JSON.stringify(checkError));
                 return res.status(500).json({ error: 'Erro ao verificar duplicata: ' + (checkError.message || checkError.code) });
             }
-
             if (existing) {
                 return res.status(409).json({ error: 'Já existe um preço cadastrado com este código' });
             }
@@ -175,10 +167,10 @@ module.exports = function(supabase) {
             const { data, error } = await supabase
                 .from('precos')
                 .insert([{
-                    id:        randomUUID(),   // gera UUID explicitamente — evita conflito de pkey
-                    marca:     marcaNorm,
-                    codigo:    codigoNorm,
-                    preco:     precoNum,
+                    id: randomUUID(),
+                    marca: marcaNorm,
+                    codigo: codigoNorm,
+                    preco: precoNum,
                     descricao: descricaoNorm,
                     atualizado_por: atualizado_por || null,
                     ultima_atualizacao: ultima_atualizacao || new Date().toISOString(),
@@ -188,7 +180,7 @@ module.exports = function(supabase) {
                 .single();
 
             if (error) {
-                console.error('Supabase error (POST / - insert):', JSON.stringify(error));
+                console.error('Supabase error (POST - insert):', JSON.stringify(error));
                 return res.status(500).json({ error: 'Erro ao criar preço: ' + (error.message || error.code) });
             }
 
@@ -202,11 +194,10 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── ATUALIZAR PREÇO ──────────────────────────────────────────────────────
+    // ─── ATUALIZAR ───────────────────────────────────────────────────────────
     router.put('/:id', async (req, res) => {
         try {
             const id = req.params.id;
-
             if (!id || id === 'undefined' || id === 'null') {
                 return res.status(400).json({ error: 'ID inválido' });
             }
@@ -222,15 +213,14 @@ module.exports = function(supabase) {
                 return res.status(400).json({ error: 'Preço deve ser um número maior que zero' });
             }
 
-            const codigoNorm    = String(codigo).trim();
-            const marcaNorm     = String(marca).trim().toUpperCase();
+            const codigoNorm = String(codigo).trim();
+            const marcaNorm = String(marca).trim().toUpperCase();
             const descricaoNorm = String(descricao).trim().toUpperCase();
 
             if (!codigoNorm || !marcaNorm || !descricaoNorm) {
                 return res.status(400).json({ error: 'Campos não podem ser vazios após formatação' });
             }
 
-            // Verifica duplicata de código (excluindo o próprio registro)
             const { data: existing, error: checkError } = await supabase
                 .from('precos')
                 .select('id')
@@ -239,10 +229,9 @@ module.exports = function(supabase) {
                 .maybeSingle();
 
             if (checkError) {
-                console.error('Supabase error (PUT /:id - check duplicate):', JSON.stringify(checkError));
+                console.error('Supabase error (PUT - check duplicate):', JSON.stringify(checkError));
                 return res.status(500).json({ error: 'Erro ao verificar duplicata: ' + (checkError.message || checkError.code) });
             }
-
             if (existing) {
                 return res.status(409).json({ error: 'Já existe outro preço cadastrado com este código' });
             }
@@ -250,9 +239,9 @@ module.exports = function(supabase) {
             const { data, error } = await supabase
                 .from('precos')
                 .update({
-                    marca:     marcaNorm,
-                    codigo:    codigoNorm,
-                    preco:     precoNum,
+                    marca: marcaNorm,
+                    codigo: codigoNorm,
+                    preco: precoNum,
                     descricao: descricaoNorm,
                     atualizado_por: atualizado_por || null,
                     ultima_atualizacao: ultima_atualizacao || new Date().toISOString(),
@@ -260,16 +249,13 @@ module.exports = function(supabase) {
                 })
                 .eq('id', id)
                 .select('*')
-                .maybeSingle(); // maybeSingle para não lançar erro se não encontrar
+                .maybeSingle();
 
             if (error) {
-                console.error('Supabase error (PUT /:id - update):', JSON.stringify(error));
+                console.error('Supabase error (PUT - update):', JSON.stringify(error));
                 return res.status(500).json({ error: 'Erro ao atualizar preço: ' + (error.message || error.code) });
             }
-
-            if (!data) {
-                return res.status(404).json({ error: 'Preço não encontrado' });
-            }
+            if (!data) return res.status(404).json({ error: 'Preço não encontrado' });
 
             res.json({
                 ...data,
@@ -281,16 +267,14 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── EXCLUIR PREÇO ────────────────────────────────────────────────────────
+    // ─── EXCLUIR ─────────────────────────────────────────────────────────────
     router.delete('/:id', async (req, res) => {
         try {
             const id = req.params.id;
-
             if (!id || id === 'undefined' || id === 'null') {
                 return res.status(400).json({ error: 'ID inválido' });
             }
 
-            // Verifica se o registro existe antes de deletar
             const { data: existing, error: checkError } = await supabase
                 .from('precos')
                 .select('id')
@@ -298,10 +282,9 @@ module.exports = function(supabase) {
                 .maybeSingle();
 
             if (checkError) {
-                console.error('Supabase error (DELETE /:id - check):', JSON.stringify(checkError));
+                console.error('Supabase error (DELETE - check):', JSON.stringify(checkError));
                 return res.status(500).json({ error: 'Erro ao verificar preço: ' + (checkError.message || checkError.code) });
             }
-
             if (!existing) {
                 return res.status(404).json({ error: 'Preço não encontrado' });
             }
@@ -312,7 +295,7 @@ module.exports = function(supabase) {
                 .eq('id', id);
 
             if (error) {
-                console.error('Supabase error (DELETE /:id - delete):', JSON.stringify(error));
+                console.error('Supabase error (DELETE - delete):', JSON.stringify(error));
                 return res.status(500).json({ error: 'Erro ao excluir preço: ' + (error.message || error.code) });
             }
 
