@@ -1,12 +1,9 @@
 // apps/compra/routes.js
-// Rotas da API de Ordens de Compra
-
 const { primeiroNome } = require('../../lib/helpers');
 
-module.exports = function(supabase) {
+module.exports = function (supabase) {
     const router = require('express').Router();
 
-    // ─── Utilitários ──────────────────────────────────────────────
     function toSnakeCase(obj) {
         if (!obj || typeof obj !== 'object') return obj;
         const newObj = {};
@@ -17,7 +14,6 @@ module.exports = function(supabase) {
         return newObj;
     }
 
-    // Função auxiliar para inserir notificação global
     async function inserirNotificacao(message) {
         try {
             await supabase.from('compranotifications').insert({ message });
@@ -26,7 +22,6 @@ module.exports = function(supabase) {
         }
     }
 
-    // ─── GET /ordens/ultimo-numero ─────────────────────────────────
     router.get('/ordens/ultimo-numero', async (req, res) => {
         try {
             const { data, error } = await supabase
@@ -43,14 +38,10 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── GET /ordens/numero/:numero ──────────────────────────────
-    // Busca uma ordem pelo número (independente do mês)
     router.get('/ordens/numero/:numero', async (req, res) => {
         try {
             const { numero } = req.params;
-            if (!numero) {
-                return res.status(400).json({ error: 'Número da ordem é obrigatório' });
-            }
+            if (!numero) return res.status(400).json({ error: 'Número da ordem é obrigatório' });
 
             const { data, error } = await supabase
                 .from('ordens_compra')
@@ -59,9 +50,7 @@ module.exports = function(supabase) {
                 .maybeSingle();
 
             if (error) throw error;
-            if (!data) {
-                return res.status(404).json({ error: 'Ordem não encontrada' });
-            }
+            if (!data) return res.status(404).json({ error: 'Ordem não encontrada' });
             res.json(data);
         } catch (err) {
             console.error('GET /ordens/numero/:numero error:', err);
@@ -69,7 +58,6 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── GET /ordens?mes=&ano= ────────────────────────────────────
     router.get('/ordens', async (req, res) => {
         try {
             const { mes, ano } = req.query;
@@ -92,7 +80,6 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── POST /ordens ──────────────────────────────────────────────
     router.post('/ordens', async (req, res) => {
         try {
             const ordem = toSnakeCase(req.body);
@@ -105,10 +92,8 @@ module.exports = function(supabase) {
                 .select()
                 .single();
             if (error) throw error;
-            
-            const numeroOrdem = data.numero_ordem;
-            await inserirNotificacao(`Ordem de Nº ${numeroOrdem} aberta`);
-            
+
+            await inserirNotificacao(`Ordem de Nº ${data.numero_ordem} aberta`);
             res.status(201).json(data);
         } catch (err) {
             console.error('POST /ordens error:', err);
@@ -116,22 +101,20 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── PUT /ordens/:id ───────────────────────────────────────────
     router.put('/ordens/:id', async (req, res) => {
         try {
             const ordem = toSnakeCase(req.body);
             ordem.ultima_atualizacao = new Date().toISOString();
             ordem.atualizado_por = primeiroNome(req.user) || ordem.responsavel || null;
             if (!ordem.items || !Array.isArray(ordem.items)) ordem.items = [];
-            
+
             const { data: oldData, error: fetchError } = await supabase
                 .from('ordens_compra')
                 .select('numero_ordem')
                 .eq('id', req.params.id)
                 .single();
-            
             if (fetchError) throw fetchError;
-            
+
             const { data, error } = await supabase
                 .from('ordens_compra')
                 .update(ordem)
@@ -139,10 +122,8 @@ module.exports = function(supabase) {
                 .select()
                 .single();
             if (error) throw error;
-            
-            const numeroOrdem = oldData.numero_ordem;
-            await inserirNotificacao(`Ordem de Nº ${numeroOrdem} atualizada`);
-            
+
+            await inserirNotificacao(`Ordem de Nº ${oldData.numero_ordem} atualizada`);
             res.json(data);
         } catch (err) {
             console.error('PUT /ordens/:id error:', err);
@@ -150,7 +131,6 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── DELETE /ordens/:id ────────────────────────────────────────
     router.delete('/ordens/:id', async (req, res) => {
         try {
             const { data: ordem, error: fetchError } = await supabase
@@ -158,18 +138,15 @@ module.exports = function(supabase) {
                 .select('numero_ordem')
                 .eq('id', req.params.id)
                 .single();
-            
             if (fetchError) throw fetchError;
-            
+
             const { error } = await supabase
                 .from('ordens_compra')
                 .delete()
                 .eq('id', req.params.id);
             if (error) throw error;
-            
-            const numeroOrdem = ordem.numero_ordem;
-            await inserirNotificacao(`Ordem de Nº ${numeroOrdem} excluída`);
-            
+
+            await inserirNotificacao(`Ordem de Nº ${ordem.numero_ordem} excluída`);
             res.status(204).send();
         } catch (err) {
             console.error('DELETE /ordens/:id error:', err);
@@ -177,7 +154,6 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── PATCH /ordens/:id/status ──────────────────────────────────
     router.patch('/ordens/:id/status', async (req, res) => {
         try {
             const { status } = req.body;
@@ -195,7 +171,6 @@ module.exports = function(supabase) {
         }
     });
 
-    // ─── GET /fornecedores (lista única) ───────────────────────────
     router.get('/fornecedores', async (req, res) => {
         try {
             const { data, error } = await supabase
