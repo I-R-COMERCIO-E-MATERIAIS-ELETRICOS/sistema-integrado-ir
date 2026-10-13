@@ -29,7 +29,7 @@ body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background: var(--b
 
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .header-left { display: flex; align-items: center; gap: 1rem; }
-h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin: 0; color: #000; }
 
 .btn-new-order-header {
     background: var(--btn-register); color: white; border: none;
@@ -133,6 +133,7 @@ tbody tr:hover { background: var(--table-hover); }
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     border: 1px solid var(--border-color);
     animation: scaleIn 0.2s ease;
+    position: relative;
 }
 .modal-content.small { max-width: 480px; }
 @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -145,17 +146,18 @@ tbody tr:hover { background: var(--table-hover); }
 .modal-title { font-size: 1.4rem; font-weight: 700; margin: 0; }
 .close-modal {
     background: transparent; border: none;
-    font-size: 1.4rem; color: var(--text-secondary);
+    font-size: 1.4rem; color: #dc2626;
     cursor: pointer; width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 6px; transition: all 0.15s ease;
 }
-.close-modal:hover { color: var(--text-primary); background: rgba(0,0,0,0.05); }
+.close-modal:hover { color: #b91c1c; background: rgba(220,38,38,0.05); }
 
 .modal-actions {
     display: flex; gap: 0.75rem; justify-content: flex-end;
     margin-top: 1.5rem; padding-top: 1.5rem;
     border-top: 1px solid rgba(128,128,128,0.2);
+    flex-wrap: wrap;
 }
 .modal-actions.centered {
     justify-content: center;
@@ -173,6 +175,13 @@ tbody tr:hover { background: var(--table-hover); }
 .modal-actions .save { background: var(--btn-save); }
 .modal-actions .danger { background: var(--danger-color); }
 .modal-actions .success { background: var(--success-color); }
+.modal-actions .cancel-close { background: #dc2626; }
+
+/* Ordem: Salvar antes de Cancelar */
+.modal-actions .save { order: 1; }
+.modal-actions .cancel-close { order: 2; }
+.modal-actions .tab-prev,
+.modal-actions .tab-next { order: 0; }
 
 .modal-message-delete {
     font-size: 1.15rem; font-weight: 500; text-align: center;
@@ -224,6 +233,7 @@ input, select {
     color: var(--text-primary);
     font-size: 0.95rem; font-family: inherit;
     outline: none; transition: border-color 0.15s ease;
+    box-sizing: border-box;
 }
 input:focus, select:focus { border-color: var(--primary); }
 input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
@@ -288,6 +298,9 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
     padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;
 }
 
+/* Tabela em caixa alta */
+#usersTableBody td { text-transform: uppercase; }
+
 @media (max-width: 1366px) {
     .container { padding: 1.5rem 1.5rem 4rem 1.5rem; max-width: 100%; }
     h1 { font-size: 1.75rem; }
@@ -307,193 +320,3 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
     .form-grid.credentials-grid { grid-template-columns: 1fr; }
     .modules-dashboard { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
-
-
-
-/* ─── PADRÃO VISUAL DOS MODAIS ───────────────────────────── */
-.modal-overlay {
-    background: rgba(0,0,0,0.60);
-    backdrop-filter: blur(6px);
-}
-.modal-content {
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.30);
-    animation: scaleIn 0.2s ease;
-}
-.modal-header {
-    border-bottom: 1px solid rgba(128,128,128,0.20);
-}
-.modal-title {
-    font-size: 1.4rem;
-    font-weight: 700;
-}
-.modal-content label {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-.modal-content .modal-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    justify-content: flex-end;
-}
-.modal-content .modal-actions button {
-    min-width: 110px;
-}
-.modal-delete {
-    max-width: 480px !important;
-}
-.modal-message-delete {
-    font-size: 1.05rem;
-    font-weight: 500;
-    text-align: center;
-    color: var(--text-primary);
-    margin: 1rem 0 2rem;
-}
-.modal-delete-actions {
-    justify-content: center !important;
-    border-top: none !important;
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}
-.modal-delete-actions .danger { background: var(--btn-delete) !important; color: #fff; }
-.modal-delete-actions .success { background: var(--btn-save) !important; color: #fff; }
-.info-close-btn, .cancel-close {
-    background: var(--danger-color) !important;
-    color: #fff !important;
-}
-
-
-/* MALVSCODE UI REFINEMENT
-   Mantém a identidade visual existente (#FF521D) e aprimora somente
-   hierarquia, espaçamento, estados e responsividade. */
-:root {
-    --ui-radius: 10px;
-    --ui-radius-sm: 8px;
-    --ui-focus: rgba(255, 82, 29, 0.20);
-    --ui-primary-soft: rgba(255, 82, 29, 0.08);
-}
-
-button, input, select, textarea { font: inherit; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-    outline: 2px solid var(--ui-focus, rgba(255,82,29,.20));
-    outline-offset: 2px;
-}
-
-/* Evita que a interface fique apertada em telas médias. */
-.container {
-    width: min(100%, 1440px);
-    margin-inline: auto;
-}
-
-/* Mantém o laranja como identidade, mas reserva sua presença para ações. */
-.btn-new-order-header:hover,
-button.primary:hover,
-.btn-primary:hover {
-    filter: brightness(.96);
-    transform: translateY(-1px);
-}
-
-/* Tabelas continuam tabelas no desktop, com rolagem controlada. */
-.table-responsive,
-.table-container,
-.table-wrapper {
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-img { max-width: 100%; height: auto; }
-
-@media (max-width: 1100px) {
-    .container { padding-left: 1.5rem; padding-right: 1.5rem; }
-    .card { padding: 1.35rem; }
-    .header { align-items: flex-start; }
-    .header-left { min-width: 0; }
-    h1 { font-size: 1.7rem; }
-}
-
-@media (max-width: 760px) {
-    body { overflow-x: hidden; }
-    .container { padding: 1rem 1rem 4rem; }
-    .card { padding: 1rem; border-radius: var(--ui-radius); margin-bottom: 1rem; }
-    .header { gap: .8rem; margin-bottom: 1rem; }
-    .header-left { width: 100%; }
-    h1 { font-size: 1.45rem; letter-spacing: -.3px; }
-    h2 { font-size: 1.2rem; margin-bottom: 1rem; }
-    .btn-new-order-header { width: 100%; min-height: 44px; padding: .7rem 1rem; }
-    .search-bar { border-radius: var(--ui-radius); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-    .search-bar input { min-width: 0; }
-    .form-group-small { max-width: none; width: 100%; }
-
-    /* Formulários: uma coluna no celular, sem esmagar os campos. */
-    .form-row, .form-grid, .filters-row, .filter-row {
-        grid-template-columns: 1fr !important;
-        display: grid !important;
-        gap: .8rem !important;
-    }
-    .form-actions, .modal-actions {
-        flex-wrap: wrap;
-        gap: .6rem;
-    }
-    .form-actions button, .modal-actions button { min-height: 42px; }
-
-    /* Evita que tabelas destruam o layout; a leitura continua horizontal quando necessário. */
-    table { min-width: 680px; }
-    .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-    /* Modais ocupam a tela sem criar uma janela minúscula. */
-    .modal-content {
-        width: min(94vw, 720px) !important;
-        max-height: 90vh;
-        overflow-y: auto;
-        margin: 5vh auto;
-    }
-}
-
-@media (max-width: 480px) {
-    .container { padding-inline: .75rem; }
-    .card { padding: .85rem; }
-    h1 { font-size: 1.3rem; }
-    .connection-status { padding: .35rem .65rem; }
-    .btn-new-order-header { font-size: .88rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .01ms !important;
-        scroll-behavior: auto !important;
-    }
-}
-
-
-/* Registros da tabela em caixa alta, mantendo os valores originais no banco. */
-#usersTableBody td { text-transform: uppercase; }
-
-
-/* Padronização visual global dos módulos */
-.header h1, .header h2, .header h3, .header .header-left, .page-header h1, .app-header h1 { color:#000 !important; }
-button, input[type="checkbox"], input[type="radio"] { font-family:inherit; }
-.btn-edit, .btn-delete, .btn-pdf, .btn-save, .btn-save-green, .btn-new-order-header, .btn-primary, .btn-secondary, .cancel-close, .btn-duplicar-order-header { font-family:inherit !important; font-size:.875rem !important; font-weight:600 !important; line-height:1.35 !important; }
-input[type="checkbox"] { accent-color:#2563eb; }
-
-
-/* IRPORTAL GLOBAL UI CONSISTENCY */
-.btn-edit, .btn-delete, .btn-pdf, .btn-save-green, .cancel-close, .btn-new-order-header, .btn-duplicar-order-header, button.success, button.danger, input[type="checkbox"] + label { font-family: inherit; font-size: 14px; font-weight: 600; }
-
-/* REGISTRATION TABLE COLUMN HEADERS ONLY */
-table:not(.items-table) thead th { background-color: #000 !important; color: #fff !important; }
-
-/* Títulos de módulo e abas em preto */
-h1, .header h1, .header h2, .header h3, .header .header-left, .page-header h1, .app-header h1,
-.tab-btn, .tab-btn.active, .tab-btn:hover, .tabs-nav button { color:#000 !important; }
-
-.modal-actions button { min-height:38px; }
-.modal-actions button[onclick*="confirmDelete"], .modal-actions button.confirm, .modal-actions button.success { background:#16a34a !important; color:#fff !important; }
-.modal-actions button[onclick*="closeDeleteModal"], .modal-actions button[onclick*="closeFormModal"], .modal-actions button.cancel-close, .modal-actions button.danger { background:#dc2626 !important; color:#fff !important; }
-#formModal .form-grid .form-group textarea { width:100%; max-width:100%; min-width:0; }
