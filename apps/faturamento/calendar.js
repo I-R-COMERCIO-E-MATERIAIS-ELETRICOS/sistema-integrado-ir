@@ -1,12 +1,11 @@
 // ============================================
-// CALENDAR MODAL FUNCTIONALITY
-// Pedidos de Faturamento - Month Navigation
+// CALENDAR - Pedidos de Faturamento
 // ============================================
-
 let calendarYear = new Date().getFullYear();
 
 function toggleCalendar() {
     const modal = document.getElementById('calendarModal');
+    if (!modal) return;
     if (modal.classList.contains('show')) {
         modal.classList.remove('show');
     } else {
@@ -24,29 +23,17 @@ function changeCalendarYear(direction) {
 function renderCalendar() {
     const yearElement = document.getElementById('calendarYear');
     const monthsContainer = document.getElementById('calendarMonths');
-    
     if (!yearElement || !monthsContainer) return;
-    
     yearElement.textContent = calendarYear;
-    
-    const monthNames = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 
-        'Maio', 'Junho', 'Julho', 'Agosto', 
-        'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-    
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     monthsContainer.innerHTML = '';
-    
     monthNames.forEach((name, index) => {
         const monthButton = document.createElement('div');
         monthButton.className = 'calendar-month';
         monthButton.textContent = name;
-        
-        // Marcar o mês atual
         if (calendarYear === currentMonth.getFullYear() && index === currentMonth.getMonth()) {
             monthButton.classList.add('current');
         }
-        
         monthButton.onclick = () => selectMonth(index);
         monthsContainer.appendChild(monthButton);
     });
@@ -58,14 +45,9 @@ function selectMonth(monthIndex) {
     toggleCalendar();
 }
 
-// Fechar o calendário ao clicar fora dele
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('calendarModal');
     if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-            }
-        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
     }
 });
