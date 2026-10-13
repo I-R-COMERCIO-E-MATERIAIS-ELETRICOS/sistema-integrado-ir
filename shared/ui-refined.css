@@ -1,0 +1,185 @@
+/* ================================================================
+ * shared/ui-refined.css
+ * Padrão visual global — botões, modais, toasts, overlay de acesso.
+ * ================================================================ */
+
+/* ─── BOTÕES PADRÃO ────────────────────────────────────────────── */
+.btn-cancel-red,
+.cancel-close,
+button[data-action="cancel"],
+.modal-actions .cancel-close,
+.modal-actions .btn-cancel,
+.modal-actions button[onclick*="closeFormModal"]:not(.close-modal):not(.ir-close),
+.modal-actions button[onclick*="closeModal"]:not(.close-modal):not(.ir-close) {
+    background: #dc2626 !important;
+    color: #fff !important;
+}
+.btn-cancel-red:hover,
+.cancel-close:hover {
+    background: #b91c1c !important;
+}
+
+/* Botão Salvar fica sempre à ESQUERDA do Cancelar */
+.modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.modal-actions .save,
+.modal-actions button.save,
+.modal-actions button[type="submit"],
+.modal-actions .btn-save-green {
+    background: #22C55E !important;
+    color: #fff !important;
+    order: 1;
+}
+.modal-actions .cancel-close,
+.modal-actions .btn-cancel,
+.modal-actions button[onclick*="closeFormModal"]:not(.close-modal):not(.ir-close) {
+    order: 2;
+}
+
+/* Fechar (X) — sempre vermelho */
+.close-modal,
+button.close-modal,
+.ir-close {
+    color: #dc2626 !important;
+}
+.close-modal:hover,
+button.close-modal:hover {
+    color: #b91c1c !important;
+    background: transparent !important;
+}
+
+/* ─── MODAL PADRÃO ─────────────────────────────────────────────── */
+.ir-modal-overlay,
+.modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: clamp(10px, 2vw, 28px);
+}
+.ir-modal-overlay.show,
+.modal-overlay.show { display: flex; }
+
+.ir-modal-box,
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: min(96vw, 900px);
+    width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
+/* Confirmação: botões Sim/Não CENTRALIZADOS */
+.ir-modal-confirm {
+    max-width: 460px;
+    position: relative;
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+}
+.ir-modal-confirm .ir-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: transparent; border: 0; font-size: 1.4rem;
+    cursor: pointer;
+}
+.ir-confirm-msg { font-size: 1.1rem; font-weight: 500; margin: 0.5rem 0 2rem; }
+.ir-confirm-actions {
+    display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;
+}
+.ir-btn-green { background: #22C55E !important; color: #fff !important; min-width: 120px; padding: 12px 24px; border-radius: 8px; border: 0; font-weight: 600; cursor: pointer; }
+.ir-btn-green:hover { background: #16a34a !important; }
+.ir-btn-red { background: #dc2626 !important; color: #fff !important; min-width: 120px; padding: 12px 24px; border-radius: 8px; border: 0; font-weight: 600; cursor: pointer; }
+.ir-btn-red:hover { background: #b91c1c !important; }
+
+/* Modal de exclusão genérico */
+.modal-delete,
+.ir-modal-delete {
+    max-width: 460px;
+    position: relative;
+    text-align: center;
+}
+.modal-message-delete,
+.ir-delete-msg {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 1rem 0 2rem;
+}
+.modal-actions-no-border,
+.ir-delete-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    border-top: 0 !important;
+    padding-top: 0 !important;
+}
+.modal-actions-no-border .danger,
+.modal-actions-no-border .ir-btn-red,
+.modal-actions-no-border button[onclick*="closeDelete"] {
+    background: #dc2626 !important;
+    color: #fff !important;
+}
+.modal-actions-no-border .success,
+.modal-actions-no-border .ir-btn-green,
+.modal-actions-no-border button[onclick*="confirmDelete"] {
+    background: #22C55E !important;
+    color: #fff !important;
+}
+
+/* ─── TOAST ───────────────────────────────────────────────────── */
+.ir-toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 14px 20px; border-radius: 10px;
+    color: #fff; font-weight: 500; font-size: 0.95rem;
+    z-index: 2147483646;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    opacity: 0; transform: translateY(100px);
+    transition: opacity .25s ease, transform .25s ease;
+    min-width: 280px; max-width: 90vw;
+}
+.ir-toast.show { opacity: 1; transform: translateY(0); }
+.ir-toast-success { background: #10B981; }
+.ir-toast-error { background: #EF4444; }
+.ir-toast-warning { background: #F59E0B; }
+.ir-toast-info { background: #3B82F6; }
+
+/* ─── NAVEGAÇÃO DE ABAS (Anterior / Próximo) ──────────────────── */
+.tabs-nav-toolbar {
+    display: flex; justify-content: flex-end; gap: .5rem;
+    margin-top: 1rem;
+}
+.tabs-nav-toolbar button {
+    padding: 10px 18px; border-radius: 8px; border: 0;
+    font-weight: 600; cursor: pointer;
+}
+.tabs-nav-toolbar .tab-prev { background: #6B7280; color: #fff; }
+.tabs-nav-toolbar .tab-next { background: #6B7280; color: #fff; }
+
+/* ─── RESPONSIVIDADE DESKTOP ──────────────────────────────────── */
+/* Garante que nada estoure em telas menores; mobile é bloqueado no HTML */
+html, body { width: 100%; min-width: 0; max-width: 100%; }
+body { overflow-x: auto; }
+.container, .app-content, main, .main-content { max-width: 100%; }
+input, select, textarea { max-width: 100%; box-sizing: border-box; }
+table { max-width: 100%; }
+.table-container, .table-wrapper, .table-responsive { max-width: 100%; overflow-x: auto; }
+
+/* ─── BLOQUEIO MOBILE ─────────────────────────────────────────── */
+#unsupportedDevice {
+    display: none;
+    position: fixed; inset: 0; z-index: 2147483647;
+    align-items: center; justify-content: center;
+    padding: 28px; background: #fff; color: #111827;
+    text-align: center;
+    font: 600 18px/1.5 system-ui, sans-serif;
+}
+@media (max-width: 900px), (max-height: 600px) {
+    body > *:not(#unsupportedDevice) { display: none !important; }
+    #unsupportedDevice { display: flex !important; }
+}
+
+/* ─── SPLASH: nunca exibir nos módulos ────────────────────────── */
+.splash-screen { display: none !important; }
