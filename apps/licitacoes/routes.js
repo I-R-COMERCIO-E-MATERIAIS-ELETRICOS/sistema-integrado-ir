@@ -4,7 +4,7 @@ module.exports = function (supabase) {
   const table = 'licitacoes';
   const bankTable = 'bancos';
   const clean = (v) => v === undefined ? null : v;
-  const todayStr = () => new Date().toISOString().split('T')[0];
+  const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
   router.get('/licitacoes/opcoes', async (req, res) => {
     try {
@@ -173,7 +173,6 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  /* Bancos — somente leitura */
   router.get('/licitacoes-bancos', async (req, res) => {
     try {
       const { data, error } = await supabase.from(bankTable).select('*').order('nome_banco');
