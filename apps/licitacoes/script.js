@@ -1,46 +1,685 @@
 (() => {
-const $=id=>document.getElementById(id), token=()=>sessionStorage.getItem('irToken')||sessionStorage.getItem('sessionToken')||'';
-const api=async(url,opts={})=>{const r=await fetch(url,{...opts,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token()}`,...(opts.headers||{})}});if(!r.ok){let e={};try{e=await r.json()}catch{}throw new Error(e.error||`Erro ${r.status}`)}return r.status===204?null:r.json()};
-const reqs=['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
-const states=['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-let records=[], users=[], banks=[], current=null, items=[], activeTab=0;
-const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
-const num=v=>{if(typeof v==='number')return v;const s=String(v??'').trim().replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'');return Number(s)||0};
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2800)}
-function open(id){$(id).classList.add('open')}function close(id){$(id).classList.remove('open')}
-document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.dataset.close));document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)close(o.id)}));
-$('uf').innerHTML+=[...states].map(s=>`<option>${s}</option>`).join('');
-$('requirements').innerHTML=reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
-$('requirements').insertAdjacentHTML('beforeend',`<button type="button" class="requirement" id="bankReq">BANCO P/ PAGAMENTO</button>`);
-$('bankReq').onclick=()=>{const choice=$('bankChoice');choice.hidden=!choice.hidden;$('bankReq').classList.toggle('selected',!choice.hidden);if(!choice.hidden)choice.scrollIntoView({behavior:'smooth',block:'nearest'});};
-$('bankCards').innerHTML=['BANCO DO BRASIL','BRADESCO','SICOOB'].map(n=>`<button type="button" class="bank-chip" data-bank-choice="${n}">${n}</button>`).join('');
-$('bankCards').querySelectorAll('[data-bank-choice]').forEach(b=>b.onclick=()=>{ $('bankCards').querySelectorAll('.bank-chip').forEach(c=>c.classList.toggle('selected',c===b)); $('bankReq').dataset.bank=b.dataset.bankChoice; }); 
-$('requirements').querySelectorAll('[data-req]').forEach(b=>b.onclick=()=>b.classList.toggle('selected'));
-function setTab(n){activeTab=Math.max(0,Math.min(2,n));document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',i===activeTab));document.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active',i===activeTab));$('prevTab').style.display=activeTab===0?'none':'';$('nextTab').style.display=activeTab===2?'none':''}
-document.querySelectorAll('.tab').forEach((b,i)=>b.onclick=()=>setTab(i));$('prevTab').onclick=()=>setTab(activeTab-1);$('nextTab').onclick=()=>setTab(activeTab+1);setTab(0);
-async function load(){try{const [rs,opts]=await Promise.all([api('/api/licitacoes'),api('/api/licitacoes/opcoes')]);records=rs;users=opts.users||[];banks=opts.banks||[];fillUsers();render();}catch(e){$('records').innerHTML=`<tr><td colspan="6" class="empty">${esc(e.message)}. Verifique a tabela do Supabase e a permissão do módulo.</td></tr>`;toast(e.message)}}
-function fillUsers(){const sel=$('vendedor'),old=sel.value;sel.innerHTML='<option value="">Selecione o vendedor</option>'+users.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');if(old)sel.value=old}
-function render(){const q=$('search').value.toLowerCase().trim();const list=records.filter(r=>[r.numero_pregao,r.uasg,r.vendedor,r.nome_orgao].some(x=>String(x||'').toLowerCase().includes(q)));$('records').innerHTML=list.length?list.map(r=>`<tr data-id="${r.id}"><td style="text-align:center"><input type="checkbox" aria-label="Selecionar pregão ${esc(r.numero_pregao)}"></td><td><b>${esc(r.numero_pregao)}</b></td><td>${esc(r.uasg||'—')}</td><td>${esc(r.vendedor||'—')}</td><td>${esc(r.nome_orgao)}</td><td><div class="actions"><button class="mini" data-edit="${r.id}">Editar</button><button class="mini" data-pdf="${r.id}">PDF</button><button class="mini red" data-del="${r.id}">Excluir</button></div></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Nenhuma licitação cadastrada.</td></tr>';document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=e=>{e.stopPropagation();editRecord(b.dataset.edit)});document.querySelectorAll('#records tr').forEach(tr=>{const box=tr.querySelector('input[type=checkbox]');if(box)box.onclick=e=>e.stopPropagation();tr.style.cursor='pointer';tr.onclick=()=>{const id=tr.querySelector('[data-edit]')?.dataset.edit||tr.dataset.id;if(id)showItems(id)}});document.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=e=>{e.stopPropagation();current=records.find(r=>r.id===b.dataset.pdf);open('pdfOverlay')});document.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();deleteRecord(b.dataset.del)})}
-$('search').oninput=render;$('refreshBtn').onclick=load;$('newBtn').onclick=()=>newRecord();
-function newRecord(){current=null;$('recordForm').reset();$('recordId').value='';$('formTitle').textContent='Nova Licitação';$('validadeProposta').value='60 DIAS CORRIDOS';$('prazoEntrega').value='30 DIAS CORRIDOS';$('prazoPagamento').value='30 DIAS CORRIDOS';$('auditInfo').textContent='';$('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.remove('selected'));$('bankReq').classList.remove('selected');$('bankReq').dataset.bank='';$('bankChoice').hidden=true;$('bankCards').querySelectorAll('.bank-chip').forEach(b=>b.classList.remove('selected'));setTab(0);open('formOverlay')}
-function editRecord(id){current=records.find(r=>r.id===id);if(!current)return;const r=current;$('recordId').value=r.id;$('formTitle').textContent='Editar Licitação';$('vendedor').value=r.vendedor_id||'';$('numeroPregao').value=r.numero_pregao||'';$('uasg').value=r.uasg||'';$('nomeOrgao').value=r.nome_orgao||'';$('cidade').value=r.cidade||'';$('uf').value=r.uf||'';$('telefone').value=r.telefone||'';$('email').value=r.email||'';$('bankReq').dataset.bank=r.banco_pagamento||'';$('bankChoice').hidden=true;$('bankCards').querySelectorAll('.bank-chip').forEach(b=>b.classList.toggle('selected',b.dataset.bankChoice===r.banco_pagamento));$('bankReq').classList.toggle('selected',!!r.banco_pagamento);$('validadeProposta').value=r.validade_proposta??'60 DIAS CORRIDOS';$('prazoEntrega').value=r.prazo_entrega??'30 DIAS CORRIDOS';$('prazoPagamento').value=r.prazo_pagamento??'30 DIAS CORRIDOS';$('auditInfo').textContent=r.atualizado_por?`Atualizado por ${r.atualizado_por} • Última atualização: ${new Date(r.ultima_atualizacao).toLocaleString('pt-BR')}`:'';$('requirements').querySelectorAll('[data-req]').forEach(b=>b.classList.toggle('selected',!!(r.requisitos||{})[b.dataset.req]));setTab(0);open('formOverlay')}
-$('recordForm').onsubmit=async e=>{e.preventDefault();const user=users.find(u=>u.id===$('vendedor').value);const requisitos={};$('requirements').querySelectorAll('[data-req]').forEach(b=>requisitos[b.dataset.req]=b.classList.contains('selected'));const body={vendedorId:user?.id||null,vendedor:user?.name||'',numeroPregao:$('numeroPregao').value.trim(),uasg:$('uasg').value.trim(),nomeOrgao:$('nomeOrgao').value.trim(),cidade:$('cidade').value.trim(),uf:$('uf').value,telefone:$('telefone').value.trim(),email:$('email').value.trim(),bancoPagamento:$('bankReq').dataset.bank||'',requisitos,validadeProposta:$('validadeProposta').value,prazoEntrega:$('prazoEntrega').value,prazoPagamento:$('prazoPagamento').value,items:current?.items||[]};try{await api($('recordId').value?`/api/licitacoes/${$('recordId').value}`:'/api/licitacoes',{method:$('recordId').value?'PUT':'POST',body:JSON.stringify(body)});close('formOverlay');toast('Licitação salva com sucesso.');await load()}catch(err){toast(err.message)}};
-async function deleteRecord(id){if(!confirm('Deseja excluir esta licitação?'))return;try{await api(`/api/licitacoes/${id}`,{method:'DELETE'});toast('Licitação excluída.');load()}catch(e){toast(e.message)}}
-function showItems(id){current=records.find(r=>r.id===id);if(!current)return;items=(current.items||[]).map((x,i)=>({...x,item:x.item??i+1,selecionado:x.selecionado!==false,porcentagem:x.porcentagem??149}));$('itemsTitle').textContent=`Pregão ${current.numero_pregao}`;$('itemsSubtitle').textContent=current.nome_orgao;document.querySelector('.container').hidden=true;$('itemsPage').hidden=false;renderItems()}
-function itemRow(it={}){return `<tr><td><input type="checkbox" data-k="selecionado" ${it.selecionado!==false?'checked':''} aria-label="Incluir no PDF"></td><td><input class="itemno" data-k="item" value="${esc(it.item??'')}" /></td><td><input class="desc" data-k="descricao" value="${esc(it.descricao??'')}" placeholder="Descrição do item" /></td><td><input class="num" data-k="qtd" type="number" min="0" step="any" value="${esc(it.qtd??1)}" /></td><td><input class="unit" data-k="und" value="${esc(it.und??'UN')}" /></td><td><input data-k="marca" value="${esc(it.marca??'')}" /></td><td><input data-k="modelo" value="${esc(it.modelo??'')}" /></td><td><input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt??'')}" /></td><td><input class="num calculated" data-k="estimadoTotal" readonly value="${esc(it.estimadoTotal??'')}" /></td><td><input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt??'')}" /></td><td><input class="num" data-k="porcentagem" type="number" min="0" step="0.01" value="${esc(it.porcentagem??149)}" /></td><td><input class="num calculated" data-k="vendaUnt" readonly value="${esc(it.vendaUnt??'')}" /></td><td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(it.vendaTotal??'')}" /></td><td><button type="button" class="delete-row" title="Remover item">×</button></td></tr>`}
-function collectItems(){return [...$('itemsBody').rows].map(tr=>{const o={};tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.value);o.selecionado=tr.querySelector('[data-k="selecionado"]').checked;o.qtd=num(o.qtd);o.porcentagem=num(o.porcentagem??149);o.estimadoUnt=num(o.estimadoUnt);o.estimadoTotal=o.estimadoUnt*o.qtd;o.custoUnt=num(o.custoUnt);o.vendaUnt=o.custoUnt*(o.porcentagem/100);o.vendaTotal=o.vendaUnt*o.qtd;return o})}
-let renderingItems=false; function renderItems(){ renderingItems=true; $('itemsBody').innerHTML=items.map(itemRow).join('');$('itemsBody').querySelectorAll('input').forEach(i=>{i.addEventListener('input',recalc);i.addEventListener('change',recalc)});$('itemsBody').querySelectorAll('.delete-row').forEach(b=>b.onclick=()=>{b.closest('tr').remove();recalc()});recalc();renderingItems=false }
-function recalc(){const data=collectItems();[...$('itemsBody').rows].forEach((tr,i)=>{const x=data[i];tr.querySelector('[data-k="estimadoTotal"]').value=x.estimadoTotal.toFixed(2);tr.querySelector('[data-k="vendaUnt"]').value=x.vendaUnt.toFixed(2);tr.querySelector('[data-k="vendaTotal"]').value=x.vendaTotal.toFixed(2)});$('totalEstimado').textContent=money(data.reduce((a,x)=>a+x.estimadoTotal,0));$('totalCusto').textContent=money(data.reduce((a,x)=>a+x.custoUnt*x.qtd,0));$('totalVenda').textContent=money(data.reduce((a,x)=>a+x.vendaTotal,0));if(!renderingItems)scheduleSave()}
-$('addItem').onclick=()=>{$('itemsBody').insertAdjacentHTML('beforeend',itemRow({item:Math.max(0,...collectItems().map(x=>num(x.item)))+1,qtd:1,und:'UN'}));renderItemsFromDOM()};function renderItemsFromDOM(){$('itemsBody').querySelectorAll('input').forEach(i=>{i.oninput=recalc;i.onchange=recalc});$('itemsBody').querySelectorAll('.delete-row').forEach(b=>b.onclick=()=>{b.closest('tr').remove();recalc()});recalc()}
-$('addRange').onclick=()=>{const raw=prompt('Informe os itens ou intervalos. Exemplos: 1-5,12,100-180');if(!raw)return;const values=new Set();for(const part of raw.split(',')){const p=part.trim();if(/^\d+\s*-\s*\d+$/.test(p)){let[a,b]=p.split('-').map(Number);if(Math.abs(b-a)>1000){toast('Intervalo muito grande (máximo de 1001 itens).');return}for(let n=Math.min(a,b);n<=Math.max(a,b);n++)values.add(n)}else if(/^\d+$/.test(p))values.add(Number(p));else if(p){toast(`Intervalo inválido: ${p}`);return}}const existing=new Set(collectItems().map(x=>String(x.item)));[...values].sort((a,b)=>a-b).forEach(n=>{if(!existing.has(String(n)))$('itemsBody').insertAdjacentHTML('beforeend',itemRow({item:n,qtd:1,und:'UN'}))});renderItemsFromDOM()};
-let saveTimer; async function persistItems(){try{const data=collectItems();const body={vendedorId:current.vendedor_id,vendedor:current.vendedor,numeroPregao:current.numero_pregao,uasg:current.uasg,nomeOrgao:current.nome_orgao,cidade:current.cidade,uf:current.uf,telefone:current.telefone,email:current.email,bancoPagamento:current.banco_pagamento,requisitos:current.requisitos||{},validadeProposta:current.validade_proposta,prazoEntrega:current.prazo_entrega,prazoPagamento:current.prazo_pagamento,items:data};await api(`/api/licitacoes/${current.id}`,{method:'PUT',body:JSON.stringify(body)});toast('Alterações salvas automaticamente.');await load()}catch(e){toast('Falha ao salvar automaticamente: '+e.message)}};
-function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(persistItems,650)}
-$('backItems').onclick=()=>{ $('itemsPage').hidden=true;document.querySelector('.container').hidden=false;load() };
-function proposalHtml(r,{feasibility=false}={}){const bank=banks.find(b=>b.nome_banco===r.banco_pagamento)||{};const list=(r.items||[]).filter(x=>x.selecionado!==false);const total=list.reduce((a,x)=>a+num(x.vendaTotal??num(x.custoUnt)*(num(x.porcentagem??149)/100)*num(x.qtd)),0);const date=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();const rows=list.map(x=>`<tr><td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(x.und)}</td><td>${esc(x.descricao)}</td><td>${esc(x.marca)}</td><td>${esc(x.modelo)}</td><td>${money(x.vendaUnt??num(x.custoUnt)*(num(x.porcentagem??149)/100))}</td><td>${money(x.vendaTotal??num(x.custoUnt)*(num(x.porcentagem??149)/100)*num(x.qtd))}</td></tr>`).join('');const content=feasibility?`<h2>COMPROVANTE DE EXEQUIBILIDADE</h2><p>Pregão ${esc(r.numero_pregao)} — ${esc(r.nome_orgao)}</p><table><thead><tr><th>ITEM</th><th>QTD</th><th>DESCRIÇÃO</th><th>CUSTO UNIT.</th><th>CUSTO TOTAL</th><th>VENDA UNIT.</th><th>VENDA TOTAL</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(x.descricao)}</td><td>${money(x.custoUnt)}</td><td>${money(num(x.custoUnt)*num(x.qtd))}</td><td>${money(num(x.custoUnt)*(num(x.porcentagem??149)/100))}</td><td>${money(num(x.custoUnt)*(num(x.porcentagem??149)/100)*num(x.qtd))}</td></tr>`).join('')}</tbody></table><h3>CUSTO TOTAL: ${money(list.reduce((a,x)=>a+num(x.custoUnt)*num(x.qtd),0))}</h3><h3>VALOR TOTAL DA PROPOSTA: ${money(total)}</h3>`:`<div class="opening"><h2>AO ${esc(r.nome_orgao)}</h2><h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3><h3>PREGÃO ELETRÔNICO ${esc(r.numero_pregao)} ${r.uasg?`UASG ${esc(r.uasg)}`:''}</h3></div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead><tbody>${rows}</tbody></table><h3 class="total">VALOR TOTAL: ${money(total)}</h3><p><b>BANCO:</b> ${esc(r.banco_pagamento||'—')}</p><p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p><p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p><p><b>VALIDADE DA PROPOSTA:</b> ${esc(r.validade_proposta||'')}</p><p><b>PRAZO DE ENTREGA:</b> ${esc(r.prazo_entrega||'')}</p><p><b>PRAZO DE PAGAMENTO:</b> ${esc(r.prazo_pagamento||'')}</p><div class="declarations"><p>Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p><p>Declaramos que somos Optantes pelo Simples Nacional</p><p>Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p></div><p class="date">SERRA/ES, ${date}</p><div class="signature"><img src="${location.origin}/apps/imagens/assinatura.png"><b>Rosemeire Bicalho de Lima Gravino</b><br>MG-10.078.568 / CPF: 045.160.616-78<br>Diretora</div>`;return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${feasibility?'Comprovante de Exequibilidade':'Proposta'} - ${esc(r.numero_pregao)}</title><style>@page{size:A4;margin:24mm 15mm 32mm}*{box-sizing:border-box}body{font:10pt Arial,sans-serif;color:#111;margin:0;padding:0 0 22mm;position:relative}header{position:fixed;top:-19mm;left:0;right:0;text-align:center}header img{height:52px;width:auto;max-width:100%;object-fit:contain}footer{position:fixed;bottom:-28mm;left:0;right:0;text-align:center;font-size:8pt;line-height:1.4;color:rgba(0,0,0,.58);border-top:1px solid #ddd;padding-top:5px}h2,h3{text-align:center;margin:8px 0}h2{font-size:12pt}h3{font-size:10pt}table{width:100%;table-layout:fixed;border-collapse:collapse;margin:14px 0;font-size:8pt;white-space:normal;overflow-wrap:anywhere;word-break:normal}th,td{border:1px solid #444;padding:4px 3px;text-align:left;overflow-wrap:anywhere;vertical-align:top}th{text-align:center;background:#f0f0f0}td:nth-child(1),td:nth-child(2){text-align:center}.total{text-align:right;margin:15px 0}.declarations{margin-top:28px;line-height:1.6}.declarations p{text-align:justify;margin:12px 0;letter-spacing:.15px}.declarations p:nth-child(2),.declarations p:last-child{text-align:center;letter-spacing:.35px}.opening{text-align:left}.opening h2,.opening h3{text-align:left}.date{text-align:center;margin-top:30px}.signature{text-align:center;margin-top:32px;line-height:1.5}.signature img{display:block;width:155px;max-height:65px;object-fit:contain;margin:0 auto 4px}.page{page-break-after:always}.page:last-child{page-break-after:auto}@media screen{body{max-width:800px;margin:20px auto;padding:35px 45px;box-shadow:0 0 8px #ccc}header,footer{position:static;margin-bottom:18px}}</style></head><body><header><img src="${location.origin}/apps/imagens/logo-cabecalho.png"></header>${content}<footer>RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>CNPJ: 33.149.502/0001-38<br>E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM</footer></body></html>`}
-async function getBanks(){try{banks=await api('/api/licitacoes-bancos')}catch(e){banks=[]}}
-$('proposalPdf').onclick=async()=>{close('pdfOverlay');if(!current)return;await getBanks();const w=window.open('','_blank');if(!w){toast('Permita pop-ups para gerar o PDF.');return}w.document.open();w.document.write(proposalHtml(current));w.document.close();setTimeout(()=>w.print(),600)};
-$('feasibilityPdf').onclick=async()=>{close('pdfOverlay');if(!current)return;const w=window.open('','_blank');if(!w){toast('Permita pop-ups para gerar o documento.');return}w.document.open();w.document.write(proposalHtml(current,{feasibility:true}));w.document.close();setTimeout(()=>w.print(),500)};
-$('proposalDoc').onclick=async()=>{close('pdfOverlay');if(!current)return;await getBanks();const html=proposalHtml(current).replace('<head>','<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><style>@page Section1{size:595.3pt 841.9pt;margin:18pt 28pt 42pt;mso-header-margin:8pt;mso-footer-margin:18pt}div.Section1{page:Section1}.word-footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:8pt;color:#777;line-height:1.25}</style>').replace('<body>','<body><div class="Section1">').replace('</footer></body>','</footer></div></body>');const blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Proposta-Pregao-${current.numero_pregao}.doc`;a.click();URL.revokeObjectURL(a.href)};
+const $ = id => document.getElementById(id);
+const token = () => sessionStorage.getItem('irToken') || sessionStorage.getItem('sessionToken') || '';
+
+const api = async (url, opts = {}) => {
+  const r = await fetch(url, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token()}`,
+      ...(opts.headers || {})
+    }
+  });
+  if (!r.ok) {
+    let e = {};
+    try { e = await r.json(); } catch {}
+    throw new Error(e.error || `Erro ${r.status}`);
+  }
+  return r.status === 204 ? null : r.json();
+};
+
+const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
+const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+let records = [], users = [], banks = [], current = null, items = [], activeTab = 0, dashFilter = 'all';
+
+const money = n => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
+const num = v => {
+  if (typeof v === 'number') return v;
+  const s = String(v ?? '').trim().replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'');
+  return Number(s) || 0;
+};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+function open(id) { $(id).classList.add('open'); }
+function close(id) { $(id).classList.remove('open'); }
+
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => close(b.dataset.close));
+document.querySelectorAll('.overlay, .modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) close(o.id); });
+});
+
+/* ---------- Populate fixos ---------- */
+$('uf').innerHTML += [...states].map(s => `<option>${s}</option>`).join('');
+$('requirements').innerHTML = reqs.map(r => `<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
+$('requirements').insertAdjacentHTML('beforeend', `<button type="button" class="requirement" id="bankReq">BANCO P/ PAGAMENTO</button>`);
+$('bankReq').onclick = () => {
+  const choice = $('bankChoice');
+  choice.hidden = !choice.hidden;
+  $('bankReq').classList.toggle('selected', !choice.hidden);
+  if (!choice.hidden) choice.scrollIntoView({behavior:'smooth', block:'nearest'});
+};
+$('bankCards').innerHTML = ['BANCO DO BRASIL','BRADESCO','SICOOB']
+  .map(n => `<button type="button" class="bank-chip" data-bank-choice="${n}">${n}</button>`).join('');
+$('bankCards').querySelectorAll('[data-bank-choice]').forEach(b => {
+  b.onclick = () => {
+    $('bankCards').querySelectorAll('.bank-chip').forEach(c => c.classList.toggle('selected', c === b));
+    $('bankReq').dataset.bank = b.dataset.bankChoice;
+  };
+});
+$('requirements').querySelectorAll('[data-req]').forEach(b => b.onclick = () => b.classList.toggle('selected'));
+
+/* ---------- Tabs ---------- */
+function setTab(n) {
+  activeTab = Math.max(0, Math.min(2, n));
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === activeTab));
+  document.querySelectorAll('.tab-content').forEach((p, i) => p.classList.toggle('active', i === activeTab));
+  $('prevTab').style.display = activeTab === 0 ? 'none' : '';
+  $('nextTab').style.display = activeTab === 2 ? 'none' : '';
+}
+document.querySelectorAll('.tab-btn').forEach((b, i) => b.onclick = () => setTab(i));
+$('prevTab').onclick = () => setTab(activeTab - 1);
+$('nextTab').onclick = () => setTab(activeTab + 1);
+setTab(0);
+
+/* ---------- Dashboard ---------- */
+document.querySelectorAll('.stat-card[data-filter]').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    dashFilter = card.dataset.filter;
+    render();
+  });
+});
+const initialCard = document.querySelector('.stat-card[data-filter="all"]');
+if (initialCard) initialCard.classList.add('active');
+
+/* ---------- Load ---------- */
+async function load() {
+  try {
+    const [rs, opts] = await Promise.all([api('/api/licitacoes'), api('/api/licitacoes/opcoes')]);
+    records = rs;
+    users = opts.users || [];
+    banks = opts.banks || [];
+    fillUsers();
+    updateDashboard();
+    render();
+  } catch (e) {
+    $('records').innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}. Verifique a tabela do Supabase e a permissão do módulo.</td></tr>`;
+    toast(e.message);
+  }
+}
+
+function fillUsers() {
+  const sel = $('vendedor'), old = sel.value;
+  sel.innerHTML = '<option value="">Selecione o vendedor</option>' +
+    users.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
+  if (old) sel.value = old;
+}
+
+function updateDashboard() {
+  const total = records.length;
+  const comItens = records.filter(r => Array.isArray(r.items) && r.items.length > 0).length;
+  const semItens = total - comItens;
+  let valor = 0;
+  records.forEach(r => (r.items || []).forEach(it => {
+    valor += num(it.estimadoTotal ?? (num(it.estimadoUnt) * num(it.qtd)));
+  }));
+  $('dashTotal').textContent = total;
+  $('dashComItens').textContent = comItens;
+  $('dashSemItens').textContent = semItens;
+  $('dashValor').textContent = money(valor);
+}
+
+/* ---------- Render tabela principal ---------- */
+function render() {
+  const q = $('search').value.toLowerCase().trim();
+  let list = records.filter(r =>
+    [r.numero_pregao, r.uasg, r.vendedor, r.nome_orgao]
+      .some(x => String(x || '').toLowerCase().includes(q))
+  );
+
+  if (dashFilter === 'com-itens') list = list.filter(r => Array.isArray(r.items) && r.items.length > 0);
+  else if (dashFilter === 'sem-itens') list = list.filter(r => !(Array.isArray(r.items) && r.items.length > 0));
+
+  $('records').innerHTML = list.length
+    ? list.map(r => `
+      <tr data-id="${r.id}">
+        <td style="text-align:center"><input type="checkbox" aria-label="Selecionar pregão ${esc(r.numero_pregao)}"></td>
+        <td><strong>${esc(r.numero_pregao)}</strong></td>
+        <td>${esc(r.uasg || '—')}</td>
+        <td>${esc(r.vendedor || '—')}</td>
+        <td>${esc(r.nome_orgao)}</td>
+        <td class="actions-cell"><div class="actions">
+          <button class="action-btn edit" data-edit="${r.id}">Editar</button>
+          <button class="action-btn success" data-pdf="${r.id}">PDF</button>
+          <button class="action-btn delete" data-del="${r.id}">Excluir</button>
+        </div></td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="empty">Nenhuma licitação cadastrada.</td></tr>';
+
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = e => { e.stopPropagation(); editRecord(b.dataset.edit); });
+  document.querySelectorAll('#records tr').forEach(tr => {
+    const box = tr.querySelector('input[type=checkbox]');
+    if (box) box.onclick = e => e.stopPropagation();
+    tr.onclick = () => {
+      const id = tr.querySelector('[data-edit]')?.dataset.edit || tr.dataset.id;
+      if (id) showItems(id);
+    };
+  });
+  document.querySelectorAll('[data-pdf]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    current = records.find(r => r.id === b.dataset.pdf);
+    open('pdfOverlay');
+  });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = e => { e.stopPropagation(); deleteRecord(b.dataset.del); });
+}
+
+$('search').oninput = render;
+$('refreshBtn').onclick = load;
+$('newBtn').onclick = () => newRecord();
+
+/* ---------- Novo registro ---------- */
+function newRecord() {
+  current = null;
+  $('recordForm').reset();
+  $('recordId').value = '';
+  $('formTitle').textContent = 'Nova Licitação';
+  $('validadeProposta').value = '60 DIAS CORRIDOS';
+  $('prazoEntrega').value = '30 DIAS CORRIDOS';
+  $('prazoPagamento').value = '30 DIAS CORRIDOS';
+  $('auditInfo').textContent = '';
+  $('requirements').querySelectorAll('.requirement').forEach(b => b.classList.remove('selected'));
+  $('bankReq').classList.remove('selected');
+  $('bankReq').dataset.bank = '';
+  $('bankChoice').hidden = true;
+  $('bankCards').querySelectorAll('.bank-chip').forEach(b => b.classList.remove('selected'));
+  setTab(0);
+  open('formOverlay');
+}
+
+/* ---------- Editar registro ---------- */
+function editRecord(id) {
+  current = records.find(r => r.id === id);
+  if (!current) return;
+  const r = current;
+  $('recordId').value = r.id;
+  $('formTitle').textContent = 'Editar Licitação';
+  $('vendedor').value = r.vendedor_id || '';
+  $('numeroPregao').value = r.numero_pregao || '';
+  $('uasg').value = r.uasg || '';
+  $('nomeOrgao').value = r.nome_orgao || '';
+  $('cidade').value = r.cidade || '';
+  $('uf').value = r.uf || '';
+  $('telefone').value = r.telefone || '';
+  $('email').value = r.email || '';
+  $('bankReq').dataset.bank = r.banco_pagamento || '';
+  $('bankChoice').hidden = true;
+  $('bankCards').querySelectorAll('.bank-chip').forEach(b =>
+    b.classList.toggle('selected', b.dataset.bankChoice === r.banco_pagamento)
+  );
+  $('bankReq').classList.toggle('selected', !!r.banco_pagamento);
+  $('validadeProposta').value = r.validade_proposta ?? '60 DIAS CORRIDOS';
+  $('prazoEntrega').value = r.prazo_entrega ?? '30 DIAS CORRIDOS';
+  $('prazoPagamento').value = r.prazo_pagamento ?? '30 DIAS CORRIDOS';
+  $('auditInfo').textContent = r.atualizado_por
+    ? `Atualizado por ${r.atualizado_por} • Última atualização: ${new Date(r.ultima_atualizacao).toLocaleString('pt-BR')}`
+    : '';
+  $('requirements').querySelectorAll('[data-req]').forEach(b =>
+    b.classList.toggle('selected', !!(r.requisitos || {})[b.dataset.req])
+  );
+  setTab(0);
+  open('formOverlay');
+}
+
+/* ---------- Submit ---------- */
+$('recordForm').onsubmit = async e => {
+  e.preventDefault();
+  const user = users.find(u => u.id === $('vendedor').value);
+  const requisitos = {};
+  $('requirements').querySelectorAll('[data-req]').forEach(b => {
+    requisitos[b.dataset.req] = b.classList.contains('selected');
+  });
+  const body = {
+    vendedorId: user?.id || null,
+    vendedor: user?.name || '',
+    numeroPregao: $('numeroPregao').value.trim(),
+    uasg: $('uasg').value.trim(),
+    nomeOrgao: $('nomeOrgao').value.trim(),
+    cidade: $('cidade').value.trim(),
+    uf: $('uf').value,
+    telefone: $('telefone').value.trim(),
+    email: $('email').value.trim(),
+    bancoPagamento: $('bankReq').dataset.bank || '',
+    requisitos,
+    validadeProposta: $('validadeProposta').value,
+    prazoEntrega: $('prazoEntrega').value,
+    prazoPagamento: $('prazoPagamento').value,
+    items: current?.items || []
+  };
+  try {
+    await api(
+      $('recordId').value ? `/api/licitacoes/${$('recordId').value}` : '/api/licitacoes',
+      { method: $('recordId').value ? 'PUT' : 'POST', body: JSON.stringify(body) }
+    );
+    close('formOverlay');
+    toast('Licitação salva com sucesso.');
+    await load();
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
+/* ---------- Excluir ---------- */
+async function deleteRecord(id) {
+  if (!confirm('Deseja excluir esta licitação?')) return;
+  try {
+    await api(`/api/licitacoes/${id}`, { method: 'DELETE' });
+    toast('Licitação excluída.');
+    load();
+  } catch (e) { toast(e.message); }
+}
+
+/* ==================== PÁGINA DE ITENS ==================== */
+function showItems(id) {
+  current = records.find(r => r.id === id);
+  if (!current) return;
+  items = (current.items || []).map((x, i) => ({
+    ...x,
+    item: x.item ?? i + 1,
+    selecionado: x.selecionado !== false,
+    porcentagem: x.porcentagem ?? 149
+  }));
+  $('itemsTitle').textContent = `Pregão ${current.numero_pregao}`;
+  $('itemsSubtitle').textContent = current.nome_orgao || '';
+  $('mainContainer').hidden = true;
+  $('itemsPage').hidden = false;
+  renderItems();
+}
+
+function itemRow(it = {}) {
+  return `<tr>
+    <td><input type="checkbox" data-k="selecionado" ${it.selecionado !== false ? 'checked' : ''} aria-label="Incluir no PDF"></td>
+    <td><input class="itemno" data-k="item" value="${esc(it.item ?? '')}"></td>
+    <td><input class="desc" data-k="descricao" value="${esc(it.descricao ?? '')}" placeholder="Descrição do item"></td>
+    <td><input class="num" data-k="qtd" type="number" min="0" step="any" value="${esc(it.qtd ?? 1)}"></td>
+    <td><input class="unit" data-k="und" value="${esc(it.und ?? 'UN')}"></td>
+    <td><input data-k="marca" value="${esc(it.marca ?? '')}"></td>
+    <td><input data-k="modelo" value="${esc(it.modelo ?? '')}"></td>
+    <td><input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt ?? '')}"></td>
+    <td><input class="num calculated" data-k="estimadoTotal" readonly value="${esc(it.estimadoTotal ?? '')}"></td>
+    <td><input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt ?? '')}"></td>
+    <td><input class="num" data-k="porcentagem" type="number" min="0" step="0.01" value="${esc(it.porcentagem ?? 149)}"></td>
+    <td><input class="num calculated" data-k="vendaUnt" readonly value="${esc(it.vendaUnt ?? '')}"></td>
+    <td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(it.vendaTotal ?? '')}"></td>
+    <td><button type="button" class="delete-row" title="Remover item">×</button></td>
+  </tr>`;
+}
+
+function collectItems() {
+  return [...$('itemsBody').rows].map(tr => {
+    const o = {};
+    tr.querySelectorAll('[data-k]').forEach(i => o[i.dataset.k] = i.value);
+    o.selecionado = tr.querySelector('[data-k="selecionado"]').checked;
+    o.qtd = num(o.qtd);
+    o.porcentagem = num(o.porcentagem ?? 149);
+    o.estimadoUnt = num(o.estimadoUnt);
+    o.estimadoTotal = o.estimadoUnt * o.qtd;
+    o.custoUnt = num(o.custoUnt);
+    o.vendaUnt = o.custoUnt * (o.porcentagem / 100);
+    o.vendaTotal = o.vendaUnt * o.qtd;
+    return o;
+  });
+}
+
+let renderingItems = false;
+function renderItems() {
+  renderingItems = true;
+  $('itemsBody').innerHTML = items.map(itemRow).join('');
+  bindItemEvents();
+  recalc();
+  renderingItems = false;
+}
+
+function bindItemEvents() {
+  $('itemsBody').querySelectorAll('input').forEach(i => {
+    i.oninput = recalc;
+    i.onchange = recalc;
+  });
+  $('itemsBody').querySelectorAll('.delete-row').forEach(b => {
+    b.onclick = () => { b.closest('tr').remove(); recalc(); };
+  });
+}
+
+function recalc() {
+  const data = collectItems();
+  [...$('itemsBody').rows].forEach((tr, i) => {
+    const x = data[i];
+    tr.querySelector('[data-k="estimadoTotal"]').value = x.estimadoTotal.toFixed(2);
+    tr.querySelector('[data-k="vendaUnt"]').value = x.vendaUnt.toFixed(2);
+    tr.querySelector('[data-k="vendaTotal"]').value = x.vendaTotal.toFixed(2);
+  });
+  $('totalEstimado').textContent = money(data.reduce((a, x) => a + x.estimadoTotal, 0));
+  $('totalCusto').textContent = money(data.reduce((a, x) => a + x.custoUnt * x.qtd, 0));
+  $('totalVenda').textContent = money(data.reduce((a, x) => a + x.vendaTotal, 0));
+  if (!renderingItems) scheduleSave();
+}
+
+$('addItem').onclick = () => {
+  const next = Math.max(0, ...collectItems().map(x => num(x.item))) + 1;
+  $('itemsBody').insertAdjacentHTML('beforeend', itemRow({ item: next, qtd: 1, und: 'UN', porcentagem: 149 }));
+  bindItemEvents();
+  recalc();
+};
+
+$('addRange').onclick = () => {
+  const raw = prompt('Informe os itens ou intervalos. Exemplos: 1-5,12,100-180');
+  if (!raw) return;
+  const values = new Set();
+  for (const part of raw.split(',')) {
+    const p = part.trim();
+    if (/^\d+\s*-\s*\d+$/.test(p)) {
+      let [a, b] = p.split('-').map(Number);
+      if (Math.abs(b - a) > 1000) { toast('Intervalo muito grande (máximo de 1001 itens).'); return; }
+      for (let n = Math.min(a, b); n <= Math.max(a, b); n++) values.add(n);
+    } else if (/^\d+$/.test(p)) values.add(Number(p));
+    else if (p) { toast(`Intervalo inválido: ${p}`); return; }
+  }
+  const existing = new Set(collectItems().map(x => String(x.item)));
+  [...values].sort((a, b) => a - b).forEach(n => {
+    if (!existing.has(String(n))) {
+      $('itemsBody').insertAdjacentHTML('beforeend', itemRow({ item: n, qtd: 1, und: 'UN', porcentagem: 149 }));
+    }
+  });
+  bindItemEvents();
+  recalc();
+};
+
+let saveTimer;
+async function persistItems() {
+  try {
+    const data = collectItems();
+    const body = {
+      vendedorId: current.vendedor_id,
+      vendedor: current.vendedor,
+      numeroPregao: current.numero_pregao,
+      uasg: current.uasg,
+      nomeOrgao: current.nome_orgao,
+      cidade: current.cidade,
+      uf: current.uf,
+      telefone: current.telefone,
+      email: current.email,
+      bancoPagamento: current.banco_pagamento,
+      requisitos: current.requisitos || {},
+      validadeProposta: current.validade_proposta,
+      prazoEntrega: current.prazo_entrega,
+      prazoPagamento: current.prazo_pagamento,
+      items: data
+    };
+    await api(`/api/licitacoes/${current.id}`, { method: 'PUT', body: JSON.stringify(body) });
+    // atualiza cache local
+    current.items = data;
+    const idx = records.findIndex(r => r.id === current.id);
+    if (idx !== -1) records[idx] = { ...records[idx], items: data };
+    toast('Alterações salvas automaticamente.');
+  } catch (e) {
+    toast('Falha ao salvar automaticamente: ' + e.message);
+  }
+}
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistItems, 650);
+}
+
+$('backItems').onclick = () => {
+  $('itemsPage').hidden = true;
+  $('mainContainer').hidden = false;
+  load();
+};
+
+/* ==================== PDF / DOCS ==================== */
+function proposalContent(r, { feasibility = false, wordMode = false } = {}) {
+  const bank = banks.find(b => b.nome_banco === r.banco_pagamento) || {};
+  const list = (r.items || []).filter(x => x.selecionado !== false);
+  const total = list.reduce((a, x) =>
+    a + num(x.vendaTotal ?? (num(x.custoUnt) * (num(x.porcentagem ?? 149) / 100) * num(x.qtd))), 0);
+  const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
+
+  const rows = list.map(x => `<tr>
+    <td>${esc(x.item)}</td>
+    <td>${esc(x.qtd)}</td>
+    <td>${esc(x.und)}</td>
+    <td>${esc(x.descricao)}</td>
+    <td>${esc(x.marca)}</td>
+    <td>${esc(x.modelo)}</td>
+    <td>${money(x.vendaUnt ?? (num(x.custoUnt) * (num(x.porcentagem ?? 149) / 100)))}</td>
+    <td>${money(x.vendaTotal ?? (num(x.custoUnt) * (num(x.porcentagem ?? 149) / 100) * num(x.qtd)))}</td>
+  </tr>`).join('');
+
+  if (feasibility) {
+    return `
+      <h2>COMPROVANTE DE EXEQUIBILIDADE</h2>
+      <p>Pregão ${esc(r.numero_pregao)} — ${esc(r.nome_orgao)}</p>
+      <table>
+        <thead><tr><th>ITEM</th><th>QTD</th><th>DESCRIÇÃO</th><th>CUSTO UNIT.</th><th>CUSTO TOTAL</th><th>VENDA UNIT.</th><th>VENDA TOTAL</th></tr></thead>
+        <tbody>
+          ${list.map(x => `<tr>
+            <td>${esc(x.item)}</td>
+            <td>${esc(x.qtd)}</td>
+            <td>${esc(x.descricao)}</td>
+            <td>${money(x.custoUnt)}</td>
+            <td>${money(num(x.custoUnt) * num(x.qtd))}</td>
+            <td>${money(num(x.custoUnt) * (num(x.porcentagem ?? 149) / 100))}</td>
+            <td>${money(num(x.custoUnt) * (num(x.porcentagem ?? 149) / 100) * num(x.qtd))}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <h3>CUSTO TOTAL: ${money(list.reduce((a, x) => a + num(x.custoUnt) * num(x.qtd), 0))}</h3>
+      <h3>VALOR TOTAL DA PROPOSTA: ${money(total)}</h3>
+    `;
+  }
+
+  return `
+    <div class="opening">
+      <h2>AO ${esc(r.nome_orgao)}</h2>
+      <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
+      <h3>PREGÃO ELETRÔNICO ${esc(r.numero_pregao)} ${r.uasg ? `UASG ${esc(r.uasg)}` : ''}</h3>
+    </div>
+    <table>
+      <thead>
+        <tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <h3 class="total">VALOR TOTAL: ${money(total)}</h3>
+    <p><b>BANCO:</b> ${esc(r.banco_pagamento || '—')}</p>
+    <p><b>AGÊNCIA:</b> ${esc(bank.agencia || '')}</p>
+    <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente || '')}</p>
+    <p><b>VALIDADE DA PROPOSTA:</b> ${esc(r.validade_proposta || '')}</p>
+    <p><b>PRAZO DE ENTREGA:</b> ${esc(r.prazo_entrega || '')}</p>
+    <p><b>PRAZO DE PAGAMENTO:</b> ${esc(r.prazo_pagamento || '')}</p>
+    <div class="declarations">
+      <p>Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
+      <p>Declaramos que somos Optantes pelo Simples Nacional</p>
+      <p>Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
+    </div>
+    <p class="date">SERRA/ES, ${date}</p>
+    <div class="signature">
+      <img src="${location.origin}/apps/imagens/assinatura.png" alt="">
+      <b>Rosemeire Bicalho de Lima Gravino</b><br>
+      MG-10.078.568 / CPF: 045.160.616-78<br>
+      Diretora
+    </div>
+  `;
+}
+
+/* ---------- PDF (impressão em nova janela) ---------- */
+function proposalHtml(r, { feasibility = false } = {}) {
+  const content = proposalContent(r, { feasibility });
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+  <title>${feasibility ? 'Comprovante de Exequibilidade' : 'Proposta'} - ${esc(r.numero_pregao)}</title>
+  <style>
+    @page{size:A4;margin:24mm 15mm 32mm}
+    *{box-sizing:border-box}
+    body{font:10pt Arial,sans-serif;color:#111;margin:0;padding:0 0 22mm;position:relative}
+
+    /* ==== CABEÇALHO IGUAL AO PDF DE ORDENS DE COMPRA ==== */
+    header{position:fixed;top:-21mm;left:0;right:0;display:flex;align-items:center;gap:1.2mm;padding:0;z-index:5}
+    header img{width:40mm;height:auto;max-width:45%;object-fit:contain}
+    header .company{color:#969696;font-weight:bold;font-size:11pt;line-height:1.05;letter-spacing:.2px}
+
+    /* ==== RODAPÉ FIXO, PRÓXIMO AO FIM DA PÁGINA ==== */
+    footer{
+      position:fixed;bottom:-28mm;left:0;right:0;text-align:center;
+      font-size:8pt;line-height:1.4;color:rgba(0,0,0,.58);
+      border-top:1px solid #ddd;padding-top:5px;
+    }
+
+    h2,h3{text-align:center;margin:8px 0}
+    h2{font-size:12pt}h3{font-size:10pt}
+    table{width:100%;table-layout:auto;border-collapse:collapse;margin:14px 0;font-size:8pt}
+    th,td{border:1px solid #444;padding:4px 3px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
+    th{text-align:center;background:#f0f0f0}
+    td:nth-child(1),td:nth-child(2){text-align:center}
+    .total{text-align:right;margin:15px 0}
+
+    /* Declarações: 1ª e 3ª justificadas à esquerda; 2ª centralizada */
+    .declarations{margin-top:28px;line-height:1.6}
+    .declarations p{text-align:justify;margin:12px 0;letter-spacing:.15px}
+    .declarations p:nth-child(2){text-align:center;letter-spacing:.35px}
+
+    .opening{text-align:left}
+    .opening h2,.opening h3{text-align:left}
+    .date{text-align:center;margin-top:30px}
+
+    /* Assinatura centralizada */
+    .signature{text-align:center;margin-top:32px;line-height:1.5}
+    .signature img{display:block;width:155px;max-height:65px;object-fit:contain;margin:0 auto 4px}
+
+    @media screen{
+      body{max-width:800px;margin:20px auto;padding:35px 45px;box-shadow:0 0 8px #ccc}
+      header{position:static;margin-bottom:18px}
+      footer{position:static;margin-top:30px}
+    }
+  </style>
+  </head>
+  <body>
+    <header>
+      <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" alt="">
+      <div class="company">I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA</div>
+    </header>
+    ${content}
+    <footer>
+      RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
+      TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>
+      CNPJ: 33.149.502/0001-38<br>
+      E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
+    </footer>
+  </body></html>`;
+}
+
+/* ---------- DOCS (Word editável) ---------- */
+function proposalDocHtml(r) {
+  const content = proposalContent(r, { wordMode: true });
+  return `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Proposta - ${esc(r.numero_pregao)}</title>
+<style>
+  @page Section1{
+    size:595.3pt 841.9pt;
+    margin:60pt 36pt 70pt 36pt;   /* margens estreitas */
+    mso-header-margin:18pt;
+    mso-footer-margin:28pt;
+    mso-header:h1;
+    mso-footer:f1;
+    mso-paper-source:0;
+  }
+  div.Section1{page:Section1}
+  body{font:10pt Arial,sans-serif;color:#111}
+  h2,h3{text-align:center;margin:8pt 0}
+  h2{font-size:12pt}h3{font-size:10pt}
+  table{width:100%;border-collapse:collapse;margin:14pt 0;font-size:8pt}
+  th,td{border:1px solid #444;padding:4pt 3pt;vertical-align:top;overflow-wrap:anywhere}
+  th{text-align:center;background:#f0f0f0}
+  td:nth-child(1),td:nth-child(2){text-align:center}
+  .total{text-align:right;margin:15pt 0}
+  .declarations{margin-top:28pt;line-height:1.6}
+  .declarations p{text-align:center;margin:12pt 0}   /* TODAS as declarações centralizadas */
+  .opening{text-align:left}
+  .opening h2,.opening h3{text-align:left}           /* pré-tabela à esquerda */
+  .date{text-align:center;margin-top:30pt}
+  .signature{text-align:center;margin-top:32pt;line-height:1.5}
+  .signature img{display:block;width:155px;max-height:65px;object-fit:contain;margin:0 auto 4px}
+  .MsoHeader,.MsoFooter{font-family:Arial,sans-serif;margin:0}
+</style>
+</head>
+<body>
+<div class="Section1">${content}</div>
+
+<!-- CABEÇALHO REAL DO WORD -->
+<div style='mso-element:header' id="h1">
+  <p class="MsoHeader" style="text-align:left;color:#969696;font-weight:bold;font-size:11pt;line-height:1.05;">
+    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png"
+         style="width:40mm;height:auto;vertical-align:middle;margin-right:4pt;">
+    I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA
+  </p>
+</div>
+
+<!-- RODAPÉ REAL DO WORD -->
+<div style='mso-element:footer' id="f1">
+  <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
+    RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
+    TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>
+    CNPJ: 33.149.502/0001-38<br>
+    E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
+  </p>
+</div>
+</body>
+</html>`;
+}
+
+async function getBanks() {
+  try { banks = await api('/api/licitacoes-bancos'); } catch { banks = []; }
+}
+
+$('proposalPdf').onclick = async () => {
+  close('pdfOverlay');
+  if (!current) return;
+  await getBanks();
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups para gerar o PDF.'); return; }
+  w.document.open();
+  w.document.write(proposalHtml(current));
+  w.document.close();
+  setTimeout(() => w.print(), 600);
+};
+
+$('feasibilityPdf').onclick = async () => {
+  close('pdfOverlay');
+  if (!current) return;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Permita pop-ups para gerar o documento.'); return; }
+  w.document.open();
+  w.document.write(proposalHtml(current, { feasibility: true }));
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+};
+
+$('proposalDoc').onclick = async () => {
+  close('pdfOverlay');
+  if (!current) return;
+  await getBanks();
+  const html = proposalDocHtml(current);
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Proposta-Pregao-${current.numero_pregao}.doc`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+/* ---------- Init ---------- */
 load();
 })();
