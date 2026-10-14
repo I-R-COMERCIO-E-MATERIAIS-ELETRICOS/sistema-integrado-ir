@@ -2,12 +2,11 @@
 "use strict";
 
 const $ = id => document.getElementById(id);
-const token = () => sessionStorage.getItem('irToken') || sessionStorage.getItem('sessionToken') || '';
 
 const api = async (url, opts = {}) => {
   const r = await fetch(url, {
     ...opts,
-    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token()}`, ...(opts.headers || {}) }
+    headers: { 'Content-Type':'application/json', ...(opts.headers || {}) }
   });
   if (!r.ok) { let e={}; try{e=await r.json();}catch{} throw new Error(e.error || `Erro ${r.status}`); }
   return r.status === 204 ? null : r.json();
@@ -24,6 +23,8 @@ let current=null, items=[], activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let statusTargetId=null, statusSelected=null;
 let lastSnapshot = '';
+let delId = null;
+let colorPop = null;
 
 /* ===== Helpers ===== */
 const money = n => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
@@ -38,22 +39,31 @@ const fmtNum = (v, dec=2) => {
 };
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const up = s => String(s??'').toUpperCase();
-const fmtDate = v => { if(!v) return '—'; const p=v.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'—'; };
-const todayStr = () => new Date().toISOString().split('T')[0];
+const fmtDate = v => { if(!v) return '—'; const p=String(v).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'—'; };
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 function effectiveStatus(r){
-  const st = r.status || 'agendado';
+  const st = r.status || (r.ganho ? 'ganho' : 'agendado');
   if(st === 'agendado' && r.data_pregao && r.data_pregao < todayStr()) return 'ocorrido';
   return st;
 }
 
-function toast(msg, type='success'){
+/* Toast — APENAS success (verde) e error (vermelho) */
+function toastSuccess(msg){
   const t = $('toast');
-  t.className = 'toast ' + type;
+  t.className = 'toast success';
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._timer);
-  t._timer = setTimeout(()=>t.classList.remove('show'), 3200);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+function toastError(msg){
+  const t = $('toast');
+  t.className = 'toast error';
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
 function open(id){ const el=$(id); if(el) el.classList.add('open'); }
@@ -75,7 +85,7 @@ $('requirements').querySelectorAll('[data-req]').forEach(b=>b.addEventListener('
 const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-detail'];
 function setTab(n){
   activeTab = Math.max(0, Math.min(3, n));
-  document.querySelectorAll('.tabs-nav .tab-btn').forEach((b,i)=>b.classList.toggle('active', i===activeTab));
+  document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach((b,i)=>b.classList.toggle('active', i===activeTab));
   TAB_IDS.forEach((id,i)=>$(id).classList.toggle('active', i===activeTab));
   $('prevTab').style.display = activeTab===0 ? 'none' : '';
   $('nextTab').style.display = activeTab===3 ? 'none' : '';
@@ -95,7 +105,7 @@ function setViewTab(id){
 }
 document.querySelectorAll('[data-vtab]').forEach(b=>b.addEventListener('click',()=>setViewTab(b.dataset.vtab)));
 
-/* ===== Botão Nova Licitação ===== */
+/* ===== Nova Licitação ===== */
 $('newBtn').addEventListener('click', () => newRecord());
 
 /* ===== Filtros globais ===== */
@@ -143,7 +153,7 @@ async function loadOpcoes(){
     fv.innerHTML = '<option value="">Todos os Vendedores</option>' +
       uniq.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if(fvOld) fv.value = fvOld;
-  }catch(e){ toast(e.message, 'error'); }
+  }catch(e){ toastError(e.message); }
 }
 
 async function loadList(){
@@ -160,7 +170,7 @@ async function loadList(){
     renderPagination();
   }catch(e){
     $('records').innerHTML = `<tr><td colspan="9" class="empty">${esc(e.message)}</td></tr>`;
-    toast(e.message, 'error');
+    toastError(e.message);
   }
 }
 
@@ -169,8 +179,8 @@ async function syncNow(){
   if(btn){ btn.classList.add('spin'); setTimeout(()=>btn.classList.remove('spin'),1000); }
   try{
     await Promise.all([loadList(), loadStats()]);
-    toast('Dados sincronizados');
-  }catch(e){ toast('Erro de sincronização', 'error'); }
+    toastSuccess('Dados sincronizados');
+  }catch(e){ toastError('Erro de sincronização'); }
 }
 
 /* ===== Tabela ===== */
@@ -188,7 +198,7 @@ function renderTable(){
       <tr data-id="${r.id}" class="${cls}">
         <td style="text-align:center;">
           <div class="checkbox-wrapper" data-chk="${r.id}">
-            <input type="checkbox" class="styled-checkbox" id="chk-${r.id}" ${st==='ganho'?'checked':''}>
+            <input type="checkbox" class="styled-checkbox" id="chk-${r.id}" ${st==='ganho'?'checked':''} data-noop="1">
             <label for="chk-${r.id}" class="checkbox-label-styled" title="Definir status"></label>
           </div>
         </td>
@@ -219,7 +229,10 @@ function renderTable(){
   tbody.querySelectorAll('[data-itens]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); showItems(b.dataset.itens); }));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); confirmDeleteFlow(b.dataset.del); }));
   tbody.querySelectorAll('.checkbox-wrapper[data-chk]').forEach(w=>{
-    w.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); openStatusModal(w.dataset.chk); });
+    w.addEventListener('click', e=>{
+      e.preventDefault(); e.stopPropagation();
+      openStatusModal(w.dataset.chk);
+    });
   });
 }
 
@@ -254,7 +267,7 @@ function openStatusModal(id){
   if(!r) return;
   statusTargetId = id;
   const st = effectiveStatus(r);
-  statusSelected = (st === 'ganho') ? 'ganho' : (STATUS_VALUES.includes(st) && st !== 'agendado' ? st : null);
+  statusSelected = (STATUS_VALUES.includes(st) && st !== 'agendado') ? st : null;
   $('statusNumero').textContent = up(r.numero_pregao);
   document.querySelectorAll('.status-card').forEach(c=>{
     c.classList.toggle('selected', c.dataset.status === statusSelected);
@@ -270,19 +283,19 @@ document.querySelectorAll('.status-card').forEach(c=>{
 });
 
 $('confirmStatus').addEventListener('click', async ()=>{
-  if(!statusSelected){ toast('Selecione um status.', 'error'); return; }
+  if(!statusSelected){ toastError('Selecione um status.'); return; }
+  const r = records.find(x=>x.id===statusTargetId);
+  const numP = up(r?.numero_pregao || '');
   try{
-    const r = records.find(x=>x.id===statusTargetId);
     await api(`/api/licitacoes/${statusTargetId}/status`, { method:'PATCH', body: JSON.stringify({ status: statusSelected }) });
     close('statusOverlay');
-    const numP = up(r?.numero_pregao || '');
     if(statusSelected === 'ganho'){
-      toast(`O ${numP} foi marcado como ganho`);
+      toastSuccess(`O ${numP} foi marcado como ganho`);
     } else {
-      toast('Status atualizado');
+      toastSuccess(`Pregão ${numP} atualizado`);
     }
     await Promise.all([loadList(), loadStats()]);
-  }catch(e){ toast(e.message, 'error'); }
+  }catch(e){ toastError(e.message); }
 });
 
 /* ===== Disputa Modal ===== */
@@ -387,16 +400,15 @@ $('recordForm').addEventListener('submit', async e => {
     close('formOverlay');
     const numP = up(saved?.numero_pregao || body.numeroPregao);
     if(id){
-      toast(`Pregão ${numP} atualizado`);
+      toastSuccess(`Pregão ${numP} atualizado`);
     } else {
-      toast('Licitação salva com sucesso.');
+      toastSuccess('Licitação salva com sucesso.');
     }
     await Promise.all([loadList(), loadStats()]);
-  }catch(err){ toast(err.message, 'error'); }
+  }catch(err){ toastError(err.message); }
 });
 
 /* ===== Exclusão ===== */
-let delId = null;
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -412,9 +424,9 @@ $('confirmDelete').addEventListener('click', async ()=>{
     await api(`/api/licitacoes/${delId}`, { method:'DELETE' });
     close('deleteOverlay');
     delId = null;
-    toast(`Pregão ${numP} foi excluído`);
+    toastSuccess(`Pregão ${numP} foi excluído`);
     await Promise.all([loadList(), loadStats()]);
-  }catch(e){ toast(e.message, 'error'); }
+  }catch(e){ toastError(e.message); }
 });
 
 /* ===== Visualização ===== */
@@ -425,7 +437,7 @@ function viewRecord(id){
   const st = effectiveStatus(r);
   const reqsArr = Object.entries(r.requisitos||{}).filter(([k,v])=>v).map(([k])=>k);
   $('vinfo').innerHTML = `
-    <div class="info-grid">
+    <div>
       <p><b>Vendedor:</b> ${esc(up(r.vendedor)||'—')}</p>
       <p><b>Data do Pregão:</b> ${esc(fmtDate(r.data_pregao))}</p>
       <p><b>Horário:</b> ${esc(r.horario_pregao||'—')}</p>
@@ -434,7 +446,7 @@ function viewRecord(id){
       <p><b>Status:</b> <span class="badge-status ${st}">${STATUS_LABEL[st]||up(st)}</span></p>
     </div>`;
   $('vorgao').innerHTML = `
-    <div class="info-grid">
+    <div>
       <p><b>Órgão:</b> ${esc(up(r.nome_orgao))}</p>
       <p><b>UASG:</b> ${esc(up(r.uasg)||'—')}</p>
       <p><b>Cidade:</b> ${esc(up(r.cidade)||'—')}</p>
@@ -443,7 +455,7 @@ function viewRecord(id){
       <p><b>Email:</b> ${esc(r.email||'—')}</p>
     </div>`;
   $('vreq').innerHTML = `
-    <div class="info-grid">
+    <div>
       <p><b>Requisitos:</b> ${reqsArr.length? reqsArr.map(esc).join(', ') : '—'}</p>
       <p><b>Banco para pagamento:</b> ${esc(up(r.banco_pagamento)||'—')}</p>
       <p><b>Validade da proposta:</b> ${esc(up(r.validade_proposta)||'—')}</p>
@@ -451,7 +463,7 @@ function viewRecord(id){
       <p><b>Prazo de pagamento:</b> ${esc(up(r.prazo_pagamento)||'—')}</p>
     </div>`;
   $('vdetail').innerHTML = `
-    <div class="info-grid">
+    <div>
       <p><b>Atualizado por:</b> ${esc(r.atualizado_por||'—')}</p>
       <p><b>Última atualização:</b> ${r.ultima_atualizacao ? new Date(r.ultima_atualizacao).toLocaleString('pt-BR') : '—'}</p>
     </div>`;
@@ -471,11 +483,11 @@ function showItems(id){
     porcentagem: x.porcentagem ?? 149,
     cor: x.cor || ''
   }));
+  items.sort((a,b)=>num(a.item)-num(b.item));
   $('itemsTitle').textContent = `Pregão ${up(current.numero_pregao)}`;
   $('itemsSubtitle').textContent = up(current.nome_orgao || '');
   $('mainContainer').hidden = true;
   $('itemsPage').hidden = false;
-  updateMarcaFilter();
   renderItems();
   lastSnapshot = snapshotItems();
 }
@@ -491,15 +503,15 @@ function itemRow(it, idx){
   const vendaTotal = vendaUnt * num(it.qtd);
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
-  return `<tr data-row="1" data-idx="${idx}" class="${cls.join(' ')}">
+  return `<tr data-idx="${idx}" class="${cls.join(' ')}">
     <td style="text-align:center;">
       <div class="checkbox-wrapper">
-        <input type="checkbox" class="styled-checkbox item-ganho-chk" id="it-chk-${idx}" ${sel?'checked':''}>
-        <label for="it-chk-${idx}" class="checkbox-label-styled" title="Marcar item como ganho"></label>
+        <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${idx}" ${sel?'checked':''}>
+        <label for="it-chk-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
       </div>
     </td>
     <td><input class="itemno" data-k="item" value="${esc(it.item??'')}"></td>
-    <td><textarea class="desc" data-k="descricao" rows="1" placeholder="Descrição do item">${esc(it.descricao??'')}</textarea></td>
+    <td><textarea class="desc" data-k="descricao" rows="1" placeholder="Descrição">${esc(it.descricao??'')}</textarea></td>
     <td><input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}"></td>
     <td><input class="unit" data-k="und" value="${esc(up(it.und??'UN'))}"></td>
     <td><input data-k="marca" value="${esc(up(it.marca??''))}"></td>
@@ -513,13 +525,13 @@ function itemRow(it, idx){
     <td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}"></td>
     <td>
       <div class="row-actions">
-        <button type="button" class="row-btn brush" title="Cor do item">
+        <button type="button" class="row-btn brush" title="Cor">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/>
             <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/>
           </svg>
         </button>
-        <button type="button" class="row-btn del" title="Remover item">
+        <button type="button" class="row-btn del" title="Excluir">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -577,13 +589,14 @@ function bindItemEvents(){
   wrap.querySelectorAll('.row-btn.brush').forEach(b=>{
     b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
   });
-  wrap.querySelectorAll('.checkbox-wrapper .styled-checkbox').forEach(chk=>{
+  wrap.querySelectorAll('.item-chk').forEach(chk=>{
     chk.addEventListener('change', ()=>{
       const tr = chk.closest('tr');
       const ganho = chk.checked;
       tr.classList.toggle('row-ganho-item', ganho);
       if(ganho){
         [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
+        tr.dataset.cor = '';
       }
       recalc();
     });
@@ -607,7 +620,7 @@ function collectItems(){
   return [...$('itemsBody').rows].map(tr=>{
     const o = {};
     tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
-    o.selecionado = tr.querySelector('.styled-checkbox').checked;
+    o.selecionado = tr.querySelector('.item-chk').checked;
     o.qtd = num(o.qtd);
     o.porcentagem = num(o.porcentagem ?? 149);
     o.estimadoUnt = num(o.estimadoUnt);
@@ -629,7 +642,6 @@ function snapshotItems(){
   })));
 }
 
-let rendering = false;
 function recalc(doSave = true){
   const data = collectItems();
   [...$('itemsBody').rows].forEach((tr,i)=>{
@@ -640,16 +652,12 @@ function recalc(doSave = true){
     tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(x.vendaTotal);
     const warn = x.vendaUnt > x.estimadoUnt && x.estimadoUnt > 0;
     tr.classList.toggle('row-warn', warn);
-    if(!x.selecionado && x.cor && COLORS[x.cor]){
-      [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
-      tr.classList.add('row-color-'+x.cor);
-    }
   });
   $('totalEstimado').textContent = money(data.reduce((a,x)=>a+x.estimadoTotal,0));
   $('totalCusto').textContent = money(data.reduce((a,x)=>a+x.custoTotal,0));
   $('totalVenda').textContent = money(data.reduce((a,x)=>a+x.vendaTotal,0));
   updateWarnings();
-  if(doSave && !rendering) scheduleSave();
+  if(doSave) scheduleSave();
 }
 
 function updateWarnings(){
@@ -672,7 +680,7 @@ function scheduleSave(){
 async function persistItems(){
   if(!current) return;
   const cur = snapshotItems();
-  if(cur === lastSnapshot) return;   // nenhuma mudança real
+  if(cur === lastSnapshot) return;   // sem mudanças reais
   try{
     const data = collectItems();
     const body = {
@@ -691,12 +699,11 @@ async function persistItems(){
     current.items = data;
     const idx = records.findIndex(r=>r.id===current.id);
     if(idx !== -1) records[idx] = { ...records[idx], items: data };
-    toast('Dados Atualizados.');
-  }catch(e){ toast('Falha ao salvar: '+e.message, 'error'); }
+    toastSuccess('Dados Atualizados.');
+  }catch(e){ toastError('Falha ao salvar: '+e.message); }
 }
 
-/* ===== Cor popup ===== */
-let colorPop = null;
+/* ===== Color popup ===== */
 function openColorPop(btn){
   closeColorPop();
   const rect = btn.getBoundingClientRect();
@@ -712,7 +719,7 @@ function openColorPop(btn){
       e.stopPropagation();
       const tr = btn.closest('tr');
       [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
-      const chk = tr.querySelector('.styled-checkbox');
+      const chk = tr.querySelector('.item-chk');
       if(!chk.checked){ tr.classList.add('row-color-'+c); tr.dataset.cor = c; }
       else { tr.dataset.cor = ''; }
       closeColorPop();
@@ -756,12 +763,13 @@ $('backItems').addEventListener('click', async ()=>{
 $('addItemBtn').addEventListener('click', ()=>{
   const next = Math.max(0, ...collectItems().map(x=>num(x.item)))+1;
   items.push({ item:next, qtd:1, und:'UN', porcentagem:149, selecionado:false });
+  items.sort((a,b)=>num(a.item)-num(b.item));
   renderItems();
   applyFilters();
   scheduleSave();
 });
 
-/* ===== Adicionar intervalo (modal customizado) ===== */
+/* ===== Adicionar intervalo (modal custom) ===== */
 $('addRangeBtn').addEventListener('click', ()=>{
   $('rangeInput').value = '';
   open('rangeOverlay');
@@ -770,7 +778,7 @@ $('addRangeBtn').addEventListener('click', ()=>{
 $('confirmRange').addEventListener('click', ()=>{
   const values = parseRange($('rangeInput').value);
   if(values === null) return;
-  if(!values.size){ toast('Informe ao menos um item.', 'error'); return; }
+  if(!values.size){ toastError('Informe ao menos um item.'); return; }
   close('rangeOverlay');
   addItemRange([...values]);
 });
@@ -785,10 +793,10 @@ function parseRange(raw){
     if(!p) continue;
     if(/^\d+\s*-\s*\d+$/.test(p)){
       const [a,b] = p.split('-').map(Number);
-      if(Math.abs(b-a) > 1000){ toast('Intervalo muito grande (máx. 1001 itens).', 'error'); return null; }
+      if(Math.abs(b-a) > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
       for(let n=Math.min(a,b); n<=Math.max(a,b); n++) values.add(n);
     } else if(/^\d+$/.test(p)) values.add(Number(p));
-    else { toast(`Intervalo inválido: ${p}`, 'error'); return null; }
+    else { toastError(`Intervalo inválido: ${p}`); return null; }
   }
   return values;
 }
@@ -800,7 +808,6 @@ function addItemRange(nums){
       items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false });
     }
   });
-  // ordenar por número de item
   items.sort((a,b)=>num(a.item)-num(b.item));
   renderItems();
   applyFilters();
@@ -819,7 +826,7 @@ function applyFilters(){
     const desc = (tr.querySelector('[data-k="descricao"]').value||'').toLowerCase();
     const itemN = (tr.querySelector('[data-k="item"]').value||'').toLowerCase();
     const marcaTr = (tr.querySelector('[data-k="marca"]').value||'').toUpperCase();
-    const sel = tr.querySelector('.styled-checkbox').checked;
+    const sel = tr.querySelector('.item-chk').checked;
     let show = true;
     if(q && !(desc.includes(q) || itemN.includes(q))) show = false;
     if(marca && marcaTr !== marca) show = false;
@@ -849,10 +856,11 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
     const fresh = await api(`/api/licitacoes/${current.id}`);
     current = fresh;
     items = (current.items||[]).map((x,i)=>({ ...x, item:x.item??i+1, selecionado:x.selecionado!==false, porcentagem:x.porcentagem??149, cor:x.cor||'' }));
+    items.sort((a,b)=>num(a.item)-num(b.item));
     renderItems();
     lastSnapshot = snapshotItems();
-    toast('Dados sincronizados');
-  }catch(e){ toast(e.message, 'error'); }
+    toastSuccess('Dados sincronizados');
+  }catch(e){ toastError(e.message); }
 });
 
 /* ==================== COTAÇÃO ==================== */
@@ -867,10 +875,10 @@ document.querySelectorAll('.quote-option').forEach(b=>b.addEventListener('click'
   document.querySelectorAll('.quote-option').forEach(x=>x.classList.toggle('selected', x===b));
 }));
 $('confirmQuote').addEventListener('click', ()=>{
-  if(!quoteMode){ toast('Selecione o modelo de cotação.', 'error'); return; }
+  if(!quoteMode){ toastError('Selecione o modelo de cotação.'); return; }
   const values = parseRange($('quoteRange').value);
   if(values === null) return;
-  if(!values.size){ toast('Informe o intervalo de itens.', 'error'); return; }
+  if(!values.size){ toastError('Informe o intervalo de itens.'); return; }
 
   const data = collectItems();
   const selected = [];
@@ -878,14 +886,14 @@ $('confirmQuote').addEventListener('click', ()=>{
     const x = data[i];
     if(values.has(num(x.item))){
       [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
-      const chk = tr.querySelector('.styled-checkbox');
+      const chk = tr.querySelector('.item-chk');
       if(!chk.checked){ tr.classList.add('row-color-amarelo'); tr.dataset.cor = 'amarelo'; }
       selected.push(x);
     }
   });
 
   if(!selected.length){
-    toast('Nenhum item encontrado no intervalo informado.', 'error');
+    toastError('Nenhum item encontrado no intervalo informado.');
     return;
   }
 
@@ -905,8 +913,8 @@ $('confirmQuote').addEventListener('click', ()=>{
   const msg = `${greeting}, tudo bem?\n\nGostaria de solicitar um orçamento para os seguintes itens:\n\n${linhas}\n\nPoderia realizar este processo, por gentileza?`;
 
   navigator.clipboard.writeText(msg)
-    .then(()=>toast('Cotação copiada para a área de transferência.'))
-    .catch(()=>toast('Não foi possível copiar a cotação.', 'error'));
+    .then(()=>toastSuccess('Cotação copiada para a área de transferência.'))
+    .catch(()=>toastError('Não foi possível copiar a cotação.'));
   close('quoteOverlay');
   scheduleSave();
 });
@@ -927,7 +935,6 @@ async function loadBanksIfNeeded(){
   try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
 }
 
-/* ============ PDF via jsPDF ============ */
 async function gerarPdf(feasibility = false){
   if(!current) return;
   await loadBanksIfNeeded();
@@ -935,7 +942,7 @@ async function gerarPdf(feasibility = false){
     let tries=0; const iv=setInterval(()=>{
       tries++;
       if(window.jspdf && window.jspdf.jsPDF){ clearInterval(iv); runPdf(feasibility); }
-      else if(tries>10){ clearInterval(iv); toast('Biblioteca PDF não disponível.', 'error'); }
+      else if(tries>10){ clearInterval(iv); toastError('Biblioteca PDF não disponível.'); }
     },300);
     return;
   }
@@ -964,14 +971,14 @@ function runPdf(feasibility){
       doc.setTextColor(0,0,0);
       let y = 5 + lh + 6;
       y = feasibility ? renderFeasibility(y) : renderProposal(y);
-      finalizePdf(y, bank, feasibility);
+      finalizePdf(y);
     }catch(e){ console.error(e); simplePdf(); }
   };
 
   const simplePdf = () => {
     let y = 20;
     y = feasibility ? renderFeasibility(y) : renderProposal(y);
-    finalizePdf(y, bank, feasibility);
+    finalizePdf(y);
   };
 
   const renderProposal = (startY) => {
@@ -1002,10 +1009,10 @@ function runPdf(feasibility){
     doc.setFont('helvetica','normal');
     let total = 0;
     data.forEach((it, idx) => {
-      const custoUnt = num(it.custoUnt);
+      const cu = num(it.custoUnt);
       const pct = num(it.porcentagem ?? 149);
-      const vUnt = it.vendaUnt !== undefined ? num(it.vendaUnt) : (custoUnt * pct/100);
-      const vTot = it.vendaTotal !== undefined ? num(it.vendaTotal) : vUnt * num(it.qtd);
+      const vUnt = cu * pct/100;
+      const vTot = vUnt * num(it.qtd);
       total += vTot;
       const descLines = doc.splitTextToSize(up(it.descricao || ''), cols[3].w - 2);
       const needed = Math.max(rowH, descLines.length * 4 + 3);
@@ -1134,14 +1141,13 @@ function runPdf(feasibility){
       doc.setTextColor(0,0,0);
     }
     doc.save(`${fileBase(current)}.pdf`);
-    toast(`Documento de ${up(current.numero_pregao)} gerado`);
+    toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
   };
 
   if(logo.complete && logo.width) draw();
   else { logo.onload = draw; logo.onerror = () => simplePdf(); }
 }
 
-/* ============ DOC (Word) ============ */
 async function gerarDocWord(){
   if(!current) return;
   await loadBanksIfNeeded();
@@ -1149,16 +1155,16 @@ async function gerarDocWord(){
   const bank = banks.find(b=>b.nome_banco === current.banco_pagamento) || {};
   const total = data.reduce((a,x)=>{
     const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-    const vu = x.vendaUnt !== undefined ? num(x.vendaUnt) : (cu*pct/100);
-    const vt = x.vendaTotal !== undefined ? num(x.vendaTotal) : vu*num(x.qtd);
+    const vu = cu*pct/100;
+    const vt = vu*num(x.qtd);
     return a + vt;
   }, 0);
   const dt = new Date();
   const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
   const linhas = data.map(x=>{
     const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-    const vu = x.vendaUnt !== undefined ? num(x.vendaUnt) : (cu*pct/100);
-    const vt = x.vendaTotal !== undefined ? num(x.vendaTotal) : vu*num(x.qtd);
+    const vu = cu*pct/100;
+    const vt = vu*num(x.qtd);
     return `<tr>
       <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
       <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
@@ -1237,7 +1243,7 @@ async function gerarDocWord(){
   a.download = `${fileBase(current)}.doc`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Documento Word gerado');
+  toastSuccess('Documento Word gerado');
 }
 
 /* ==================== INIT ==================== */
