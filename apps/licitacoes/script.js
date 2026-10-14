@@ -24,8 +24,8 @@ let current=null, items=[], activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let statusTargetId=null, statusSelected=null;
 let lastSnapshot = '';
-let pendingRange = null;
 
+/* ===== Helpers ===== */
 const money = n => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
 const num = v => {
   if(typeof v==='number') return v;
@@ -275,8 +275,9 @@ $('confirmStatus').addEventListener('click', async ()=>{
     const r = records.find(x=>x.id===statusTargetId);
     await api(`/api/licitacoes/${statusTargetId}/status`, { method:'PATCH', body: JSON.stringify({ status: statusSelected }) });
     close('statusOverlay');
+    const numP = up(r?.numero_pregao || '');
     if(statusSelected === 'ganho'){
-      toast(`O ${up(r?.numero_pregao)||''} foi marcado como ganho`);
+      toast(`O ${numP} foi marcado como ganho`);
     } else {
       toast('Status atualizado');
     }
@@ -615,7 +616,6 @@ function collectItems(){
     o.custoTotal = o.custoUnt * o.qtd;
     o.vendaUnt = o.custoUnt * (o.porcentagem/100);
     o.vendaTotal = o.vendaUnt * o.qtd;
-    // cor efetiva salva na lista
     o.cor = o.selecionado ? '' : (tr.dataset.cor || '');
     return o;
   });
@@ -672,7 +672,7 @@ function scheduleSave(){
 async function persistItems(){
   if(!current) return;
   const cur = snapshotItems();
-  if(cur === lastSnapshot) return;   // nada mudou: não salva nem exibe aviso
+  if(cur === lastSnapshot) return;   // nenhuma mudança real
   try{
     const data = collectItems();
     const body = {
@@ -745,7 +745,8 @@ document.addEventListener('click', e=>{
 
 /* ===== Botão voltar ===== */
 $('backItems').addEventListener('click', async ()=>{
-  await persistItems();  // garante gravação pendente antes de sair
+  clearTimeout(saveTimer);
+  await persistItems();
   $('itemsPage').hidden = true;
   $('mainContainer').hidden = false;
   Promise.all([loadList(), loadStats()]);
@@ -756,14 +757,12 @@ $('addItemBtn').addEventListener('click', ()=>{
   const next = Math.max(0, ...collectItems().map(x=>num(x.item)))+1;
   items.push({ item:next, qtd:1, und:'UN', porcentagem:149, selecionado:false });
   renderItems();
-  lastSnapshot = lastSnapshot; // recalc vai agendar pelo snapshot diferente
-  scheduleSave();
   applyFilters();
+  scheduleSave();
 });
 
 /* ===== Adicionar intervalo (modal customizado) ===== */
 $('addRangeBtn').addEventListener('click', ()=>{
-  pendingRange = null;
   $('rangeInput').value = '';
   open('rangeOverlay');
   setTimeout(()=>$('rangeInput').focus(), 100);
@@ -845,7 +844,8 @@ function updateMarcaFilter(){
 $('syncItemsBtn').addEventListener('click', async ()=>{
   const b = $('syncItemsBtn'); b.classList.add('spin'); setTimeout(()=>b.classList.remove('spin'),1000);
   try{
-    await persistItems();  // salva pendências antes
+    clearTimeout(saveTimer);
+    await persistItems();
     const fresh = await api(`/api/licitacoes/${current.id}`);
     current = fresh;
     items = (current.items||[]).map((x,i)=>({ ...x, item:x.item??i+1, selecionado:x.selecionado!==false, porcentagem:x.porcentagem??149, cor:x.cor||'' }));
@@ -872,7 +872,6 @@ $('confirmQuote').addEventListener('click', ()=>{
   if(values === null) return;
   if(!values.size){ toast('Informe o intervalo de itens.', 'error'); return; }
 
-  // Aplica amarelo em linhas correspondentes e monta a lista de cotações
   const data = collectItems();
   const selected = [];
   [...$('itemsBody').rows].forEach((tr,i)=>{
@@ -890,14 +889,13 @@ $('confirmQuote').addEventListener('click', ()=>{
     return;
   }
 
-  // Ordena por número
   selected.sort((a,b)=>num(a.item)-num(b.item));
 
-  // Monta mensagem
   const hr = new Date().getHours();
   const greeting = hr < 12 ? 'Bom dia' : (hr < 18 ? 'Boa tarde' : 'Boa noite');
+
   const linhas = selected.map((x,i)=>{
-    const seq = i+1;   // número sequencial da lista (1, 2, 3...)
+    const seq = i+1;
     const alvo = quoteMode === 'modelo' ? up(x.modelo||'') : up(x.descricao||'');
     const qtd = num(x.qtd);
     const und = up(x.und||'');
@@ -986,14 +984,14 @@ function runPdf(feasibility){
 
     const tw = pw - margin*2;
     const cols = [
-      { k:'item', w: tw*0.06, t:'ITEM', a:'c' },
-      { k:'qtd', w: tw*0.08, t:'QTD', a:'c' },
-      { k:'und', w: tw*0.08, t:'UND', a:'c' },
-      { k:'descricao', w: tw*0.32, t:'DESCRIÇÃO', a:'l' },
-      { k:'marca', w: tw*0.14, t:'MARCA', a:'l' },
-      { k:'modelo', w: tw*0.14, t:'MODELO', a:'l' },
-      { k:'vendaUnt', w: tw*0.09, t:'PREÇO UNIT.', a:'r' },
-      { k:'vendaTotal', w: tw*0.09, t:'PREÇO TOTAL', a:'r' }
+      { w: tw*0.06, t:'ITEM', a:'c' },
+      { w: tw*0.08, t:'QTD', a:'c' },
+      { w: tw*0.08, t:'UND', a:'c' },
+      { w: tw*0.32, t:'DESCRIÇÃO', a:'l' },
+      { w: tw*0.14, t:'MARCA', a:'l' },
+      { w: tw*0.14, t:'MODELO', a:'l' },
+      { w: tw*0.09, t:'PREÇO UNIT.', a:'r' },
+      { w: tw*0.09, t:'PREÇO TOTAL', a:'r' }
     ];
     const rowH = 7;
     doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
@@ -1106,11 +1104,8 @@ function runPdf(feasibility){
     return y;
   };
 
-  const finalizePdf = (y, bank, feasibility) => {
+  const finalizePdf = (y) => {
     if(!feasibility){
-      const dt = new Date();
-      const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-      // assinatura
       try{
         const sign = new Image(); sign.crossOrigin='anonymous';
         sign.src = '/apps/imagens/assinatura.png';
@@ -1127,7 +1122,6 @@ function runPdf(feasibility){
       doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, y, { align:'center' }); y += 4;
       doc.text('DIRETORA', pw/2, y, { align:'center' });
     }
-    // rodapé em todas as páginas
     const totalPages = doc.internal.getNumberOfPages();
     for(let i=1; i<=totalPages; i++){
       doc.setPage(i);
