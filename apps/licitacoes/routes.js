@@ -4,7 +4,6 @@ module.exports = function (supabase) {
   const table = 'licitacoes';
   const bankTable = 'bancos';
   const clean = (v) => v === undefined ? null : v;
-
   const todayStr = () => new Date().toISOString().split('T')[0];
 
   router.get('/licitacoes/opcoes', async (req, res) => {
@@ -19,23 +18,20 @@ module.exports = function (supabase) {
         .filter(p => p.is_admin || (Array.isArray(p.apps) ? p.apps : []).includes('licitacoes'))
         .map(p => ({ id: p.id, name: p.name || p.username }));
       res.json({ users, banks: banks || [] });
-    } catch (e) {
-      res.status(500).json({ error: e.message, hint: 'Verifique a execução do schema.sql.' });
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  /* Estatísticas globais para os dashboards */
   router.get('/licitacoes/stats', async (req, res) => {
     try {
-      const { data, error } = await supabase.from(table)
-        .select('id,data_pregao,horario_pregao,ganho');
+      const { data, error } = await supabase.from(table).select('id,data_pregao,horario_pregao,ganho,status');
       if (error) throw error;
       const today = todayStr();
       const nowMs = Date.now();
       const all = data || [];
       let total = all.length, ganhos = 0, disputa = 0, ocorridos = 0, pulse = false;
       for (const r of all) {
-        if (r.ganho === true) ganhos++;
+        const st = r.status || (r.ganho ? 'ganho' : 'agendado');
+        if (st === 'ganho') ganhos++;
         const d = r.data_pregao || '';
         if (d === today) {
           disputa++;
@@ -44,7 +40,7 @@ module.exports = function (supabase) {
             const dt = new Date(); dt.setHours(h||0, m||0, 0, 0);
             if (dt.getTime() <= nowMs) pulse = true;
           } else pulse = true;
-        } else if (d && d < today && !r.ganho) {
+        } else if (d && d < today && !['ganho','cancelado','suspenso','encerrado','agendado'].includes(st)) {
           ocorridos++;
         }
       }
@@ -52,7 +48,18 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  /* Lista paginada com filtros e busca */
+  router.get('/licitacoes/disputa-hoje', async (req, res) => {
+    try {
+      const today = todayStr();
+      const { data, error } = await supabase.from(table)
+        .select('id,numero_pregao,vendedor,nome_orgao')
+        .eq('data_pregao', today)
+        .order('horario_pregao', { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      res.json(data || []);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   router.get('/licitacoes', async (req, res) => {
     try {
       const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -69,18 +76,16 @@ module.exports = function (supabase) {
       if (search) {
         const s = search.replace(/[%,()]/g, '');
         query = query.or(
-          `numero_pregao.ilike.%${s}%,` +
-          `uasg.ilike.%${s}%,` +
-          `vendedor.ilike.%${s}%,` +
-          `nome_orgao.ilike.%${s}%,` +
-          `cidade.ilike.%${s}%`
+          `numero_pregao.ilike.%${s}%,uasg.ilike.%${s}%,vendedor.ilike.%${s}%,nome_orgao.ilike.%${s}%,cidade.ilike.%${s}%`
         );
       }
       if (vendedor) query = query.eq('vendedor', vendedor);
 
-      if (status === 'ganhos') query = query.eq('ganho', true);
+      if (status === 'ganhos') query = query.eq('status', 'ganho');
       else if (status === 'disputa') query = query.eq('data_pregao', today);
-      else if (status === 'ocorridos') query = query.lt('data_pregao', today).eq('ganho', false);
+      else if (status === 'ocorridos') {
+        query = query.lt('data_pregao', today).or('status.is.null,status.eq.agendado,status.eq.ocorrido');
+      }
 
       query = query
         .order('data_pregao', { ascending: true, nullsFirst: false })
@@ -131,6 +136,8 @@ module.exports = function (supabase) {
   router.post('/licitacoes', async (req, res) => {
     try {
       const row = buildRow(req.body || {}, req);
+      row.status = 'agendado';
+      row.ganho = false;
       const { data, error } = await supabase.from(table).insert(row).select('*').single();
       if (error) throw error;
       res.status(201).json(data);
@@ -146,10 +153,13 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.patch('/licitacoes/:id/ganho', async (req, res) => {
+  router.patch('/licitacoes/:id/status', async (req, res) => {
     try {
-      const ganho = !!req.body?.ganho;
-      const { data, error } = await supabase.from(table).update({ ganho }).eq('id', req.params.id).select('*').single();
+      const status = String(req.body?.status || '').toLowerCase();
+      const allowed = ['agendado','ganho','ocorrido','suspenso','encerrado','cancelado'];
+      if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido.' });
+      const update = { status, ganho: status === 'ganho' };
+      const { data, error } = await supabase.from(table).update(update).eq('id', req.params.id).select('*').single();
       if (error) throw error;
       res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
