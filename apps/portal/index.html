@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/portal/styles.css">
+    <link rel="stylesheet" href="/shared/ui-refined.css">
+</head>
+<body>
+
+<div class="dashboard" id="dashboard">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="avatar" id="userInitial"></div>
+            <div class="sidebar-info">
+                <div class="sidebar-name" id="userName"></div>
+                <div class="sidebar-sector" id="userSector"></div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarModules"></nav>
+
+        <div class="sidebar-footer">
+            <button class="module-item logout-item" onclick="showLogout()" type="button">
+                <span class="module-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </span>
+                <span class="module-label">Sair</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div id="iframesContainer"></div>
+    </main>
+
+    <div class="greeting-overlay" id="greetingOverlay">
+        <div class="greeting-text" id="greetingText"></div>
+    </div>
+</div>
+
+<!-- Modal de logout -->
+<div class="modal-overlay" id="logoutModal">
+    <div class="modal-content ir-modal-confirm">
+        <button class="close-modal ir-close" onclick="closeLogout()">✕</button>
+        <div class="ir-confirm-msg">Deseja realmente sair?</div>
+        <div class="ir-confirm-actions">
+            <button type="button" class="ir-btn-green" onclick="confirmLogout()">Sim</button>
+            <button type="button" class="ir-btn-red" onclick="closeLogout()">Não</button>
+        </div>
+    </div>
+</div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/portal/script.js"></script>
+<div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
+</body>
+</html>
