@@ -8,7 +8,7 @@ const PORTAL_URL = window.location.origin;
 
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fecaca' };
+const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fca5a5' };
 const STATUS_LABEL = {
   aguardando:'AGUARDANDO DISPUTA',
   'disputa-aberta':'DISPUTA ABERTA',
@@ -23,12 +23,15 @@ let sessionToken = null;
 let currentUserName = null;
 let records=[], users=[], banks=[];
 let stats={total:0,disputa:0,ganhos:0,realizados:0,pulse:false};
-let current=null, items=[], activeTab=0;
+let current=null;
+let groupsState = []; // [{ id:'g0', titulo:'', items:[...] }, { id:'g1', titulo:'Grupo 1', items:[...] }]
+let activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let lastSnapshot = '';
 let delId = null;
 let colorPop = null;
 let booted = false;
+let pdfBusy = false;
 
 const $ = id => document.getElementById(id);
 
@@ -165,6 +168,14 @@ function toastError(msg){
   t.classList.add('show');
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+function toastWarn(msg){
+  const t = $('toast');
+  t.className = 'toast warn';
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3200);
 }
 
 function open(id){ const el=$(id); if(el) el.classList.add('open'); }
@@ -382,22 +393,24 @@ function renderPagination(){
 }
 
 async function openDisputaModal(){
-  $('disputaBody').innerHTML = '<tr><td colspan="3" class="empty">Carregando…</td></tr>';
+  $('disputaBody').innerHTML = '<tr><td colspan="5" class="empty">Carregando…</td></tr>';
   open('disputaOverlay');
   try{
     const list = await api('/api/licitacoes/disputa-hoje');
     if(!list.length){
-      $('disputaBody').innerHTML = '<tr><td colspan="3" class="empty">Nenhum pregão programado para hoje.</td></tr>';
+      $('disputaBody').innerHTML = '<tr><td colspan="5" class="empty">Nenhum pregão programado para hoje.</td></tr>';
       return;
     }
     $('disputaBody').innerHTML = list.map(r=>`
       <tr>
+        <td>${esc(fmtDate(r.data_pregao))}</td>
+        <td>${esc(r.horario_pregao||'—')}</td>
         <td><strong>${esc(up(r.numero_pregao))}</strong></td>
         <td>${esc(up(r.vendedor)||'—')}</td>
         <td>${esc(up(r.nome_orgao))}</td>
       </tr>`).join('');
   }catch(e){
-    $('disputaBody').innerHTML = `<tr><td colspan="3" class="empty">${esc(e.message)}</td></tr>`;
+    $('disputaBody').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`;
   }
 }
 
@@ -476,7 +489,8 @@ $('recordForm').addEventListener('submit', async e => {
     validadeProposta: $('validadeProposta').value,
     prazoEntrega: $('prazoEntrega').value,
     prazoPagamento: $('prazoPagamento').value,
-    items: current?.items || []
+    items: current?.items || [],
+    grupos: current?.grupos || []
   };
   try{
     const id = $('recordId').value;
@@ -557,27 +571,79 @@ function viewRecord(id){
   open('viewOverlay');
 }
 
+/* ==================== ITENS (com grupos) ==================== */
+
+function normalizeItemsStructure(r){
+  const rawItems = Array.isArray(r.items) ? r.items : [];
+  const gruposList = Array.isArray(r.grupos) ? r.grupos.slice() : [];
+
+  const mainItems = [];
+  const byGroup = {};
+
+  rawItems.forEach((x,i)=>{
+    const g = String(x.grupo || '').trim();
+    const it = {
+      item: x.item ?? (i+1),
+      descricao: x.descricao || '',
+      qtd: x.qtd ?? 1,
+      und: x.und || 'UN',
+      marca: x.marca || '',
+      modelo: x.modelo || '',
+      estimadoUnt: x.estimadoUnt ?? '',
+      custoUnt: x.custoUnt ?? '',
+      porcentagem: x.porcentagem ?? 149,
+      selecionado: x.selecionado !== false,
+      cor: x.cor || ''
+    };
+    if(!g){
+      mainItems.push(it);
+    } else {
+      if(!gruposList.includes(g)) gruposList.push(g);
+      if(!byGroup[g]) byGroup[g] = [];
+      byGroup[g].push(it);
+    }
+  });
+
+  const state = [
+    { id:'g0', titulo:'', items: mainItems }
+  ];
+  gruposList.forEach((titulo, idx)=>{
+    state.push({ id:'g'+(idx+1), titulo, items: byGroup[titulo] || [] });
+  });
+  return state;
+}
+
+function flatItemsFromState(){
+  const all = [];
+  groupsState.forEach(g=>{
+    g.items.forEach(it=>{
+      all.push({ ...it, grupo: g.titulo });
+    });
+  });
+  return all;
+}
+
+function groupTitlesFromState(){
+  return groupsState.slice(1).map(g=>g.titulo);
+}
+
 function showItems(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
   current = JSON.parse(JSON.stringify(r));
-  items = (current.items||[]).map((x,i)=>({
-    ...x,
-    item: x.item ?? i+1,
-    selecionado: x.selecionado !== false,
-    porcentagem: x.porcentagem ?? 149,
-    cor: x.cor || ''
-  }));
-  items.sort((a,b)=>num(a.item)-num(b.item));
+  groupsState = normalizeItemsStructure(current);
+  groupsState.forEach(g=>{
+    g.items.sort((a,b)=>num(a.item)-num(b.item));
+  });
   $('itemsTitle').textContent = `Pregão ${up(current.numero_pregao)}`;
   $('itemsSubtitle').textContent = up(current.nome_orgao || '');
   $('mainContainer').hidden = true;
   $('itemsPage').hidden = false;
-  renderItems();
-  lastSnapshot = snapshotItems();
+  renderTables();
+  lastSnapshot = snapshotAll();
 }
 
-function itemRow(it, idx){
+function itemRowHTML(it, gIdx, idx){
   const sel = it.selecionado !== false;
   const cls = [];
   if(sel) cls.push('row-ganho-item');
@@ -588,11 +654,11 @@ function itemRow(it, idx){
   const vendaTotal = vendaUnt * num(it.qtd);
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
-  return `<tr data-idx="${idx}" class="${cls.join(' ')}">
+  return `<tr data-gidx="${gIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}" class="${cls.join(' ')}">
     <td style="text-align:center;">
       <div class="checkbox-wrapper">
-        <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${idx}" ${sel?'checked':''}>
-        <label for="it-chk-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
+        <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${gIdx}-${idx}" ${sel?'checked':''}>
+        <label for="it-chk-${gIdx}-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
       </div>
     </td>
     <td><input class="itemno" data-k="item" value="${esc(it.item??'')}"></td>
@@ -617,78 +683,175 @@ function itemRow(it, idx){
   </tr>`;
 }
 
-function renderItems(){
-  const wrap = $('itemsBody');
-  wrap.innerHTML = items.map((it,i)=>itemRow(it,i)).join('');
-  bindItemEvents();
+function renderTables(){
+  const container = $('tablesContainer');
+  container.innerHTML = groupsState.map((g, gIdx)=>{
+    const isMain = g.titulo === '';
+    const rowsHTML = g.items.map((it, i)=>itemRowHTML(it, gIdx, i)).join('');
+    const totais = computeTotals(g.items);
+    const headerBar = `
+      <div class="grupo-header">
+        <span class="grupo-titulo">${isMain ? '' : esc(g.titulo)}</span>
+        <div class="grupo-actions">
+          <button type="button" class="grupo-icon-btn add-item" data-gidx="${gIdx}" title="Adicionar Item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <button type="button" class="grupo-icon-btn add-range" data-gidx="${gIdx}" title="Adicionar Intervalo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+          ${isMain ? '' : `<button type="button" class="grupo-icon-btn del-group" data-gidx="${gIdx}" title="Excluir grupo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>`}
+        </div>
+      </div>`;
+
+    return `
+      <div class="grupo-tabela" data-gidx="${gIdx}">
+        ${headerBar}
+        <div class="card table-card items-card">
+          <div class="items-wrap">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th class="col-check">✓</th>
+                  <th class="col-item">ITEM</th>
+                  <th class="col-desc">DESCRIÇÃO</th>
+                  <th class="col-qtd">QTD</th>
+                  <th class="col-und">UND</th>
+                  <th class="col-marca">MARCA</th>
+                  <th class="col-modelo">MODELO</th>
+                  <th class="col-num">ESTIM. UNT</th>
+                  <th class="col-num">ESTIM. TOTAL</th>
+                  <th class="col-num">CUSTO UNT</th>
+                  <th class="col-num">CUSTO TOTAL</th>
+                  <th class="col-pct">%</th>
+                  <th class="col-num">VENDA UNT</th>
+                  <th class="col-num">VENDA TOTAL</th>
+                  <th class="col-actions"></th>
+                </tr>
+              </thead>
+              <tbody>${rowsHTML || '<tr><td colspan="15" class="empty">Nenhum item</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="totals-bar">
+          <div class="totals-item"><span>ESTIMADO</span><strong>${money(totais.estimado)}</strong></div>
+          <div class="totals-item"><span>CUSTO</span><strong>${money(totais.custo)}</strong></div>
+          <div class="totals-item"><span>VENDA</span><strong>${money(totais.venda)}</strong></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  bindTableEvents();
   autoResizeAll();
-  recalc(false);
   applyFilters();
-  updateWarnings();
   updateMarcaFilter();
 }
 
-function autoResizeAll(){ $('itemsBody').querySelectorAll('textarea').forEach(ta=>autoResize(ta)); }
+function computeTotals(list){
+  let e=0,c=0,v=0;
+  list.forEach(x=>{
+    const qtd = num(x.qtd);
+    const cu = num(x.custoUnt);
+    const eu = num(x.estimadoUnt);
+    const pct = num(x.porcentagem ?? 149);
+    e += eu * qtd;
+    c += cu * qtd;
+    v += (cu * pct / 100) * qtd;
+  });
+  return { estimado:e, custo:c, venda:v };
+}
+
+function bindTableEvents(){
+  document.querySelectorAll('.grupo-tabela').forEach(gt=>{
+    const gIdx = parseInt(gt.dataset.gidx);
+
+    gt.querySelectorAll('input[data-k], textarea[data-k]').forEach(i=>{
+      i.addEventListener('input', ()=>{ if(i.tagName==='TEXTAREA') autoResize(i); recalcAll(); });
+      i.addEventListener('change', recalcAll);
+      i.addEventListener('blur', ()=>{
+        const k = i.dataset.k;
+        if(['qtd','estimadoUnt','custoUnt','porcentagem'].includes(k)){
+          const dec = (k === 'qtd' || k === 'porcentagem') ? 0 : 2;
+          i.value = fmtNum(num(i.value), dec);
+        }
+        recalcAll();
+      });
+      i.addEventListener('focus', ()=>{
+        const k = i.dataset.k;
+        if(['qtd','estimadoUnt','custoUnt','porcentagem'].includes(k)){
+          i.value = String(num(i.value)).replace('.', ',');
+        }
+      });
+      if(i.tagName === 'TEXTAREA'){
+        i.addEventListener('paste', cleanPasteHandler);
+        i.addEventListener('keydown', e=>{ if(e.key === 'Enter') e.stopPropagation(); });
+      }
+    });
+
+    gt.querySelectorAll('.row-btn.del').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const tr = b.closest('tr');
+        const gI = parseInt(tr.dataset.gidx);
+        const iI = parseInt(tr.dataset.idx);
+        if(!isNaN(gI) && !isNaN(iI)){
+          groupsState[gI].items.splice(iI, 1);
+          renderTables();
+          scheduleSave();
+        }
+      });
+    });
+
+    gt.querySelectorAll('.row-btn.brush').forEach(b=>{
+      b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
+    });
+
+    gt.querySelectorAll('.item-chk').forEach(chk=>{
+      chk.addEventListener('change', ()=>{
+        const tr = chk.closest('tr');
+        const ganho = chk.checked;
+        tr.classList.toggle('row-ganho-item', ganho);
+        if(ganho){
+          [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
+        } else {
+          const cor = tr.dataset.cor || '';
+          if(cor && COLORS[cor]) tr.classList.add('row-color-'+cor);
+        }
+        recalcAll();
+      });
+    });
+
+    gt.querySelectorAll('.grupo-icon-btn.add-item').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        addNewItem(gI);
+      });
+    });
+    gt.querySelectorAll('.grupo-icon-btn.add-range').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        openRangeModal(gI);
+      });
+    });
+    gt.querySelectorAll('.grupo-icon-btn.del-group').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        if(gI<=0) return;
+        groupsState.splice(gI,1);
+        renderTables();
+        scheduleSave();
+      });
+    });
+  });
+}
+
+function autoResizeAll(){
+  document.querySelectorAll('.items-table textarea').forEach(ta=>autoResize(ta));
+}
 function autoResize(el){
   if(!el) return;
   el.style.height = 'auto';
   el.style.height = (el.scrollHeight) + 'px';
-}
-
-function bindItemEvents(){
-  const wrap = $('itemsBody');
-  wrap.querySelectorAll('input[data-k], textarea[data-k]').forEach(i=>{
-    i.addEventListener('input', ()=>{ if(i.tagName==='TEXTAREA') autoResize(i); recalc(); });
-    i.addEventListener('change', recalc);
-    i.addEventListener('blur', ()=>{
-      const k = i.dataset.k;
-      if(['qtd','estimadoUnt','custoUnt','porcentagem'].includes(k)){
-        const dec = (k === 'qtd' || k === 'porcentagem') ? 0 : 2;
-        i.value = fmtNum(num(i.value), dec);
-      }
-      recalc();
-    });
-    i.addEventListener('focus', ()=>{
-      const k = i.dataset.k;
-      if(['qtd','estimadoUnt','custoUnt','porcentagem'].includes(k)){
-        i.value = String(num(i.value)).replace('.', ',');
-      }
-    });
-    if(i.tagName === 'TEXTAREA'){
-      i.addEventListener('paste', cleanPasteHandler);
-      i.addEventListener('keydown', e=>{ if(e.key === 'Enter') e.stopPropagation(); });
-    }
-  });
-  wrap.querySelectorAll('.row-btn.del').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      const tr = b.closest('tr');
-      const idx = parseInt(tr.dataset.idx);
-      if(!isNaN(idx)) items.splice(idx, 1);
-      tr.remove();
-      renumberIdx();
-      recalc();
-      updateMarcaFilter();
-    });
-  });
-  wrap.querySelectorAll('.row-btn.brush').forEach(b=>{
-    b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
-  });
-  wrap.querySelectorAll('.item-chk').forEach(chk=>{
-    chk.addEventListener('change', ()=>{
-      const tr = chk.closest('tr');
-      const ganho = chk.checked;
-      tr.classList.toggle('row-ganho-item', ganho);
-      if(ganho){
-        [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
-        tr.dataset.cor = '';
-      }
-      recalc();
-    });
-  });
-}
-
-function renumberIdx(){
-  [...$('itemsBody').rows].forEach((tr,i)=>{ tr.dataset.idx = i; });
 }
 
 function cleanPasteHandler(e){
@@ -701,63 +864,74 @@ function cleanPasteHandler(e){
   t.value = t.value.slice(0,start) + clean + t.value.slice(end);
   t.selectionStart = t.selectionEnd = start + clean.length;
   autoResize(t);
-  recalc();
+  recalcAll();
 }
 
-function collectItems(){
-  return [...$('itemsBody').rows].map(tr=>{
-    const o = {};
-    tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
-    o.selecionado = tr.querySelector('.item-chk').checked;
-    o.qtd = num(o.qtd);
-    o.porcentagem = num(o.porcentagem ?? 149);
-    o.estimadoUnt = num(o.estimadoUnt);
-    o.estimadoTotal = o.estimadoUnt * o.qtd;
-    o.custoUnt = num(o.custoUnt);
-    o.custoTotal = o.custoUnt * o.qtd;
-    o.vendaUnt = o.custoUnt * (o.porcentagem/100);
-    o.vendaTotal = o.vendaUnt * o.qtd;
-    o.cor = o.selecionado ? '' : (tr.dataset.cor || '');
-    return o;
+function readTableState(){
+  document.querySelectorAll('.grupo-tabela').forEach(gt=>{
+    const gIdx = parseInt(gt.dataset.gidx);
+    if(isNaN(gIdx)) return;
+    const rows = [...gt.querySelectorAll('tbody tr[data-idx]')];
+    const newItems = rows.map(tr=>{
+      const o = {};
+      tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
+      o.item = o.item ?? '';
+      o.descricao = o.descricao ?? '';
+      o.qtd = num(o.qtd);
+      o.und = o.und ?? 'UN';
+      o.marca = o.marca ?? '';
+      o.modelo = o.modelo ?? '';
+      o.estimadoUnt = num(o.estimadoUnt);
+      o.custoUnt = num(o.custoUnt);
+      o.porcentagem = num(o.porcentagem ?? 149);
+      o.selecionado = tr.querySelector('.item-chk').checked;
+      o.cor = tr.dataset.cor || '';
+      return o;
+    });
+    groupsState[gIdx].items = newItems;
   });
 }
 
-function snapshotItems(){
-  return JSON.stringify(collectItems().map(x=>({
-    item:x.item, descricao:x.descricao, qtd:x.qtd, und:x.und, marca:x.marca, modelo:x.modelo,
-    estimadoUnt:x.estimadoUnt, custoUnt:x.custoUnt, porcentagem:x.porcentagem,
-    selecionado:x.selecionado, cor:x.cor
-  })));
-}
-
-function recalc(doSave = true){
-  const data = collectItems();
-  [...$('itemsBody').rows].forEach((tr,i)=>{
-    const x = data[i];
-    tr.querySelector('[data-k="estimadoTotal"]').value = fmtNum(x.estimadoTotal);
-    tr.querySelector('[data-k="custoTotal"]').value = fmtNum(x.custoTotal);
-    tr.querySelector('[data-k="vendaUnt"]').value = fmtNum(x.vendaUnt);
-    tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(x.vendaTotal);
-    const warn = x.vendaUnt > x.estimadoUnt && x.estimadoUnt > 0;
-    tr.classList.toggle('row-warn', warn);
-  });
-  $('totalEstimado').textContent = money(data.reduce((a,x)=>a+x.estimadoTotal,0));
-  $('totalCusto').textContent = money(data.reduce((a,x)=>a+x.custoTotal,0));
-  $('totalVenda').textContent = money(data.reduce((a,x)=>a+x.vendaTotal,0));
-  updateWarnings();
-  if(doSave) scheduleSave();
-}
-
-function updateWarnings(){
-  const data = collectItems();
-  const w = [];
-  data.forEach(x=>{
-    if(x.vendaUnt > x.estimadoUnt && x.estimadoUnt > 0){
-      w.push(`O item ${x.item||'?'} possui valor unitário de venda superior ao estimado unitário.`);
+function recalcAll(doSave = true){
+  readTableState();
+  let totE=0, totC=0, totV=0;
+  document.querySelectorAll('.grupo-tabela').forEach(gt=>{
+    const gIdx = parseInt(gt.dataset.gidx);
+    const g = groupsState[gIdx];
+    let e=0,c=0,v=0;
+    gt.querySelectorAll('tbody tr[data-idx]').forEach(tr=>{
+      const estU = num(tr.querySelector('[data-k="estimadoUnt"]').value);
+      const qtd = num(tr.querySelector('[data-k="qtd"]').value);
+      const cu = num(tr.querySelector('[data-k="custoUnt"]').value);
+      const pct = num(tr.querySelector('[data-k="porcentagem"]').value);
+      const estT = estU * qtd;
+      const ct = cu * qtd;
+      const vu = cu * pct / 100;
+      const vt = vu * qtd;
+      tr.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
+      tr.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
+      tr.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
+      tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
+      const warn = vu > estU && estU > 0;
+      tr.classList.toggle('row-warn', warn);
+      e += estT; c += ct; v += vt;
+    });
+    const totBar = gt.querySelector('.totals-bar');
+    if(totBar){
+      const strongs = totBar.querySelectorAll('.totals-item strong');
+      if(strongs[0]) strongs[0].textContent = money(e);
+      if(strongs[1]) strongs[1].textContent = money(c);
+      if(strongs[2]) strongs[2].textContent = money(v);
     }
+    totE += e; totC += c; totV += v;
+    // Warnings
+    g.items.forEach((x, i)=>{
+      if(x.vendaUnt > x.estimadoUnt && x.estimadoUnt > 0){
+        toastWarn(`O item ${x.item || '?'} possui valor unitário de venda superior ao estimado unitário.`);
+      }
+    });
   });
-  const el = $('itemsWarnings');
-  el.innerHTML = w.length ? w.map(m=>`<div class="warn-item">${esc(m)}</div>`).join('') : '';
+  if(doSave) scheduleSave();
 }
 
 function scheduleSave(){
@@ -767,10 +941,10 @@ function scheduleSave(){
 
 async function persistItems(){
   if(!current) return;
-  const cur = snapshotItems();
+  const allItems = flatItemsFromState();
+  const cur = JSON.stringify(allItems);
   if(cur === lastSnapshot) return;
   try{
-    const data = collectItems();
     const body = {
       vendedorId: current.vendedor_id, vendedor: current.vendedor,
       numeroPregao: current.numero_pregao, uasg: current.uasg, nomeOrgao: current.nome_orgao,
@@ -781,15 +955,21 @@ async function persistItems(){
       status: current.status || '',
       validadeProposta: current.validade_proposta,
       prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
-      items: data
+      items: allItems,
+      grupos: groupTitlesFromState()
     };
     await api(`/api/licitacoes/${current.id}`, { method:'PUT', body: JSON.stringify(body) });
     lastSnapshot = cur;
-    current.items = data;
+    current.items = allItems;
+    current.grupos = groupTitlesFromState();
     const idx = records.findIndex(r=>r.id===current.id);
-    if(idx !== -1) records[idx] = { ...records[idx], items: data };
+    if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
     toastSuccess('Dados Atualizados.');
   }catch(e){ toastError('Falha ao salvar: '+e.message); }
+}
+
+function snapshotAll(){
+  return JSON.stringify(flatItemsFromState());
 }
 
 function openColorPop(btn){
@@ -808,8 +988,12 @@ function openColorPop(btn){
       const tr = btn.closest('tr');
       [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
       const chk = tr.querySelector('.item-chk');
-      if(!chk.checked){ tr.classList.add('row-color-'+c); tr.dataset.cor = c; }
-      else { tr.dataset.cor = ''; }
+      if(!chk.checked){
+        tr.classList.add('row-color-'+c);
+        tr.dataset.cor = c;
+      } else {
+        tr.dataset.cor = c; // guarda mesmo sem mostrar
+      }
       closeColorPop();
       scheduleSave();
     });
@@ -846,61 +1030,99 @@ $('backItems').addEventListener('click', async ()=>{
   Promise.all([loadList(), loadStats()]);
 });
 
-$('addItemBtn').addEventListener('click', ()=>{
-  items = collectItems();
-  const next = Math.max(0, ...items.map(x=>num(x.item)))+1;
-  items.push({ item:next, qtd:1, und:'UN', porcentagem:149, selecionado:false });
-  items.sort((a,b)=>num(a.item)-num(b.item));
-  renderItems();
-  applyFilters();
-  scheduleSave();
+/* Toolbar toggle buttons */
+document.querySelectorAll('.btn-toggle-table').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const t = btn.dataset.add;
+    if(t === 'main'){
+      // rolar até o topo da tabela principal
+      const el = document.querySelector('.grupo-tabela[data-gidx="0"]');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    } else if(t === 'grupo'){
+      const nextIdx = groupsState.length;
+      groupsState.push({ id:'g'+nextIdx, titulo:'Grupo '+ (nextIdx), items:[] });
+      renderTables();
+      const el = document.querySelector(`.grupo-tabela[data-gidx="${nextIdx}"]`);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+      scheduleSave();
+    }
+  });
 });
 
-$('addRangeBtn').addEventListener('click', ()=>{
+/* Adicionar item no grupo */
+function addNewItem(gIdx){
+  const g = groupsState[gIdx];
+  if(!g) return;
+  const next = Math.max(0, ...g.items.map(x=>num(x.item))) + 1;
+  g.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+  g.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderTables();
+  scheduleSave();
+}
+
+/* Intervalo */
+let pendingRangeGIdx = 0;
+function openRangeModal(gIdx){
+  pendingRangeGIdx = gIdx;
   $('rangeInput').value = '';
   open('rangeOverlay');
   setTimeout(()=>$('rangeInput').focus(), 100);
-});
+}
 $('confirmRange').addEventListener('click', ()=>{
-  const values = parseRange($('rangeInput').value);
+  const values = parseRangeOrdered($('rangeInput').value);
   if(values === null) return;
-  if(!values.size){ toastError('Informe ao menos um item.'); return; }
+  if(!values.length){ toastError('Informe ao menos um item.'); return; }
   close('rangeOverlay');
-  addItemRange([...values]);
+  addItemRangeToGroup(pendingRangeGIdx, values);
 });
 $('rangeInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); }
 });
 
-function parseRange(raw){
-  const values = new Set();
+function parseRangeOrdered(raw){
+  const values = [];
   for(const part of String(raw || '').split(',')){
     const p = part.trim();
     if(!p) continue;
     if(/^\d+\s*-\s*\d+$/.test(p)){
       const [a,b] = p.split('-').map(Number);
-      if(Math.abs(b-a) > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
-      for(let n=Math.min(a,b); n<=Math.max(a,b); n++) values.add(n);
-    } else if(/^\d+$/.test(p)) values.add(Number(p));
-    else { toastError(`Intervalo inválido: ${p}`); return null; }
+      if(b < a){ toastError(`Intervalo em ordem decrescente: ${p}`); return null; }
+      if(b - a > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
+      for(let n=a; n<=b; n++) values.push(n);
+    } else if(/^\d+$/.test(p)){
+      values.push(Number(p));
+    } else {
+      toastError(`Intervalo inválido: ${p}`);
+      return null;
+    }
+  }
+  for(let i=1; i<values.length; i++){
+    if(values[i] <= values[i-1]){
+      toastError('Intervalos devem estar em ordem crescente e sem repetições.');
+      return null;
+    }
   }
   return values;
 }
 
-function addItemRange(nums){
-  items = collectItems();
-  const existing = new Set(items.map(x=>String(num(x.item))));
+function addItemRangeToGroup(gIdx, nums){
+  const g = groupsState[gIdx];
+  if(!g) return;
+  const existing = new Set(g.items.map(x=>String(num(x.item))));
+  const dups = nums.filter(n=>existing.has(String(n)));
+  if(dups.length){
+    toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':''));
+    return;
+  }
   nums.forEach(n=>{
-    if(!existing.has(String(n))){
-      items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false });
-    }
+    g.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
   });
-  items.sort((a,b)=>num(a.item)-num(b.item));
-  renderItems();
-  applyFilters();
+  g.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderTables();
   scheduleSave();
 }
 
+/* Filtros globais da página de itens */
 $('itemSearch').addEventListener('input', applyFilters);
 $('filterMarca').addEventListener('change', applyFilters);
 $('filterItens').addEventListener('change', applyFilters);
@@ -908,7 +1130,7 @@ function applyFilters(){
   const q = $('itemSearch').value.toLowerCase().trim();
   const marca = $('filterMarca').value.trim();
   const itens = $('filterItens').value;
-  [...$('itemsBody').rows].forEach(tr=>{
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
     const desc = (tr.querySelector('[data-k="descricao"]').value||'').toLowerCase();
     const itemN = (tr.querySelector('[data-k="item"]').value||'').toLowerCase();
     const marcaTr = (tr.querySelector('[data-k="marca"]').value||'').toUpperCase();
@@ -924,7 +1146,7 @@ function applyFilters(){
 
 function updateMarcaFilter(){
   const marcas = new Set();
-  [...$('itemsBody').rows].forEach(tr=>{
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
     const m = (tr.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
     if(m) marcas.add(m);
   });
@@ -941,14 +1163,15 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
     await persistItems();
     const fresh = await api(`/api/licitacoes/${current.id}`);
     current = fresh;
-    items = (current.items||[]).map((x,i)=>({ ...x, item:x.item??i+1, selecionado:x.selecionado!==false, porcentagem:x.porcentagem??149, cor:x.cor||'' }));
-    items.sort((a,b)=>num(a.item)-num(b.item));
-    renderItems();
-    lastSnapshot = snapshotItems();
+    groupsState = normalizeItemsStructure(current);
+    groupsState.forEach(g=>g.items.sort((a,b)=>num(a.item)-num(b.item)));
+    renderTables();
+    lastSnapshot = snapshotAll();
     toastSuccess('Dados sincronizados');
   }catch(e){ toastError(e.message); }
 });
 
+/* ==================== COTAÇÃO ==================== */
 $('cotacaoBtn').addEventListener('click', ()=>{
   quoteMode = null;
   document.querySelectorAll('.quote-option').forEach(b=>b.classList.remove('selected'));
@@ -961,18 +1184,26 @@ document.querySelectorAll('.quote-option').forEach(b=>b.addEventListener('click'
 }));
 $('confirmQuote').addEventListener('click', ()=>{
   if(!quoteMode){ toastError('Selecione o modelo de cotação.'); return; }
-  const values = parseRange($('quoteRange').value);
+  const values = parseRangeOrdered($('quoteRange').value);
   if(values === null) return;
-  if(!values.size){ toastError('Informe o intervalo de itens.'); return; }
+  if(!values.length){ toastError('Informe o intervalo de itens.'); return; }
 
-  const data = collectItems();
+  readTableState();
+  const allItems = flatItemsFromState();
   const selected = [];
-  [...$('itemsBody').rows].forEach((tr,i)=>{
-    const x = data[i];
-    if(values.has(num(x.item))){
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
+    const gI = parseInt(tr.dataset.gidx);
+    const iI = parseInt(tr.dataset.idx);
+    const x = groupsState[gI]?.items?.[iI];
+    if(!x) return;
+    if(values.includes(num(x.item))){
       [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
       const chk = tr.querySelector('.item-chk');
-      if(!chk.checked){ tr.classList.add('row-color-amarelo'); tr.dataset.cor = 'amarelo'; }
+      if(!chk.checked){
+        tr.classList.add('row-color-amarelo');
+        tr.dataset.cor = 'amarelo';
+        x.cor = 'amarelo';
+      }
       selected.push(x);
     }
   });
@@ -1004,15 +1235,17 @@ $('confirmQuote').addEventListener('click', ()=>{
   scheduleSave();
 });
 
+/* ==================== DOCUMENTOS ==================== */
 $('pdfBtn').addEventListener('click', ()=>{ open('docOverlay'); });
 document.querySelectorAll('.doc-card').forEach(c=>{
   c.addEventListener('click', ()=>{
     const t = c.dataset.doc;
     close('docOverlay');
     if(t === 'proposta-pdf') gerarPdf(false);
-    else if(t === 'exequibilidade-pdf') gerarPdf(true);
     else if(t === 'proposta-docs') gerarDocWord(false);
-    else if(t === 'exequibilidade-docs') gerarDocWord(true);
+    else if(t === 'exequibilidade-pdf' || t === 'exequibilidade-docs'){
+      toastWarn('Funcionalidade em desenvolvimento.');
+    }
   });
 });
 
@@ -1028,20 +1261,33 @@ async function loadBanksIfNeeded(){
 }
 
 async function gerarPdf(feasibility = false){
-  if(!current) return;
-  await loadBanksIfNeeded();
-  if(!(window.jspdf && window.jspdf.jsPDF)){
-    let tries=0; const iv=setInterval(()=>{
-      tries++;
-      if(window.jspdf && window.jspdf.jsPDF){ clearInterval(iv); runPdf(feasibility); }
-      else if(tries>10){ clearInterval(iv); toastError('Biblioteca PDF não disponível.'); }
-    },300);
-    return;
+  if(!current){ toastError('Nenhuma licitação aberta.'); return; }
+  if(pdfBusy){ toastWarn('Aguarde, gerando documento...'); return; }
+  pdfBusy = true;
+  try{
+    await loadBanksIfNeeded();
+    if(!(window.jspdf && window.jspdf.jsPDF)){
+      await new Promise(res => {
+        let tries=0;
+        const iv=setInterval(()=>{
+          tries++;
+          if(window.jspdf && window.jspdf.jsPDF){ clearInterval(iv); res(); }
+          else if(tries>20){ clearInterval(iv); res(); }
+        },150);
+      });
+    }
+    if(!(window.jspdf && window.jspdf.jsPDF)){
+      throw new Error('Biblioteca PDF não disponível.');
+    }
+    await runPdf(feasibility);
+  }catch(e){
+    toastError(e.message || 'Falha ao gerar PDF.');
+  }finally{
+    setTimeout(()=>{ pdfBusy = false; }, 1000);
   }
-  runPdf(feasibility);
 }
 
-function runPdf(feasibility){
+async function runPdf(feasibility){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const margin = 15, pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
@@ -1051,35 +1297,46 @@ function runPdf(feasibility){
   const logo = new Image(); logo.crossOrigin='anonymous';
   logo.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
 
-  const draw = () => {
-    try{
-      const lw = 40;
-      const lh = logo.height && logo.width ? (logo.height/logo.width)*lw : 12;
+  await new Promise(res=>{
+    if(logo.complete && logo.width) return res();
+    logo.onload = ()=>res();
+    logo.onerror = ()=>res();
+    setTimeout(res, 2000);
+  });
+
+  let lw=40, lh=12;
+  try{
+    if(logo.width && logo.height){
+      lh = (logo.height/logo.width)*lw;
+    }
+  }catch{}
+
+  try{
+    doc.setGState(new doc.GState({ opacity: 0.35 }));
+    if(logo.width){
       doc.addImage(logo, 'PNG', 5, 5, lw, lh);
-      doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(150,150,150);
-      const baseY = 5 + lh*0.42;
-      doc.text('I.R COMÉRCIO E', 5+lw+2, baseY);
-      doc.text('MATERIAIS ELÉTRICOS LTDA', 5+lw+2, baseY + 6);
-      doc.setTextColor(0,0,0);
-      let y = 5 + lh + 6;
-      y = feasibility ? renderFeasibility(y) : renderProposal(y);
-      finalizePdf(y);
-    }catch(e){ simplePdf(); }
-  };
+    }
+    doc.setGState(new doc.GState({ opacity: 1.0 }));
+  }catch{}
 
-  const simplePdf = () => {
-    let y = 20;
-    y = feasibility ? renderFeasibility(y) : renderProposal(y);
-    finalizePdf(y);
-  };
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(150,150,150);
+  const baseY = 5 + lh*0.4;
+  doc.text('I.R COMÉRCIO E', 5+lw+3, baseY);
+  doc.text('MATERIAIS ELÉTRICOS LTDA', 5+lw+3, baseY + 7);
+  doc.setTextColor(0,0,0);
 
-  const renderProposal = (startY) => {
-    let y = startY;
+  let y = 5 + lh + 8;
+  y = renderProposal(y);
+
+  finalizePdf(y);
+
+  function renderProposal(startY){
+    let yy = startY;
     doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text(`AO ${up(current.nome_orgao)}`, margin, y); y += 5;
-    doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, y); y += 5;
+    doc.text(`AO ${up(current.nome_orgao)}`, margin, yy); yy += 5;
+    doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, yy); yy += 5;
     const linha3 = `PREGÃO ELETRÔNICO ${up(current.numero_pregao)}` + (current.uasg?` UASG ${up(current.uasg)}`:'');
-    doc.text(linha3, margin, y); y += 7;
+    doc.text(linha3, margin, yy); yy += 7;
 
     const tw = pw - margin*2;
     const cols = [
@@ -1096,8 +1353,8 @@ function runPdf(feasibility){
     doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
     let x = margin;
     doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    cols.forEach(c=>{ doc.rect(x, y, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, y + 4.7, { align:'center' }); x += c.w; });
-    y += rowH;
+    cols.forEach(c=>{ doc.rect(x, yy, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, yy + 4.7, { align:'center' }); x += c.w; });
+    yy += rowH;
     doc.setFont('helvetica','normal');
     let total = 0;
     data.forEach((it, idx) => {
@@ -1108,137 +1365,80 @@ function runPdf(feasibility){
       total += vTot;
       const descLines = doc.splitTextToSize(up(it.descricao || ''), cols[3].w - 2);
       const needed = Math.max(rowH, descLines.length * 4 + 3);
-      if(y + needed > ph - 40){ doc.addPage(); y = 20; }
+      if(yy + needed > ph - 40){ doc.addPage(); yy = 20; }
       x = margin;
-      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
+      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, yy, tw, needed, 'F'); }
       const cells = [String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''), null, up(it.marca || ''), up(it.modelo || ''), money(vUnt), money(vTot)];
       cols.forEach((c,i)=>{
-        doc.rect(x, y, c.w, needed);
-        if(i===3){ doc.text(descLines, x + 1.5, y + 4); }
+        doc.rect(x, yy, c.w, needed);
+        if(i===3){ doc.text(descLines, x + 1.5, yy + 4); }
         else{
-          const cy = y + needed/2 + 1.2;
+          const cy = yy + needed/2 + 1.2;
           const tx = c.a==='r' ? x + c.w - 1.5 : (c.a==='c' ? x + c.w/2 : x + 1.5);
           doc.text(cells[i], tx, cy, { align: c.a });
         }
         x += c.w;
       });
-      y += needed;
+      yy += needed;
     });
-    y += 4;
+    yy += 4;
     doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, y, { align:'right' }); y += 8;
+    doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, yy, { align:'right' }); yy += 8;
     doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
-    doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
-    doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
-    doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, y); y += 5;
-    doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, y); y += 5;
-    doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, y); y += 8;
+    doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, yy); yy += 5;
+    doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, yy); yy += 5;
+    doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, yy); yy += 5;
+    doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, yy); yy += 5;
+    doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, yy); yy += 5;
+    doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, yy); yy += 10;
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
     const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
     const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
     const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
     const l1 = doc.splitTextToSize(d1, tw);
-    if(y + l1.length*4 + 25 > ph - 40){ doc.addPage(); y = 20; }
-    doc.text(l1, margin, y); y += l1.length*4 + 3;
-    doc.text(d2, pw/2, y, { align:'center' }); y += 6;
-    doc.text(d3, pw/2, y, { align:'center' }); y += 10;
+    if(yy + l1.length*4 + 40 > ph - 40){ doc.addPage(); yy = 20; }
+    doc.text(l1, pw/2, yy, { align:'center' }); yy += l1.length*4 + 4;
+    doc.text(d2, pw/2, yy, { align:'center' }); yy += 6;
+    doc.text(d3, pw/2, yy, { align:'center' }); yy += 12;
+
     const dt = new Date();
     const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-    doc.text(`SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
-    y += 8;
-    return y;
-  };
+    doc.text(`SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, yy, { align:'center' });
+    yy += 10;
 
-  const renderFeasibility = (startY) => {
-    let y = startY;
-    doc.setFont('helvetica','bold'); doc.setFontSize(12);
-    doc.text('COMPROVANTE DE EXEQUIBILIDADE', pw/2, y, { align:'center' }); y += 7;
-    doc.setFontSize(10);
-    doc.text(`Pregão ${up(current.numero_pregao)} — ${up(current.nome_orgao)}`, margin, y); y += 7;
-    const tw = pw - margin*2;
-    const cols = [
-      { w: tw*0.08, t:'ITEM' }, { w: tw*0.08, t:'QTD' }, { w: tw*0.30, t:'DESCRIÇÃO' },
-      { w: tw*0.135, t:'CUSTO UNIT.' }, { w: tw*0.135, t:'CUSTO TOTAL' },
-      { w: tw*0.135, t:'VENDA UNIT.' }, { w: tw*0.135, t:'VENDA TOTAL' }
-    ];
-    const rowH = 7;
-    doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
-    let x = margin;
-    doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    cols.forEach(c=>{ doc.rect(x, y, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, y + 4.7, { align:'center' }); x += c.w; });
-    y += rowH;
-    doc.setFont('helvetica','normal');
-    let custoTotal = 0, vendaTotal = 0;
-    data.forEach((it, idx)=>{
-      const cu = num(it.custoUnt), qtd = num(it.qtd);
-      const pct = num(it.porcentagem ?? 149);
-      const ct = cu * qtd;
-      const vu = cu * pct/100;
-      const vt = vu * qtd;
-      custoTotal += ct; vendaTotal += vt;
-      const descLines = doc.splitTextToSize(up(it.descricao||''), cols[2].w - 2);
-      const needed = Math.max(rowH, descLines.length * 4 + 3);
-      if(y + needed > ph - 40){ doc.addPage(); y = 20; }
-      x = margin;
-      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
-      const cells = [ String(it.item??''), String(it.qtd??''), null, money(cu), money(ct), money(vu), money(vt) ];
-      cols.forEach((c,i)=>{
-        doc.rect(x, y, c.w, needed);
-        if(i===2){ doc.text(descLines, x + 1.5, y + 4); }
-        else{
-          const cy = y + needed/2 + 1.2;
-          const align = (i===0||i===1) ? 'center' : 'right';
-          const tx = align==='center' ? x + c.w/2 : x + c.w - 1.5;
-          doc.text(cells[i], tx, cy, { align });
-        }
-        x += c.w;
-      });
-      y += needed;
-    });
-    y += 5;
+    const sign = new Image(); sign.crossOrigin='anonymous';
+    sign.src = '/apps/imagens/assinatura.png';
+    try{
+      if(sign.complete && sign.width){
+        const iw = 55;
+        const ih = (sign.height/sign.width)*iw;
+        doc.addImage(sign, 'PNG', pw/2 - iw/2, yy, iw, ih);
+        yy += ih + 4;
+      }
+    }catch{}
     doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.text(`CUSTO TOTAL: ${money(custoTotal)}`, margin, y); y += 6;
-    doc.text(`VALOR TOTAL DA PROPOSTA: ${money(vendaTotal)}`, margin, y); y += 4;
-    return y;
-  };
+    doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, yy, { align:'center' }); yy += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, yy, { align:'center' }); yy += 4;
+    doc.text('DIRETORA', pw/2, yy, { align:'center' });
+    return yy;
+  }
 
-  const finalizePdf = (y) => {
-    if(!feasibility){
-      try{
-        const sign = new Image(); sign.crossOrigin='anonymous';
-        sign.src = '/apps/imagens/assinatura.png';
-        if(sign.complete && sign.width){
-          const iw = 60; const ih = (sign.height/sign.width)*iw;
-          if(y + ih + 15 > ph - 35){ doc.addPage(); y = 20; }
-          doc.addImage(sign, 'PNG', pw/2 - iw/2, y, iw, ih);
-          y += ih + 3;
-        }
-      }catch{}
-      doc.setFont('helvetica','bold'); doc.setFontSize(10);
-      doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, y, { align:'center' }); y += 5;
-      doc.setFont('helvetica','normal'); doc.setFontSize(9);
-      doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, y, { align:'center' }); y += 4;
-      doc.text('DIRETORA', pw/2, y, { align:'center' });
-    }
+  function finalizePdf(yFinal){
     const totalPages = doc.internal.getNumberOfPages();
     for(let i=1; i<=totalPages; i++){
       doc.setPage(i);
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
-      const yBase = ph - 12;
+      const yBase = ph - 18;
       doc.text('RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES', pw/2, yBase, { align:'center' });
       doc.text('TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058', pw/2, yBase+3.5, { align:'center' });
       doc.text('CNPJ: 33.149.502/0001-38', pw/2, yBase+7, { align:'center' });
       doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
       doc.setTextColor(0,0,0);
     }
-    const fname = feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current);
-    doc.save(`${fname}.pdf`);
+    doc.save(`${fileBase(current)}.pdf`);
     toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
-  };
-
-  if(logo.complete && logo.width) draw();
-  else { logo.onload = draw; logo.onerror = () => simplePdf(); }
+  }
 }
 
 async function gerarDocWord(feasibility = false){
@@ -1252,45 +1452,21 @@ async function gerarDocWord(feasibility = false){
     const vt = vu*num(x.qtd);
     return a + vt;
   }, 0);
-  const custoTotal = data.reduce((a,x)=>a + (num(x.custoUnt)*num(x.qtd)), 0);
   const dt = new Date();
   const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 
-  let bodyContent = '';
-  if(feasibility){
-    const linhas = data.map(x=>{
-      const cu = num(x.custoUnt); const qtd = num(x.qtd);
-      const pct = num(x.porcentagem ?? 149);
-      const ct = cu * qtd;
-      const vu = cu*pct/100;
-      const vt = vu*qtd;
-      return `<tr>
-        <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.descricao))}</td>
-        <td>${money(cu)}</td><td>${money(ct)}</td>
-        <td>${money(vu)}</td><td>${money(vt)}</td>
-      </tr>`;
-    }).join('');
-    bodyContent = `
-      <h3 style="text-align:center;">COMPROVANTE DE EXEQUIBILIDADE</h3>
-      <p>Pregão ${esc(up(current.numero_pregao))} — ${esc(up(current.nome_orgao))}</p>
-      <table>
-        <thead><tr><th>ITEM</th><th>QTD</th><th>DESCRIÇÃO</th><th>CUSTO UNIT.</th><th>CUSTO TOTAL</th><th>VENDA UNIT.</th><th>VENDA TOTAL</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>
-      <p class="total">CUSTO TOTAL: ${money(custoTotal)}</p>
-      <p class="total">VALOR TOTAL DA PROPOSTA: ${money(total)}</p>`;
-  } else {
-    const linhas = data.map(x=>{
-      const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-      const vu = cu*pct/100;
-      const vt = vu*num(x.qtd);
-      return `<tr>
-        <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
-        <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
-        <td>${money(vu)}</td><td>${money(vt)}</td>
-      </tr>`;
-    }).join('');
-    bodyContent = `
+  const linhas = data.map(x=>{
+    const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
+    const vu = cu*pct/100;
+    const vt = vu*num(x.qtd);
+    return `<tr>
+      <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
+      <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
+      <td>${money(vu)}</td><td>${money(vt)}</td>
+    </tr>`;
+  }).join('');
+
+  const bodyContent = `
       <h3>AO ${esc(up(current.nome_orgao))}</h3>
       <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
       <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
@@ -1313,13 +1489,12 @@ async function gerarDocWord(feasibility = false){
       <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
       <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
       <p class="sign-sub">DIRETORA</p>`;
-  }
 
   const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       lang="pt-BR"><head><meta charset="utf-8">
-<title>${esc(feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current))}</title>
+<title>${esc(fileBase(current))}</title>
 <style>
   @page Section1{size:595.3pt 841.9pt;margin:36pt 26pt 60pt 26pt;
     mso-header-margin:14pt;mso-footer-margin:22pt;mso-header:h1;mso-footer:f1;mso-paper-source:0;}
@@ -1334,7 +1509,7 @@ async function gerarDocWord(feasibility = false){
   .total{text-align:right;font-weight:bold;margin:8pt 0}
   .decl{text-align:center;margin:10pt 0;line-height:1.5}
   .date{text-align:center;margin-top:26pt}
-  .sign-space{height:60pt}
+  .sign-space{height:80pt}
   .sign-name{text-align:center;font-weight:bold;margin:0}
   .sign-sub{text-align:center;font-size:9pt;margin:0}
   .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
@@ -1343,7 +1518,7 @@ async function gerarDocWord(feasibility = false){
 <div class="Section1">${bodyContent}</div>
 <div style='mso-element:header' id="h1">
   <p class="MsoHeader" style="text-align:left;">
-    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:80pt;height:auto;vertical-align:middle;margin-right:6pt;">
+    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:36pt;height:auto;vertical-align:middle;margin-right:6pt;">
     <span style="color:#969696;font-weight:bold;font-size:12pt;">I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA</span>
   </p>
 </div>
@@ -1359,8 +1534,7 @@ async function gerarDocWord(feasibility = false){
   const blob = new Blob(['\ufeff', html], { type:'application/msword;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  const fname = feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current);
-  a.download = `${fname}.doc`;
+  a.download = `${fileBase(current)}.doc`;
   a.click();
   URL.revokeObjectURL(a.href);
   toastSuccess('Documento Word gerado');
