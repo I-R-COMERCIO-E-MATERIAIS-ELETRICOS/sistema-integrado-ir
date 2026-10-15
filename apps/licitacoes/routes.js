@@ -79,11 +79,12 @@ module.exports = function (supabase) {
         if (d < today) { realizados++; continue; }
         if (d === today) {
           disputa++;
+          // Só pulsa se existir registro com DISPUTA ABERTA (data de hoje + horário já alcançado)
           if (r.horario_pregao) {
             const [h, m] = r.horario_pregao.split(':').map(Number);
             const dt = new Date(); dt.setHours(h || 0, m || 0, 0, 0);
             if (dt.getTime() <= nowMs) pulse = true;
-          } else pulse = true;
+          }
         }
       }
       res.json({ total, ganhos, disputa, realizados, pulse });
