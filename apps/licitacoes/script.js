@@ -1,16 +1,10 @@
 (() => {
 "use strict";
 
-const $ = id => document.getElementById(id);
-
-const api = async (url, opts = {}) => {
-  const r = await fetch(url, {
-    ...opts,
-    headers: { 'Content-Type':'application/json', ...(opts.headers || {}) }
-  });
-  if (!r.ok) { let e={}; try{e=await r.json();}catch{} throw new Error(e.error || `Erro ${r.status}`); }
-  return r.status === 204 ? null : r.json();
-};
+const SESSION_KEY = 'irUserSession';
+const MODULE_SESSION_KEY = 'licitacoesSession';
+const DEVELOPMENT_MODE = false;
+const PORTAL_URL = window.location.origin;
 
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -18,15 +12,20 @@ const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fecaca' };
 const STATUS_VALUES = ['agendado','ganho','ocorrido','suspenso','encerrado','cancelado'];
 const STATUS_LABEL = { agendado:'AGENDADO', ganho:'GANHO', ocorrido:'OCORRIDO', suspenso:'SUSPENSO', encerrado:'ENCERRADO', cancelado:'CANCELADO' };
 
-let records=[], users=[], banks=[], stats={total:0,disputa:0,ganhos:0,ocorridos:0,pulse:false};
+let sessionToken = null;
+let currentUserName = null;
+let records=[], users=[], banks=[];
+let stats={total:0,disputa:0,ganhos:0,ocorridos:0,pulse:false};
 let current=null, items=[], activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let statusTargetId=null, statusSelected=null;
 let lastSnapshot = '';
 let delId = null;
 let colorPop = null;
+let booted = false;
 
-/* ===== Helpers ===== */
+const $ = id => document.getElementById(id);
+
 const money = n => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
 const num = v => {
   if(typeof v==='number') return v;
@@ -48,7 +47,91 @@ function effectiveStatus(r){
   return st;
 }
 
-/* Toast — APENAS success (verde) e error (vermelho) */
+function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
+  document.body.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F8F9FA;color:#1A1A1A;text-align:center;padding:2rem;font-family:'Inter','Segoe UI',sans-serif;">
+      <h1 style="font-size:2.2rem;margin-bottom:1rem;color:#1A1A1A;">${mensagem}</h1>
+      <p style="color:#6B7280;margin-bottom:2rem;">Somente usuários autenticados podem acessar esta área.</p>
+      <a href="${PORTAL_URL}" style="display:inline-block;background:#3B82F6;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Ir para o Portal</a>
+    </div>
+  `;
+}
+
+async function fetchSessionUser() {
+  if (!sessionToken) return;
+  try {
+    const r = await fetch(`${PORTAL_URL}/api/portal/verify-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken })
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.valid && d.session && d.session.name) currentUserName = d.session.name;
+  } catch (e) {}
+}
+
+function verificarAutenticacao() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromUrl = urlParams.get('sessionToken');
+
+  if (tokenFromUrl) {
+    sessionToken = tokenFromUrl;
+    sessionStorage.setItem(MODULE_SESSION_KEY, tokenFromUrl);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else {
+    sessionToken = sessionStorage.getItem(MODULE_SESSION_KEY);
+  }
+
+  if (!sessionToken) {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        sessionToken = parsed.token || parsed.sessionToken || null;
+      }
+    } catch (e) {}
+  }
+
+  if (!sessionToken) {
+    if (window.IR && typeof IR.denied === 'function') IR.denied('Sessão expirada');
+    else mostrarTelaAcessoNegado('SESSÃO EXPIRADA');
+    return;
+  }
+
+  if (window.IR && typeof IR.setToken === 'function') {
+    try { IR.setToken(sessionToken); } catch (e) {}
+  }
+
+  fetchSessionUser();
+  startApp();
+}
+
+const api = async (url, opts = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(opts.headers || {})
+  };
+  if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+
+  const r = await fetch(url, { ...opts, headers, credentials: 'same-origin' });
+
+  if (!DEVELOPMENT_MODE && (r.status === 401 || r.status === 403)) {
+    sessionStorage.removeItem(MODULE_SESSION_KEY);
+    if (window.IR && typeof IR.denied === 'function') IR.denied('Sua sessão expirou');
+    else mostrarTelaAcessoNegado('SESSÃO EXPIRADA');
+    throw new Error('Sessão expirada');
+  }
+
+  if (!r.ok) {
+    let e = {};
+    try { e = await r.json(); } catch {}
+    throw new Error(e.error || e.hint || `Erro ${r.status}`);
+  }
+  return r.status === 204 ? null : r.json();
+};
+
 function toastSuccess(msg){
   const t = $('toast');
   t.className = 'toast success';
@@ -76,12 +159,10 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
   o.addEventListener('click', e=>{ if(e.target === o) close(o.id); });
 });
 
-/* ===== Init estáticos ===== */
 $('uf').innerHTML += states.map(s=>`<option>${s}</option>`).join('');
 $('requirements').innerHTML = reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
 $('requirements').querySelectorAll('[data-req]').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('selected')));
 
-/* ===== Tabs cadastro ===== */
 const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-detail'];
 function setTab(n){
   activeTab = Math.max(0, Math.min(3, n));
@@ -105,10 +186,8 @@ function setViewTab(id){
 }
 document.querySelectorAll('[data-vtab]').forEach(b=>b.addEventListener('click',()=>setViewTab(b.dataset.vtab)));
 
-/* ===== Nova Licitação ===== */
 $('newBtn').addEventListener('click', () => newRecord());
 
-/* ===== Filtros globais ===== */
 $('search').addEventListener('input', ()=>{
   clearTimeout(searchTimer); searchTimer=setTimeout(()=>{ page=1; loadList(); },300);
 });
@@ -127,7 +206,6 @@ document.querySelectorAll('.stat-card[data-filter]').forEach(c=>{
   });
 });
 
-/* ===== Carregamento ===== */
 async function loadStats(){
   try{
     stats = await api('/api/licitacoes/stats');
@@ -136,7 +214,7 @@ async function loadStats(){
     $('dashGanhos').textContent = stats.ganhos ?? 0;
     $('dashOcorridos').textContent = stats.ocorridos ?? 0;
     $('cardDisputa').classList.toggle('pulse', !!stats.pulse);
-  }catch(e){ /* silencioso */ }
+  }catch(e){}
 }
 
 async function loadOpcoes(){
@@ -183,7 +261,6 @@ async function syncNow(){
   }catch(e){ toastError('Erro de sincronização'); }
 }
 
-/* ===== Tabela ===== */
 function renderTable(){
   const tbody = $('records');
   if(!records.length){
@@ -261,7 +338,6 @@ function renderPagination(){
   }));
 }
 
-/* ===== Status Modal ===== */
 function openStatusModal(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -298,7 +374,6 @@ $('confirmStatus').addEventListener('click', async ()=>{
   }catch(e){ toastError(e.message); }
 });
 
-/* ===== Disputa Modal ===== */
 async function openDisputaModal(){
   $('disputaBody').innerHTML = '<tr><td colspan="3" class="empty">Carregando…</td></tr>';
   open('disputaOverlay');
@@ -319,7 +394,6 @@ async function openDisputaModal(){
   }
 }
 
-/* ===== Cadastro ===== */
 function newRecord(){
   current = null;
   activeTab = 0;
@@ -408,7 +482,6 @@ $('recordForm').addEventListener('submit', async e => {
   }catch(err){ toastError(err.message); }
 });
 
-/* ===== Exclusão ===== */
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -429,7 +502,6 @@ $('confirmDelete').addEventListener('click', async ()=>{
   }catch(e){ toastError(e.message); }
 });
 
-/* ===== Visualização ===== */
 function viewRecord(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -471,7 +543,6 @@ function viewRecord(id){
   open('viewOverlay');
 }
 
-/* ==================== ITENS ==================== */
 function showItems(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -525,17 +596,8 @@ function itemRow(it, idx){
     <td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}"></td>
     <td>
       <div class="row-actions">
-        <button type="button" class="row-btn brush" title="Cor">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/>
-            <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/>
-          </svg>
-        </button>
-        <button type="button" class="row-btn del" title="Excluir">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+        <button type="button" class="row-btn brush" title="Cor"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg></button>
+        <button type="button" class="row-btn del" title="Excluir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </td>
   </tr>`;
@@ -680,7 +742,7 @@ function scheduleSave(){
 async function persistItems(){
   if(!current) return;
   const cur = snapshotItems();
-  if(cur === lastSnapshot) return;   // sem mudanças reais
+  if(cur === lastSnapshot) return;
   try{
     const data = collectItems();
     const body = {
@@ -703,7 +765,6 @@ async function persistItems(){
   }catch(e){ toastError('Falha ao salvar: '+e.message); }
 }
 
-/* ===== Color popup ===== */
 function openColorPop(btn){
   closeColorPop();
   const rect = btn.getBoundingClientRect();
@@ -750,7 +811,6 @@ document.addEventListener('click', e=>{
   if(colorPop && !colorPop.contains(e.target) && !e.target.closest('.row-btn.brush')) closeColorPop();
 });
 
-/* ===== Botão voltar ===== */
 $('backItems').addEventListener('click', async ()=>{
   clearTimeout(saveTimer);
   await persistItems();
@@ -759,7 +819,6 @@ $('backItems').addEventListener('click', async ()=>{
   Promise.all([loadList(), loadStats()]);
 });
 
-/* ===== Adicionar item ===== */
 $('addItemBtn').addEventListener('click', ()=>{
   const next = Math.max(0, ...collectItems().map(x=>num(x.item)))+1;
   items.push({ item:next, qtd:1, und:'UN', porcentagem:149, selecionado:false });
@@ -769,7 +828,6 @@ $('addItemBtn').addEventListener('click', ()=>{
   scheduleSave();
 });
 
-/* ===== Adicionar intervalo (modal custom) ===== */
 $('addRangeBtn').addEventListener('click', ()=>{
   $('rangeInput').value = '';
   open('rangeOverlay');
@@ -814,7 +872,6 @@ function addItemRange(nums){
   scheduleSave();
 }
 
-/* ===== Filtros da página de itens ===== */
 $('itemSearch').addEventListener('input', applyFilters);
 $('filterMarca').addEventListener('change', applyFilters);
 $('filterItens').addEventListener('change', applyFilters);
@@ -863,7 +920,6 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
   }catch(e){ toastError(e.message); }
 });
 
-/* ==================== COTAÇÃO ==================== */
 $('cotacaoBtn').addEventListener('click', ()=>{
   quoteMode = null;
   document.querySelectorAll('.quote-option').forEach(b=>b.classList.remove('selected'));
@@ -919,7 +975,6 @@ $('confirmQuote').addEventListener('click', ()=>{
   scheduleSave();
 });
 
-/* ==================== DOCUMENTOS ==================== */
 $('pdfBtn').addEventListener('click', ()=>{ open('docOverlay'); });
 $('optProposalPdf').addEventListener('click', ()=>{ close('docOverlay'); gerarPdf(false); });
 $('optFeasibility').addEventListener('click', ()=>{ close('docOverlay'); gerarPdf(true); });
@@ -972,7 +1027,7 @@ function runPdf(feasibility){
       let y = 5 + lh + 6;
       y = feasibility ? renderFeasibility(y) : renderProposal(y);
       finalizePdf(y);
-    }catch(e){ console.error(e); simplePdf(); }
+    }catch(e){ simplePdf(); }
   };
 
   const simplePdf = () => {
@@ -1200,7 +1255,6 @@ async function gerarDocWord(){
   <h3>AO ${esc(up(current.nome_orgao))}</h3>
   <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
   <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
-
   <table>
     <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
     <tbody>${linhas}</tbody>
@@ -1223,8 +1277,7 @@ async function gerarDocWord(){
 </div>
 <div style='mso-element:header' id="h1">
   <p class="MsoHeader" style="text-align:left;">
-    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png"
-         style="width:80pt;height:auto;vertical-align:middle;margin-right:6pt;">
+    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:80pt;height:auto;vertical-align:middle;margin-right:6pt;">
     <span style="color:#969696;font-weight:bold;font-size:12pt;">I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA</span>
   </p>
 </div>
@@ -1246,12 +1299,19 @@ async function gerarDocWord(){
   toastSuccess('Documento Word gerado');
 }
 
-/* ==================== INIT ==================== */
-async function boot(){
+async function startApp(){
+  if(booted) return;
+  booted = true;
   await loadOpcoes();
   await Promise.all([loadList(), loadStats()]);
   setInterval(()=>{ Promise.all([loadList(), loadStats()]); }, 30000);
 }
-boot();
+
+if (DEVELOPMENT_MODE) {
+  sessionToken = 'dev-mode';
+  startApp();
+} else {
+  verificarAutenticacao();
+}
 
 })();
