@@ -24,7 +24,7 @@ let currentUserName = null;
 let records=[], users=[], banks=[];
 let stats={total:0,disputa:0,ganhos:0,realizados:0,pulse:false};
 let current=null;
-let tables = []; // [{ titulo:'', items:[...] }]
+let tables = [];
 let activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let lastSnapshot = '';
@@ -66,7 +66,7 @@ function effectiveStatus(r){
     if (dt.getTime() <= Date.now()) return 'disputa-aberta';
     return 'aguardando';
   }
-  return 'disputa-aberta';
+  return 'aguardando';
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
@@ -577,7 +577,6 @@ function viewRecord(id){
 function normalizeTables(r){
   const rawItems = Array.isArray(r.items) ? r.items : [];
   const gruposList = Array.isArray(r.grupos) ? r.grupos.slice() : [];
-
   const main = [];
   const byGroup = {};
 
@@ -672,7 +671,6 @@ function renderAllTables(){
   }
 
   let html = '';
-  // Top buttons
   html += `
     <div class="items-toolbar-center">
       <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="main">
@@ -685,10 +683,8 @@ function renderAllTables(){
       </button>
     </div>`;
 
-  // Tables
   tables.forEach((t, tIdx)=>{
     html += renderSingleTable(t, tIdx);
-    // Insert-after buttons
     html += `
       <div class="items-toolbar-center">
         <button type="button" class="btn-toggle-table" data-insert-at="${tIdx+1}" data-type="main">
@@ -728,6 +724,9 @@ function renderSingleTable(t, tIdx){
           </button>
           <button type="button" class="grupo-icon-btn add-range" data-gidx="${tIdx}" title="Adicionar Intervalo">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+          <button type="button" class="grupo-icon-btn del-table" data-gidx="${tIdx}" title="Excluir tabela inteira">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
       </div>
@@ -833,7 +832,6 @@ function insertNewTable(at, type){
   const titulo = (type === 'grupo') ? ('Grupo ' + nextGroupNumber()) : '';
   tables.splice(at, 0, { titulo, items: [] });
   renderAllTables();
-  // Scroll into view
   const el = document.querySelector(`.grupo-tabela[data-gidx="${at}"]`);
   if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
   scheduleSave();
@@ -866,7 +864,6 @@ function bindTableEvents(){
       }
     });
 
-    // Title input (grupo)
     const titleInput = gt.querySelector('.grupo-titulo-input');
     if(titleInput){
       titleInput.addEventListener('input', ()=>{
@@ -876,6 +873,17 @@ function bindTableEvents(){
         scheduleSave();
       });
     }
+
+    // Delete entire table
+    gt.querySelectorAll('.grupo-icon-btn.del-table').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const tI = parseInt(btn.dataset.gidx);
+        if(isNaN(tI)) return;
+        tables.splice(tI, 1);
+        renderAllTables();
+        scheduleSave();
+      });
+    });
 
     // Delete row
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
@@ -887,7 +895,7 @@ function bindTableEvents(){
         const before = tables[tI].items.length;
         tables[tI].items.splice(iI, 1);
         const after = tables[tI].items.length;
-        // Se ficou vazia (tinha 1 item e removeu), remove a tabela
+        // Se ficou vazia (tinha itens e removeu todos), remove a tabela
         if(before > 0 && after === 0){
           tables.splice(tI, 1);
         }
@@ -896,19 +904,17 @@ function bindTableEvents(){
       });
     });
 
-    // Color
     gt.querySelectorAll('.row-btn.brush').forEach(b=>{
       b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
     });
 
-    // Ganho checkbox
     gt.querySelectorAll('.item-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
         const tr = chk.closest('tr');
         const tI = parseInt(tr.dataset.tidx);
         const iI = parseInt(tr.dataset.idx);
         const ganho = chk.checked;
-        if(!isNaN(tI) && !isNaN(iI) && tables[tI].items[iI]){
+        if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
           tables[tI].items[iI].selecionado = ganho;
         }
         tr.classList.toggle('row-ganho-item', ganho);
@@ -922,7 +928,6 @@ function bindTableEvents(){
       });
     });
 
-    // Add item / range buttons
     gt.querySelectorAll('.grupo-icon-btn.add-item').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const gI = parseInt(btn.dataset.gidx);
@@ -1130,7 +1135,6 @@ $('backItems').addEventListener('click', async ()=>{
   Promise.all([loadList(), loadStats()]);
 });
 
-/* Adicionar item */
 function addNewItem(tIdx){
   const t = tables[tIdx];
   if(!t) return;
@@ -1141,7 +1145,6 @@ function addNewItem(tIdx){
   scheduleSave();
 }
 
-/* Intervalo */
 let pendingRangeTIdx = 0;
 function openRangeModal(tIdx){
   pendingRangeTIdx = tIdx;
@@ -1203,7 +1206,6 @@ function addItemRangeToTable(tIdx, nums){
   scheduleSave();
 }
 
-/* Filtros */
 $('itemSearch').addEventListener('input', applyFilters);
 $('filterMarca').addEventListener('change', applyFilters);
 $('filterItens').addEventListener('change', applyFilters);
@@ -1252,7 +1254,6 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
   }catch(e){ toastError(e.message); }
 });
 
-/* ==================== COTAÇÃO ==================== */
 $('cotacaoBtn').addEventListener('click', ()=>{
   quoteMode = null;
   document.querySelectorAll('.quote-option').forEach(b=>b.classList.remove('selected'));
@@ -1315,7 +1316,6 @@ $('confirmQuote').addEventListener('click', ()=>{
   scheduleSave();
 });
 
-/* ==================== DOCUMENTOS ==================== */
 $('pdfBtn').addEventListener('click', ()=>{
   selectedDoc = null;
   document.querySelectorAll('.doc-choice').forEach(c=>c.classList.remove('selected'));
