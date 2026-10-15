@@ -1,10 +1,51 @@
 const express = require('express');
+
 module.exports = function (supabase) {
   const router = express.Router();
   const table = 'licitacoes';
   const bankTable = 'bancos';
+
   const clean = (v) => v === undefined ? null : v;
-  const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+
+  async function loadSessionUser(token) {
+    if (!token) return null;
+    try {
+      const { data: session, error } = await supabase
+        .from('sessions')
+        .select('user_id, expires_at, is_active')
+        .eq('token', token)
+        .maybeSingle();
+      if (error || !session) return null;
+      if (session.is_active === false) return null;
+      if (session.expires_at && new Date(session.expires_at) < new Date()) return null;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, name, username, is_admin, is_active')
+        .eq('id', session.user_id)
+        .maybeSingle();
+      if (!profile) return null;
+      if (profile.is_active === false) return null;
+      return profile;
+    } catch (e) { return null; }
+  }
+
+  async function requireAuth(req, res, next) {
+    if (req.user) return next();
+    const token = req.headers['x-session-token'] ||
+                  (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+    if (!token) return res.status(401).json({ error: 'Sessão não fornecida' });
+    const user = await loadSessionUser(token);
+    if (!user) return res.status(401).json({ error: 'Sessão inválida ou expirada' });
+    req.user = user;
+    req.sessionToken = token;
+    next();
+  }
+
+  router.use(requireAuth);
 
   router.get('/licitacoes/opcoes', async (req, res) => {
     try {
@@ -37,7 +78,7 @@ module.exports = function (supabase) {
           disputa++;
           if (r.horario_pregao) {
             const [h, m] = r.horario_pregao.split(':').map(Number);
-            const dt = new Date(); dt.setHours(h||0, m||0, 0, 0);
+            const dt = new Date(); dt.setHours(h || 0, m || 0, 0, 0);
             if (dt.getTime() <= nowMs) pulse = true;
           } else pulse = true;
         } else if (d && d < today && !['ganho','cancelado','suspenso','encerrado','agendado'].includes(st)) {
@@ -66,25 +107,36 @@ module.exports = function (supabase) {
       const perPage = 20;
       const from = (page - 1) * perPage;
       const to = from + perPage - 1;
-      const search = (req.query.search || '').trim();
-      const vendedor = (req.query.vendedor || '').trim().toUpperCase();
-      const status = (req.query.status || '').trim();
+      const search = String(req.query.search || '').trim();
+      const vendedor = String(req.query.vendedor || '').trim().toUpperCase();
+      const status = String(req.query.status || '').trim();
       const today = todayStr();
 
       let query = supabase.from(table).select('*', { count: 'exact' });
 
       if (search) {
-        const s = search.replace(/[%,()]/g, '');
-        query = query.or(
-          `numero_pregao.ilike.%${s}%,uasg.ilike.%${s}%,vendedor.ilike.%${s}%,nome_orgao.ilike.%${s}%,cidade.ilike.%${s}%`
-        );
+        const s = search.replace(/[%,()*.:\\'"]/g, '').trim();
+        if (s) {
+          query = query.or(
+            `numero_pregao.ilike.%${s}%,` +
+            `uasg.ilike.%${s}%,` +
+            `vendedor.ilike.%${s}%,` +
+            `nome_orgao.ilike.%${s}%,` +
+            `cidade.ilike.%${s}%,` +
+            `numero_ordem.ilike.%${s}%`
+          );
+        }
       }
       if (vendedor) query = query.eq('vendedor', vendedor);
 
-      if (status === 'ganhos') query = query.eq('status', 'ganho');
-      else if (status === 'disputa') query = query.eq('data_pregao', today);
-      else if (status === 'ocorridos') {
-        query = query.lt('data_pregao', today).or('status.is.null,status.eq.agendado,status.eq.ocorrido');
+      if (status === 'ganhos') {
+        query = query.eq('status', 'ganho');
+      } else if (status === 'disputa') {
+        query = query.eq('data_pregao', today);
+      } else if (status === 'ocorridos') {
+        query = query
+          .lt('data_pregao', today)
+          .or('status.is.null,status.eq.agendado,status.eq.ocorrido');
       }
 
       query = query
@@ -102,10 +154,11 @@ module.exports = function (supabase) {
 
   router.get('/licitacoes/:id', async (req, res) => {
     try {
-      const { data, error } = await supabase.from(table).select('*').eq('id', req.params.id).single();
+      const { data, error } = await supabase.from(table).select('*').eq('id', req.params.id).maybeSingle();
       if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Licitação não encontrada' });
       res.json(data);
-    } catch (e) { res.status(404).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   function buildRow(b, req) {
@@ -147,8 +200,9 @@ module.exports = function (supabase) {
   router.put('/licitacoes/:id', async (req, res) => {
     try {
       const row = buildRow(req.body || {}, req);
-      const { data, error } = await supabase.from(table).update(row).eq('id', req.params.id).select('*').single();
+      const { data, error } = await supabase.from(table).update(row).eq('id', req.params.id).select('*').maybeSingle();
       if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Licitação não encontrada' });
       res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -158,9 +212,15 @@ module.exports = function (supabase) {
       const status = String(req.body?.status || '').toLowerCase();
       const allowed = ['agendado','ganho','ocorrido','suspenso','encerrado','cancelado'];
       if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido.' });
-      const update = { status, ganho: status === 'ganho' };
-      const { data, error } = await supabase.from(table).update(update).eq('id', req.params.id).select('*').single();
+      const update = {
+        status,
+        ganho: status === 'ganho',
+        atualizado_por: req.user?.name || req.user?.username || null,
+        ultima_atualizacao: new Date().toISOString()
+      };
+      const { data, error } = await supabase.from(table).update(update).eq('id', req.params.id).select('*').maybeSingle();
       if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Licitação não encontrada' });
       res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
