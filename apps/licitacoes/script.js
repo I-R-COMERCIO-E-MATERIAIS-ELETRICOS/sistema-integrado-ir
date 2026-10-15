@@ -10,9 +10,6 @@ const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO'
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fecaca' };
 const STATUS_LABEL = {
-  aguardando:'AGUARDANDO DISPUTA',
-  ganho:'GANHO',
-  realizado:'REALIZADO',
   suspenso:'SUSPENSO',
   encerrado:'ENCERRADO',
   cancelado:'CANCELADO'
