@@ -73,7 +73,10 @@ module.exports = function (supabase) {
       for (const r of all) {
         if (r.ganho) { ganhos++; continue; }
         const s = String(r.status || '').toLowerCase();
+        if (['suspenso','encerrado','cancelado'].includes(s)) continue;
         const d = r.data_pregao || '';
+        if (!d) continue;
+        if (d < today) { realizados++; continue; }
         if (d === today) {
           disputa++;
           if (r.horario_pregao) {
@@ -81,8 +84,6 @@ module.exports = function (supabase) {
             const dt = new Date(); dt.setHours(h || 0, m || 0, 0, 0);
             if (dt.getTime() <= nowMs) pulse = true;
           } else pulse = true;
-        } else if (d && d < today && !['suspenso','encerrado','cancelado'].includes(s)) {
-          realizados++;
         }
       }
       res.json({ total, ganhos, disputa, realizados, pulse });
@@ -136,7 +137,7 @@ module.exports = function (supabase) {
         query = query
           .lt('data_pregao', today)
           .eq('ganho', false)
-          .or('status.is.null,status.eq.,status.eq.agendado');
+          .or('status.is.null,status.not.in.(suspenso,encerrado,cancelado)');
       }
 
       query = query
