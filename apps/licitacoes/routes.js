@@ -69,10 +69,10 @@ module.exports = function (supabase) {
       const today = todayStr();
       const nowMs = Date.now();
       const all = data || [];
-      let total = all.length, ganhos = 0, disputa = 0, ocorridos = 0, pulse = false;
+      let total = all.length, ganhos = 0, disputa = 0, realizados = 0, pulse = false;
       for (const r of all) {
-        const st = r.status || (r.ganho ? 'ganho' : 'agendado');
-        if (st === 'ganho') ganhos++;
+        if (r.ganho) { ganhos++; continue; }
+        const s = String(r.status || '').toLowerCase();
         const d = r.data_pregao || '';
         if (d === today) {
           disputa++;
@@ -81,11 +81,11 @@ module.exports = function (supabase) {
             const dt = new Date(); dt.setHours(h || 0, m || 0, 0, 0);
             if (dt.getTime() <= nowMs) pulse = true;
           } else pulse = true;
-        } else if (d && d < today && !['ganho','cancelado','suspenso','encerrado','agendado'].includes(st)) {
-          ocorridos++;
+        } else if (d && d < today && !['suspenso','encerrado','cancelado'].includes(s)) {
+          realizados++;
         }
       }
-      res.json({ total, ganhos, disputa, ocorridos, pulse });
+      res.json({ total, ganhos, disputa, realizados, pulse });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -122,21 +122,21 @@ module.exports = function (supabase) {
             `uasg.ilike.%${s}%,` +
             `vendedor.ilike.%${s}%,` +
             `nome_orgao.ilike.%${s}%,` +
-            `cidade.ilike.%${s}%,` +
-            `numero_ordem.ilike.%${s}%`
+            `cidade.ilike.%${s}%`
           );
         }
       }
       if (vendedor) query = query.eq('vendedor', vendedor);
 
       if (status === 'ganhos') {
-        query = query.eq('status', 'ganho');
+        query = query.eq('ganho', true);
       } else if (status === 'disputa') {
-        query = query.eq('data_pregao', today);
-      } else if (status === 'ocorridos') {
+        query = query.eq('data_pregao', today).eq('ganho', false);
+      } else if (status === 'realizados') {
         query = query
           .lt('data_pregao', today)
-          .or('status.is.null,status.eq.agendado,status.eq.ocorrido');
+          .eq('ganho', false)
+          .or('status.is.null,status.eq.,status.eq.agendado');
       }
 
       query = query
@@ -162,6 +162,8 @@ module.exports = function (supabase) {
   });
 
   function buildRow(b, req) {
+    const stRaw = String(b.status || '').toLowerCase();
+    const status = ['suspenso','encerrado','cancelado'].includes(stRaw) ? stRaw : '';
     return {
       vendedor_id: clean(b.vendedorId),
       vendedor: clean(b.vendedor),
@@ -177,6 +179,7 @@ module.exports = function (supabase) {
       modalidade: clean(b.modalidade) || 'ABERTO',
       requisitos: b.requisitos || {},
       banco_pagamento: clean(b.bancoPagamento) || 'BANCO DO BRASIL',
+      status,
       validade_proposta: clean(b.validadeProposta),
       prazo_entrega: clean(b.prazoEntrega),
       prazo_pagamento: clean(b.prazoPagamento),
@@ -189,7 +192,6 @@ module.exports = function (supabase) {
   router.post('/licitacoes', async (req, res) => {
     try {
       const row = buildRow(req.body || {}, req);
-      row.status = 'agendado';
       row.ganho = false;
       const { data, error } = await supabase.from(table).insert(row).select('*').single();
       if (error) throw error;
@@ -200,6 +202,7 @@ module.exports = function (supabase) {
   router.put('/licitacoes/:id', async (req, res) => {
     try {
       const row = buildRow(req.body || {}, req);
+      delete row.ganho;
       const { data, error } = await supabase.from(table).update(row).eq('id', req.params.id).select('*').maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Licitação não encontrada' });
@@ -207,14 +210,11 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.patch('/licitacoes/:id/status', async (req, res) => {
+  router.patch('/licitacoes/:id/ganho', async (req, res) => {
     try {
-      const status = String(req.body?.status || '').toLowerCase();
-      const allowed = ['agendado','ganho','ocorrido','suspenso','encerrado','cancelado'];
-      if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido.' });
+      const ganho = !!req.body?.ganho;
       const update = {
-        status,
-        ganho: status === 'ganho',
+        ganho,
         atualizado_por: req.user?.name || req.user?.username || null,
         ultima_atualizacao: new Date().toISOString()
       };
