@@ -24,7 +24,7 @@ let currentUserName = null;
 let records=[], users=[], banks=[];
 let stats={total:0,disputa:0,ganhos:0,realizados:0,pulse:false};
 let current=null;
-let groupsState = []; // [{ id:'g0', titulo:'', items:[...] }, { id:'g1', titulo:'Grupo 1', items:[...] }]
+let tables = []; // [{ titulo:'', items:[...] }]
 let activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let lastSnapshot = '';
@@ -32,6 +32,7 @@ let delId = null;
 let colorPop = null;
 let booted = false;
 let pdfBusy = false;
+let selectedDoc = null;
 
 const $ = id => document.getElementById(id);
 
@@ -571,13 +572,13 @@ function viewRecord(id){
   open('viewOverlay');
 }
 
-/* ==================== ITENS (com grupos) ==================== */
+/* ==================== PÁGINA DE ITENS ==================== */
 
-function normalizeItemsStructure(r){
+function normalizeTables(r){
   const rawItems = Array.isArray(r.items) ? r.items : [];
   const gruposList = Array.isArray(r.grupos) ? r.grupos.slice() : [];
 
-  const mainItems = [];
+  const main = [];
   const byGroup = {};
 
   rawItems.forEach((x,i)=>{
@@ -595,55 +596,176 @@ function normalizeItemsStructure(r){
       selecionado: x.selecionado !== false,
       cor: x.cor || ''
     };
-    if(!g){
-      mainItems.push(it);
-    } else {
+    if(!g) main.push(it);
+    else {
       if(!gruposList.includes(g)) gruposList.push(g);
       if(!byGroup[g]) byGroup[g] = [];
       byGroup[g].push(it);
     }
   });
 
-  const state = [
-    { id:'g0', titulo:'', items: mainItems }
-  ];
-  gruposList.forEach((titulo, idx)=>{
-    state.push({ id:'g'+(idx+1), titulo, items: byGroup[titulo] || [] });
+  const out = [];
+  if(main.length) out.push({ titulo:'', items: main });
+  gruposList.forEach(titulo=>{
+    out.push({ titulo, items: byGroup[titulo] || [] });
   });
-  return state;
+  return out;
 }
 
-function flatItemsFromState(){
+function flatItems(){
   const all = [];
-  groupsState.forEach(g=>{
-    g.items.forEach(it=>{
-      all.push({ ...it, grupo: g.titulo });
+  tables.forEach(t=>{
+    t.items.forEach(it=>{
+      all.push({ ...it, grupo: t.titulo });
     });
   });
   return all;
 }
 
-function groupTitlesFromState(){
-  return groupsState.slice(1).map(g=>g.titulo);
+function groupTitles(){
+  return tables.filter(t=>t.titulo).map(t=>t.titulo);
 }
 
 function showItems(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
   current = JSON.parse(JSON.stringify(r));
-  groupsState = normalizeItemsStructure(current);
-  groupsState.forEach(g=>{
-    g.items.sort((a,b)=>num(a.item)-num(b.item));
-  });
+  tables = normalizeTables(current);
+  tables.forEach(t=>t.items.sort((a,b)=>num(a.item)-num(b.item)));
   $('itemsTitle').textContent = `Pregão ${up(current.numero_pregao)}`;
   $('itemsSubtitle').textContent = up(current.nome_orgao || '');
   $('mainContainer').hidden = true;
   $('itemsPage').hidden = false;
-  renderTables();
+  renderAllTables();
   lastSnapshot = snapshotAll();
 }
 
-function itemRowHTML(it, gIdx, idx){
+function nextGroupNumber(){
+  let max = 0;
+  tables.forEach(t=>{
+    if(!t.titulo) return;
+    const m = t.titulo.match(/grupo\s*(\d+)/i);
+    if(m) max = Math.max(max, parseInt(m[1]));
+  });
+  return max + 1;
+}
+
+function renderAllTables(){
+  const container = $('tablesContainer');
+
+  if(tables.length === 0){
+    container.innerHTML = `
+      <div class="items-toolbar-center">
+        <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="main">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Tabela de Itens
+        </button>
+        <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="grupo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Grupo/Lote
+        </button>
+      </div>`;
+    bindInsertButtons();
+    updateMarcaFilter();
+    applyFilters();
+    return;
+  }
+
+  let html = '';
+  // Top buttons
+  html += `
+    <div class="items-toolbar-center">
+      <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="main">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Tabela de Itens
+      </button>
+      <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="grupo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Grupo/Lote
+      </button>
+    </div>`;
+
+  // Tables
+  tables.forEach((t, tIdx)=>{
+    html += renderSingleTable(t, tIdx);
+    // Insert-after buttons
+    html += `
+      <div class="items-toolbar-center">
+        <button type="button" class="btn-toggle-table" data-insert-at="${tIdx+1}" data-type="main">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Tabela de Itens
+        </button>
+        <button type="button" class="btn-toggle-table" data-insert-at="${tIdx+1}" data-type="grupo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Grupo/Lote
+        </button>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+  bindTableEvents();
+  bindInsertButtons();
+  autoResizeAll();
+  applyFilters();
+  updateMarcaFilter();
+}
+
+function renderSingleTable(t, tIdx){
+  const isMain = !t.titulo;
+  const rowsHTML = t.items.map((it, i)=>itemRowHTML(it, tIdx, i)).join('');
+  const totais = computeTotals(t.items);
+  const titleHTML = isMain
+    ? ''
+    : `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
+
+  return `
+    <div class="grupo-tabela" data-gidx="${tIdx}">
+      <div class="grupo-header">
+        <span style="flex:1;min-width:0;">${titleHTML}</span>
+        <div class="grupo-actions">
+          <button type="button" class="grupo-icon-btn add-item" data-gidx="${tIdx}" title="Adicionar Item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <button type="button" class="grupo-icon-btn add-range" data-gidx="${tIdx}" title="Adicionar Intervalo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card table-card items-card">
+        <div class="items-wrap">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th class="col-check">✓</th>
+                <th class="col-item">ITEM</th>
+                <th class="col-desc">DESCRIÇÃO</th>
+                <th class="col-qtd">QTD</th>
+                <th class="col-und">UND</th>
+                <th class="col-marca">MARCA</th>
+                <th class="col-modelo">MODELO</th>
+                <th class="col-num">ESTIM. UNT</th>
+                <th class="col-num">ESTIM. TOTAL</th>
+                <th class="col-num">CUSTO UNT</th>
+                <th class="col-num">CUSTO TOTAL</th>
+                <th class="col-pct">%</th>
+                <th class="col-num">VENDA UNT</th>
+                <th class="col-num">VENDA TOTAL</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>${rowsHTML || '<tr><td colspan="15" class="empty">Nenhum item</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="totals-bar">
+        <div class="totals-item"><span>ESTIMADO</span><strong>${money(totais.estimado)}</strong></div>
+        <div class="totals-item"><span>CUSTO</span><strong>${money(totais.custo)}</strong></div>
+        <div class="totals-item"><span>VENDA</span><strong>${money(totais.venda)}</strong></div>
+      </div>
+    </div>`;
+}
+
+function itemRowHTML(it, tIdx, idx){
   const sel = it.selecionado !== false;
   const cls = [];
   if(sel) cls.push('row-ganho-item');
@@ -654,11 +776,11 @@ function itemRowHTML(it, gIdx, idx){
   const vendaTotal = vendaUnt * num(it.qtd);
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
-  return `<tr data-gidx="${gIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}" class="${cls.join(' ')}">
+  return `<tr data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}" class="${cls.join(' ')}">
     <td style="text-align:center;">
       <div class="checkbox-wrapper">
-        <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${gIdx}-${idx}" ${sel?'checked':''}>
-        <label for="it-chk-${gIdx}-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
+        <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${tIdx}-${idx}" ${sel?'checked':''}>
+        <label for="it-chk-${tIdx}-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
       </div>
     </td>
     <td><input class="itemno" data-k="item" value="${esc(it.item??'')}"></td>
@@ -683,71 +805,6 @@ function itemRowHTML(it, gIdx, idx){
   </tr>`;
 }
 
-function renderTables(){
-  const container = $('tablesContainer');
-  container.innerHTML = groupsState.map((g, gIdx)=>{
-    const isMain = g.titulo === '';
-    const rowsHTML = g.items.map((it, i)=>itemRowHTML(it, gIdx, i)).join('');
-    const totais = computeTotals(g.items);
-    const headerBar = `
-      <div class="grupo-header">
-        <span class="grupo-titulo">${isMain ? '' : esc(g.titulo)}</span>
-        <div class="grupo-actions">
-          <button type="button" class="grupo-icon-btn add-item" data-gidx="${gIdx}" title="Adicionar Item">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          </button>
-          <button type="button" class="grupo-icon-btn add-range" data-gidx="${gIdx}" title="Adicionar Intervalo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-          </button>
-          ${isMain ? '' : `<button type="button" class="grupo-icon-btn del-group" data-gidx="${gIdx}" title="Excluir grupo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>`}
-        </div>
-      </div>`;
-
-    return `
-      <div class="grupo-tabela" data-gidx="${gIdx}">
-        ${headerBar}
-        <div class="card table-card items-card">
-          <div class="items-wrap">
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th class="col-check">✓</th>
-                  <th class="col-item">ITEM</th>
-                  <th class="col-desc">DESCRIÇÃO</th>
-                  <th class="col-qtd">QTD</th>
-                  <th class="col-und">UND</th>
-                  <th class="col-marca">MARCA</th>
-                  <th class="col-modelo">MODELO</th>
-                  <th class="col-num">ESTIM. UNT</th>
-                  <th class="col-num">ESTIM. TOTAL</th>
-                  <th class="col-num">CUSTO UNT</th>
-                  <th class="col-num">CUSTO TOTAL</th>
-                  <th class="col-pct">%</th>
-                  <th class="col-num">VENDA UNT</th>
-                  <th class="col-num">VENDA TOTAL</th>
-                  <th class="col-actions"></th>
-                </tr>
-              </thead>
-              <tbody>${rowsHTML || '<tr><td colspan="15" class="empty">Nenhum item</td></tr>'}</tbody>
-            </table>
-          </div>
-        </div>
-        <div class="totals-bar">
-          <div class="totals-item"><span>ESTIMADO</span><strong>${money(totais.estimado)}</strong></div>
-          <div class="totals-item"><span>CUSTO</span><strong>${money(totais.custo)}</strong></div>
-          <div class="totals-item"><span>VENDA</span><strong>${money(totais.venda)}</strong></div>
-        </div>
-      </div>`;
-  }).join('');
-
-  bindTableEvents();
-  autoResizeAll();
-  applyFilters();
-  updateMarcaFilter();
-}
-
 function computeTotals(list){
   let e=0,c=0,v=0;
   list.forEach(x=>{
@@ -762,9 +819,29 @@ function computeTotals(list){
   return { estimado:e, custo:c, venda:v };
 }
 
+function bindInsertButtons(){
+  document.querySelectorAll('.btn-toggle-table').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const at = parseInt(btn.dataset.insertAt) || 0;
+      const type = btn.dataset.type;
+      insertNewTable(at, type);
+    });
+  });
+}
+
+function insertNewTable(at, type){
+  const titulo = (type === 'grupo') ? ('Grupo ' + nextGroupNumber()) : '';
+  tables.splice(at, 0, { titulo, items: [] });
+  renderAllTables();
+  // Scroll into view
+  const el = document.querySelector(`.grupo-tabela[data-gidx="${at}"]`);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  scheduleSave();
+}
+
 function bindTableEvents(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
-    const gIdx = parseInt(gt.dataset.gidx);
+    const tIdx = parseInt(gt.dataset.gidx);
 
     gt.querySelectorAll('input[data-k], textarea[data-k]').forEach(i=>{
       i.addEventListener('input', ()=>{ if(i.tagName==='TEXTAREA') autoResize(i); recalcAll(); });
@@ -789,27 +866,51 @@ function bindTableEvents(){
       }
     });
 
+    // Title input (grupo)
+    const titleInput = gt.querySelector('.grupo-titulo-input');
+    if(titleInput){
+      titleInput.addEventListener('input', ()=>{
+        const tI = parseInt(titleInput.dataset.gidx);
+        if(!tables[tI]) return;
+        tables[tI].titulo = titleInput.value.trim();
+        scheduleSave();
+      });
+    }
+
+    // Delete row
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
       b.addEventListener('click', ()=>{
         const tr = b.closest('tr');
-        const gI = parseInt(tr.dataset.gidx);
+        const tI = parseInt(tr.dataset.tidx);
         const iI = parseInt(tr.dataset.idx);
-        if(!isNaN(gI) && !isNaN(iI)){
-          groupsState[gI].items.splice(iI, 1);
-          renderTables();
-          scheduleSave();
+        if(isNaN(tI) || isNaN(iI)) return;
+        const before = tables[tI].items.length;
+        tables[tI].items.splice(iI, 1);
+        const after = tables[tI].items.length;
+        // Se ficou vazia (tinha 1 item e removeu), remove a tabela
+        if(before > 0 && after === 0){
+          tables.splice(tI, 1);
         }
+        renderAllTables();
+        scheduleSave();
       });
     });
 
+    // Color
     gt.querySelectorAll('.row-btn.brush').forEach(b=>{
       b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
     });
 
+    // Ganho checkbox
     gt.querySelectorAll('.item-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
         const tr = chk.closest('tr');
+        const tI = parseInt(tr.dataset.tidx);
+        const iI = parseInt(tr.dataset.idx);
         const ganho = chk.checked;
+        if(!isNaN(tI) && !isNaN(iI) && tables[tI].items[iI]){
+          tables[tI].items[iI].selecionado = ganho;
+        }
         tr.classList.toggle('row-ganho-item', ganho);
         if(ganho){
           [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
@@ -821,6 +922,7 @@ function bindTableEvents(){
       });
     });
 
+    // Add item / range buttons
     gt.querySelectorAll('.grupo-icon-btn.add-item').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const gI = parseInt(btn.dataset.gidx);
@@ -831,15 +933,6 @@ function bindTableEvents(){
       btn.addEventListener('click', ()=>{
         const gI = parseInt(btn.dataset.gidx);
         openRangeModal(gI);
-      });
-    });
-    gt.querySelectorAll('.grupo-icon-btn.del-group').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const gI = parseInt(btn.dataset.gidx);
-        if(gI<=0) return;
-        groupsState.splice(gI,1);
-        renderTables();
-        scheduleSave();
       });
     });
   });
@@ -869,8 +962,8 @@ function cleanPasteHandler(e){
 
 function readTableState(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
-    const gIdx = parseInt(gt.dataset.gidx);
-    if(isNaN(gIdx)) return;
+    const tIdx = parseInt(gt.dataset.gidx);
+    if(isNaN(tIdx) || !tables[tIdx]) return;
     const rows = [...gt.querySelectorAll('tbody tr[data-idx]')];
     const newItems = rows.map(tr=>{
       const o = {};
@@ -888,16 +981,17 @@ function readTableState(){
       o.cor = tr.dataset.cor || '';
       return o;
     });
-    groupsState[gIdx].items = newItems;
+    tables[tIdx].items = newItems;
   });
 }
 
 function recalcAll(doSave = true){
   readTableState();
-  let totE=0, totC=0, totV=0;
+  let hasWarned = false;
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
-    const gIdx = parseInt(gt.dataset.gidx);
-    const g = groupsState[gIdx];
+    const tIdx = parseInt(gt.dataset.gidx);
+    const t = tables[tIdx];
+    if(!t) return;
     let e=0,c=0,v=0;
     gt.querySelectorAll('tbody tr[data-idx]').forEach(tr=>{
       const estU = num(tr.querySelector('[data-k="estimadoUnt"]').value);
@@ -914,6 +1008,11 @@ function recalcAll(doSave = true){
       tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
       const warn = vu > estU && estU > 0;
       tr.classList.toggle('row-warn', warn);
+      if(warn && !hasWarned){
+        hasWarned = true;
+        const itemN = tr.querySelector('[data-k="item"]').value;
+        toastWarn(`O item ${itemN || '?'} possui valor unitário de venda superior ao estimado unitário.`);
+      }
       e += estT; c += ct; v += vt;
     });
     const totBar = gt.querySelector('.totals-bar');
@@ -923,13 +1022,6 @@ function recalcAll(doSave = true){
       if(strongs[1]) strongs[1].textContent = money(c);
       if(strongs[2]) strongs[2].textContent = money(v);
     }
-    totE += e; totC += c; totV += v;
-    // Warnings
-    g.items.forEach((x, i)=>{
-      if(x.vendaUnt > x.estimadoUnt && x.estimadoUnt > 0){
-        toastWarn(`O item ${x.item || '?'} possui valor unitário de venda superior ao estimado unitário.`);
-      }
-    });
   });
   if(doSave) scheduleSave();
 }
@@ -941,7 +1033,7 @@ function scheduleSave(){
 
 async function persistItems(){
   if(!current) return;
-  const allItems = flatItemsFromState();
+  const allItems = flatItems();
   const cur = JSON.stringify(allItems);
   if(cur === lastSnapshot) return;
   try{
@@ -956,12 +1048,12 @@ async function persistItems(){
       validadeProposta: current.validade_proposta,
       prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
       items: allItems,
-      grupos: groupTitlesFromState()
+      grupos: groupTitles()
     };
     await api(`/api/licitacoes/${current.id}`, { method:'PUT', body: JSON.stringify(body) });
     lastSnapshot = cur;
     current.items = allItems;
-    current.grupos = groupTitlesFromState();
+    current.grupos = groupTitles();
     const idx = records.findIndex(r=>r.id===current.id);
     if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
     toastSuccess('Dados Atualizados.');
@@ -969,7 +1061,7 @@ async function persistItems(){
 }
 
 function snapshotAll(){
-  return JSON.stringify(flatItemsFromState());
+  return JSON.stringify(flatItems());
 }
 
 function openColorPop(btn){
@@ -986,13 +1078,16 @@ function openColorPop(btn){
     b.addEventListener('click', e => {
       e.stopPropagation();
       const tr = btn.closest('tr');
+      const tI = parseInt(tr.dataset.tidx);
+      const iI = parseInt(tr.dataset.idx);
       [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
       const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = c;
       if(!chk.checked){
         tr.classList.add('row-color-'+c);
-        tr.dataset.cor = c;
-      } else {
-        tr.dataset.cor = c; // guarda mesmo sem mostrar
+      }
+      if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
+        tables[tI].items[iI].cor = c;
       }
       closeColorPop();
       scheduleSave();
@@ -1006,8 +1101,13 @@ function openColorPop(btn){
   clr.addEventListener('click', e => {
     e.stopPropagation();
     const tr = btn.closest('tr');
+    const tI = parseInt(tr.dataset.tidx);
+    const iI = parseInt(tr.dataset.idx);
     [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
     tr.dataset.cor = '';
+    if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
+      tables[tI].items[iI].cor = '';
+    }
     closeColorPop();
     scheduleSave();
   });
@@ -1030,40 +1130,21 @@ $('backItems').addEventListener('click', async ()=>{
   Promise.all([loadList(), loadStats()]);
 });
 
-/* Toolbar toggle buttons */
-document.querySelectorAll('.btn-toggle-table').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const t = btn.dataset.add;
-    if(t === 'main'){
-      // rolar até o topo da tabela principal
-      const el = document.querySelector('.grupo-tabela[data-gidx="0"]');
-      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
-    } else if(t === 'grupo'){
-      const nextIdx = groupsState.length;
-      groupsState.push({ id:'g'+nextIdx, titulo:'Grupo '+ (nextIdx), items:[] });
-      renderTables();
-      const el = document.querySelector(`.grupo-tabela[data-gidx="${nextIdx}"]`);
-      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
-      scheduleSave();
-    }
-  });
-});
-
-/* Adicionar item no grupo */
-function addNewItem(gIdx){
-  const g = groupsState[gIdx];
-  if(!g) return;
-  const next = Math.max(0, ...g.items.map(x=>num(x.item))) + 1;
-  g.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
-  g.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderTables();
+/* Adicionar item */
+function addNewItem(tIdx){
+  const t = tables[tIdx];
+  if(!t) return;
+  const next = Math.max(0, ...t.items.map(x=>num(x.item))) + 1;
+  t.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+  t.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderAllTables();
   scheduleSave();
 }
 
 /* Intervalo */
-let pendingRangeGIdx = 0;
-function openRangeModal(gIdx){
-  pendingRangeGIdx = gIdx;
+let pendingRangeTIdx = 0;
+function openRangeModal(tIdx){
+  pendingRangeTIdx = tIdx;
   $('rangeInput').value = '';
   open('rangeOverlay');
   setTimeout(()=>$('rangeInput').focus(), 100);
@@ -1073,7 +1154,7 @@ $('confirmRange').addEventListener('click', ()=>{
   if(values === null) return;
   if(!values.length){ toastError('Informe ao menos um item.'); return; }
   close('rangeOverlay');
-  addItemRangeToGroup(pendingRangeGIdx, values);
+  addItemRangeToTable(pendingRangeTIdx, values);
 });
 $('rangeInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); }
@@ -1105,24 +1186,24 @@ function parseRangeOrdered(raw){
   return values;
 }
 
-function addItemRangeToGroup(gIdx, nums){
-  const g = groupsState[gIdx];
-  if(!g) return;
-  const existing = new Set(g.items.map(x=>String(num(x.item))));
+function addItemRangeToTable(tIdx, nums){
+  const t = tables[tIdx];
+  if(!t) return;
+  const existing = new Set(t.items.map(x=>String(num(x.item))));
   const dups = nums.filter(n=>existing.has(String(n)));
   if(dups.length){
     toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':''));
     return;
   }
   nums.forEach(n=>{
-    g.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+    t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
   });
-  g.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderTables();
+  t.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderAllTables();
   scheduleSave();
 }
 
-/* Filtros globais da página de itens */
+/* Filtros */
 $('itemSearch').addEventListener('input', applyFilters);
 $('filterMarca').addEventListener('change', applyFilters);
 $('filterItens').addEventListener('change', applyFilters);
@@ -1163,9 +1244,9 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
     await persistItems();
     const fresh = await api(`/api/licitacoes/${current.id}`);
     current = fresh;
-    groupsState = normalizeItemsStructure(current);
-    groupsState.forEach(g=>g.items.sort((a,b)=>num(a.item)-num(b.item)));
-    renderTables();
+    tables = normalizeTables(current);
+    tables.forEach(t=>t.items.sort((a,b)=>num(a.item)-num(b.item)));
+    renderAllTables();
     lastSnapshot = snapshotAll();
     toastSuccess('Dados sincronizados');
   }catch(e){ toastError(e.message); }
@@ -1189,20 +1270,19 @@ $('confirmQuote').addEventListener('click', ()=>{
   if(!values.length){ toastError('Informe o intervalo de itens.'); return; }
 
   readTableState();
-  const allItems = flatItemsFromState();
   const selected = [];
   document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
-    const gI = parseInt(tr.dataset.gidx);
+    const tI = parseInt(tr.dataset.tidx);
     const iI = parseInt(tr.dataset.idx);
-    const x = groupsState[gI]?.items?.[iI];
+    const x = tables[tI]?.items?.[iI];
     if(!x) return;
     if(values.includes(num(x.item))){
       [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
       const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = 'amarelo';
+      x.cor = 'amarelo';
       if(!chk.checked){
         tr.classList.add('row-color-amarelo');
-        tr.dataset.cor = 'amarelo';
-        x.cor = 'amarelo';
       }
       selected.push(x);
     }
@@ -1236,31 +1316,37 @@ $('confirmQuote').addEventListener('click', ()=>{
 });
 
 /* ==================== DOCUMENTOS ==================== */
-$('pdfBtn').addEventListener('click', ()=>{ open('docOverlay'); });
-document.querySelectorAll('.doc-card').forEach(c=>{
+$('pdfBtn').addEventListener('click', ()=>{
+  selectedDoc = null;
+  document.querySelectorAll('.doc-choice').forEach(c=>c.classList.remove('selected'));
+  open('docOverlay');
+});
+document.querySelectorAll('.doc-choice').forEach(c=>{
   c.addEventListener('click', ()=>{
-    const t = c.dataset.doc;
-    close('docOverlay');
-    if(t === 'proposta-pdf') gerarPdf(false);
-    else if(t === 'proposta-docs') gerarDocWord(false);
-    else if(t === 'exequibilidade-pdf' || t === 'exequibilidade-docs'){
-      toastWarn('Funcionalidade em desenvolvimento.');
-    }
+    selectedDoc = c.dataset.doc;
+    document.querySelectorAll('.doc-choice').forEach(x=>x.classList.toggle('selected', x===c));
   });
 });
+$('confirmDoc').addEventListener('click', ()=>{
+  if(!selectedDoc){ toastError('Selecione um documento.'); return; }
+  const t = selectedDoc;
+  close('docOverlay');
+  if(t === 'proposta-pdf') gerarPdf();
+  else if(t === 'proposta-docs') gerarDocWord();
+  else toastWarn('Funcionalidade em desenvolvimento.');
+});
 
-function fileBase(r, suffix){
+function fileBase(r){
   const numP = up(r.numero_pregao || '');
   const uasg = (r.uasg||'').trim();
-  const base = uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
-  return suffix ? base.replace('PROPOSTA', suffix) : base;
+  return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
 }
 
 async function loadBanksIfNeeded(){
   try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
 }
 
-async function gerarPdf(feasibility = false){
+async function gerarPdf(){
   if(!current){ toastError('Nenhuma licitação aberta.'); return; }
   if(pdfBusy){ toastWarn('Aguarde, gerando documento...'); return; }
   pdfBusy = true;
@@ -1272,14 +1358,12 @@ async function gerarPdf(feasibility = false){
         const iv=setInterval(()=>{
           tries++;
           if(window.jspdf && window.jspdf.jsPDF){ clearInterval(iv); res(); }
-          else if(tries>20){ clearInterval(iv); res(); }
+          else if(tries>25){ clearInterval(iv); res(); }
         },150);
       });
     }
-    if(!(window.jspdf && window.jspdf.jsPDF)){
-      throw new Error('Biblioteca PDF não disponível.');
-    }
-    await runPdf(feasibility);
+    if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF não disponível.');
+    await runPdf();
   }catch(e){
     toastError(e.message || 'Falha ao gerar PDF.');
   }finally{
@@ -1287,7 +1371,7 @@ async function gerarPdf(feasibility = false){
   }
 }
 
-async function runPdf(feasibility){
+async function runPdf(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const margin = 15, pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
@@ -1306,16 +1390,12 @@ async function runPdf(feasibility){
 
   let lw=40, lh=12;
   try{
-    if(logo.width && logo.height){
-      lh = (logo.height/logo.width)*lw;
-    }
+    if(logo.width && logo.height) lh = (logo.height/logo.width)*lw;
   }catch{}
 
   try{
     doc.setGState(new doc.GState({ opacity: 0.35 }));
-    if(logo.width){
-      doc.addImage(logo, 'PNG', 5, 5, lw, lh);
-    }
+    if(logo.width) doc.addImage(logo, 'PNG', 5, 5, lw, lh);
     doc.setGState(new doc.GState({ opacity: 1.0 }));
   }catch{}
 
@@ -1326,122 +1406,114 @@ async function runPdf(feasibility){
   doc.setTextColor(0,0,0);
 
   let y = 5 + lh + 8;
-  y = renderProposal(y);
+  const tw = pw - margin*2;
+  const cols = [
+    { w: tw*0.06, t:'ITEM', a:'center' },
+    { w: tw*0.08, t:'QTD', a:'center' },
+    { w: tw*0.08, t:'UND', a:'center' },
+    { w: tw*0.32, t:'DESCRIÇÃO', a:'left' },
+    { w: tw*0.14, t:'MARCA', a:'left' },
+    { w: tw*0.14, t:'MODELO', a:'left' },
+    { w: tw*0.09, t:'PREÇO UNIT.', a:'right' },
+    { w: tw*0.09, t:'PREÇO TOTAL', a:'right' }
+  ];
 
-  finalizePdf(y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(`AO ${up(current.nome_orgao)}`, margin, y); y += 5;
+  doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, y); y += 5;
+  const linha3 = `PREGÃO ELETRÔNICO ${up(current.numero_pregao)}` + (current.uasg?` UASG ${up(current.uasg)}`:'');
+  doc.text(linha3, margin, y); y += 7;
 
-  function renderProposal(startY){
-    let yy = startY;
-    doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text(`AO ${up(current.nome_orgao)}`, margin, yy); yy += 5;
-    doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, yy); yy += 5;
-    const linha3 = `PREGÃO ELETRÔNICO ${up(current.numero_pregao)}` + (current.uasg?` UASG ${up(current.uasg)}`:'');
-    doc.text(linha3, margin, yy); yy += 7;
-
-    const tw = pw - margin*2;
-    const cols = [
-      { w: tw*0.06, t:'ITEM', a:'c' },
-      { w: tw*0.08, t:'QTD', a:'c' },
-      { w: tw*0.08, t:'UND', a:'c' },
-      { w: tw*0.32, t:'DESCRIÇÃO', a:'l' },
-      { w: tw*0.14, t:'MARCA', a:'l' },
-      { w: tw*0.14, t:'MODELO', a:'l' },
-      { w: tw*0.09, t:'PREÇO UNIT.', a:'r' },
-      { w: tw*0.09, t:'PREÇO TOTAL', a:'r' }
-    ];
-    const rowH = 7;
-    doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
-    let x = margin;
-    doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    cols.forEach(c=>{ doc.rect(x, yy, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, yy + 4.7, { align:'center' }); x += c.w; });
-    yy += rowH;
-    doc.setFont('helvetica','normal');
-    let total = 0;
-    data.forEach((it, idx) => {
-      const cu = num(it.custoUnt);
-      const pct = num(it.porcentagem ?? 149);
-      const vUnt = cu * pct/100;
-      const vTot = vUnt * num(it.qtd);
-      total += vTot;
-      const descLines = doc.splitTextToSize(up(it.descricao || ''), cols[3].w - 2);
-      const needed = Math.max(rowH, descLines.length * 4 + 3);
-      if(yy + needed > ph - 40){ doc.addPage(); yy = 20; }
-      x = margin;
-      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, yy, tw, needed, 'F'); }
-      const cells = [String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''), null, up(it.marca || ''), up(it.modelo || ''), money(vUnt), money(vTot)];
-      cols.forEach((c,i)=>{
-        doc.rect(x, yy, c.w, needed);
-        if(i===3){ doc.text(descLines, x + 1.5, yy + 4); }
-        else{
-          const cy = yy + needed/2 + 1.2;
-          const tx = c.a==='r' ? x + c.w - 1.5 : (c.a==='c' ? x + c.w/2 : x + 1.5);
-          doc.text(cells[i], tx, cy, { align: c.a });
-        }
-        x += c.w;
-      });
-      yy += needed;
-    });
-    yy += 4;
-    doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, yy, { align:'right' }); yy += 8;
-    doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, yy); yy += 5;
-    doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, yy); yy += 5;
-    doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, yy); yy += 5;
-    doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, yy); yy += 5;
-    doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, yy); yy += 5;
-    doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, yy); yy += 10;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
-    const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
-    const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
-    const l1 = doc.splitTextToSize(d1, tw);
-    if(yy + l1.length*4 + 40 > ph - 40){ doc.addPage(); yy = 20; }
-    doc.text(l1, pw/2, yy, { align:'center' }); yy += l1.length*4 + 4;
-    doc.text(d2, pw/2, yy, { align:'center' }); yy += 6;
-    doc.text(d3, pw/2, yy, { align:'center' }); yy += 12;
-
-    const dt = new Date();
-    const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-    doc.text(`SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, yy, { align:'center' });
-    yy += 10;
-
-    const sign = new Image(); sign.crossOrigin='anonymous';
-    sign.src = '/apps/imagens/assinatura.png';
-    try{
-      if(sign.complete && sign.width){
-        const iw = 55;
-        const ih = (sign.height/sign.width)*iw;
-        doc.addImage(sign, 'PNG', pw/2 - iw/2, yy, iw, ih);
-        yy += ih + 4;
+  const rowH = 7;
+  doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
+  let x = margin;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  cols.forEach(c=>{ doc.rect(x, y, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, y + 4.7, { align:'center' }); x += c.w; });
+  y += rowH;
+  doc.setFont('helvetica','normal');
+  let total = 0;
+  data.forEach((it, idx) => {
+    const cu = num(it.custoUnt);
+    const pct = num(it.porcentagem ?? 149);
+    const vUnt = cu * pct/100;
+    const vTot = vUnt * num(it.qtd);
+    total += vTot;
+    const descLines = doc.splitTextToSize(up(it.descricao || ''), cols[3].w - 2);
+    const needed = Math.max(rowH, descLines.length * 4 + 3);
+    if(y + needed > ph - 40){ doc.addPage(); y = 20; }
+    x = margin;
+    if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
+    const cells = [String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''), null, up(it.marca || ''), up(it.modelo || ''), money(vUnt), money(vTot)];
+    cols.forEach((c,i)=>{
+      doc.rect(x, y, c.w, needed);
+      if(i===3){
+        doc.text(descLines, x + 1.5, y + 4);
+      } else {
+        const cy = y + needed/2 + 1.2;
+        const tx = c.a==='right' ? x + c.w - 1.5 : (c.a==='center' ? x + c.w/2 : x + 1.5);
+        doc.text(String(cells[i]), tx, cy, { align: c.a });
       }
-    }catch{}
-    doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, yy, { align:'center' }); yy += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, yy, { align:'center' }); yy += 4;
-    doc.text('DIRETORA', pw/2, yy, { align:'center' });
-    return yy;
-  }
+      x += c.w;
+    });
+    y += needed;
+  });
+  y += 4;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, y, { align:'right' }); y += 8;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
+  doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
+  doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
+  doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, y); y += 10;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
+  const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
+  const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
+  const l1 = doc.splitTextToSize(d1, tw);
+  if(y + l1.length*4 + 45 > ph - 40){ doc.addPage(); y = 20; }
+  doc.text(l1, pw/2, y, { align:'center' }); y += l1.length*4 + 4;
+  doc.text(d2, pw/2, y, { align:'center' }); y += 6;
+  doc.text(d3, pw/2, y, { align:'center' }); y += 14;
 
-  function finalizePdf(yFinal){
-    const totalPages = doc.internal.getNumberOfPages();
-    for(let i=1; i<=totalPages; i++){
-      doc.setPage(i);
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
-      const yBase = ph - 18;
-      doc.text('RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES', pw/2, yBase, { align:'center' });
-      doc.text('TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058', pw/2, yBase+3.5, { align:'center' });
-      doc.text('CNPJ: 33.149.502/0001-38', pw/2, yBase+7, { align:'center' });
-      doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
-      doc.setTextColor(0,0,0);
+  const dt = new Date();
+  const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+  doc.text(`SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
+  y += 12;
+
+  const sign = new Image(); sign.crossOrigin='anonymous';
+  sign.src = '/apps/imagens/assinatura.png';
+  try{
+    if(sign.complete && sign.width){
+      const iw = 55;
+      const ih = (sign.height/sign.width)*iw;
+      doc.addImage(sign, 'PNG', pw/2 - iw/2, y, iw, ih);
+      y += ih + 4;
     }
-    doc.save(`${fileBase(current)}.pdf`);
-    toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
+  }catch{}
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, y, { align:'center' }); y += 5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, y, { align:'center' }); y += 4;
+  doc.text('DIRETORA', pw/2, y, { align:'center' });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let i=1; i<=totalPages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
+    const yBase = ph - 20;
+    doc.text('RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES', pw/2, yBase, { align:'center' });
+    doc.text('TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058', pw/2, yBase+3.5, { align:'center' });
+    doc.text('CNPJ: 33.149.502/0001-38', pw/2, yBase+7, { align:'center' });
+    doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
+    doc.setTextColor(0,0,0);
   }
+  doc.save(`${fileBase(current)}.pdf`);
+  toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
 }
 
-async function gerarDocWord(feasibility = false){
+async function gerarDocWord(){
   if(!current) return;
   await loadBanksIfNeeded();
   const data = (current.items||[]).filter(x=>x.selecionado !== false);
@@ -1449,12 +1521,10 @@ async function gerarDocWord(feasibility = false){
   const total = data.reduce((a,x)=>{
     const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
     const vu = cu*pct/100;
-    const vt = vu*num(x.qtd);
-    return a + vt;
+    return a + vu*num(x.qtd);
   }, 0);
   const dt = new Date();
   const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-
   const linhas = data.map(x=>{
     const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
     const vu = cu*pct/100;
@@ -1465,31 +1535,6 @@ async function gerarDocWord(feasibility = false){
       <td>${money(vu)}</td><td>${money(vt)}</td>
     </tr>`;
   }).join('');
-
-  const bodyContent = `
-      <h3>AO ${esc(up(current.nome_orgao))}</h3>
-      <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
-      <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
-      <table>
-        <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>
-      <p class="total">VALOR TOTAL: ${money(total)}</p>
-      <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
-      <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
-      <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
-      <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
-      <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
-      <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
-      <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
-      <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
-      <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
-      <p class="date">SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}</p>
-      <div class="sign-space"></div>
-      <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
-      <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
-      <p class="sign-sub">DIRETORA</p>`;
-
   const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -1515,11 +1560,34 @@ async function gerarDocWord(feasibility = false){
   .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
 </style></head>
 <body>
-<div class="Section1">${bodyContent}</div>
+<div class="Section1">
+  <h3>AO ${esc(up(current.nome_orgao))}</h3>
+  <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
+  <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
+  <table>
+    <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
+  <p class="total">VALOR TOTAL: ${money(total)}</p>
+  <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
+  <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
+  <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
+  <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
+  <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
+  <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
+  <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
+  <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
+  <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
+  <p class="date">SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}</p>
+  <div class="sign-space"></div>
+  <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
+  <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
+  <p class="sign-sub">DIRETORA</p>
+</div>
 <div style='mso-element:header' id="h1">
   <p class="MsoHeader" style="text-align:left;">
-    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:36pt;height:auto;vertical-align:middle;margin-right:6pt;">
-    <span style="color:#969696;font-weight:bold;font-size:12pt;">I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA</span>
+    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:28pt;height:auto;vertical-align:middle;margin-right:6pt;">
+    <span style="color:#969696;font-weight:bold;font-size:11pt;">I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA</span>
   </p>
 </div>
 <div style='mso-element:footer' id="f1">
