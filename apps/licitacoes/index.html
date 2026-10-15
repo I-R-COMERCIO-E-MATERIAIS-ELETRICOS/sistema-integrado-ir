@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Licitações</title>
+<title>Licitações | I.R. Comércio</title>
 <link rel="icon" href="/apps/imagens/IR ICONE.png">
 <link rel="stylesheet" href="/licitacoes/styles.css">
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -118,29 +118,7 @@
     </div>
   </div>
 
-  <div class="items-toolbar-top">
-    <button type="button" class="btn-toggle-table" data-add="main">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      Tabela de Itens
-    </button>
-    <button type="button" class="btn-toggle-table" data-add="grupo">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-      Grupo de Itens
-    </button>
-  </div>
-
   <div id="tablesContainer"></div>
-
-  <div class="items-toolbar-bottom">
-    <button type="button" class="btn-toggle-table" data-add="main">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      Tabela de Itens
-    </button>
-    <button type="button" class="btn-toggle-table" data-add="grupo">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-      Grupo de Itens
-    </button>
-  </div>
 </section>
 
 <div class="modal-overlay" id="formOverlay">
@@ -281,19 +259,29 @@
 </div>
 
 <div class="modal-overlay" id="docOverlay">
-  <div class="modal-content modal-doc">
+  <div class="modal-content modal-small">
     <div class="modal-header">
       <h3 class="modal-title">Gerar documento</h3>
       <button type="button" class="close-modal" data-close="docOverlay">✕</button>
     </div>
     <p class="helper">Escolha o documento:</p>
-    <div class="status-carousel doc-carousel">
-      <button type="button" class="status-card doc-card" data-doc="proposta-pdf">PROPOSTA PDF</button>
-      <button type="button" class="status-card doc-card" data-doc="exequibilidade-pdf">EXEQUIBILIDADE PDF</button>
+    <div class="doc-choices">
+      <button type="button" class="doc-choice" data-doc="proposta-pdf">
+        <span class="doc-icon red">PDF</span><span>Proposta PDF</span>
+      </button>
+      <button type="button" class="doc-choice" data-doc="exequibilidade-pdf">
+        <span class="doc-icon red">PDF</span><span>Exequibilidade PDF</span>
+      </button>
+      <button type="button" class="doc-choice" data-doc="proposta-docs">
+        <span class="doc-icon word">W</span><span>Proposta Docs</span>
+      </button>
+      <button type="button" class="doc-choice" data-doc="exequibilidade-docs">
+        <span class="doc-icon word">W</span><span>Exequibilidade Docs</span>
+      </button>
     </div>
-    <div class="status-carousel doc-carousel">
-      <button type="button" class="status-card doc-card" data-doc="proposta-docs">PROPOSTA DOCS</button>
-      <button type="button" class="status-card doc-card" data-doc="exequibilidade-docs">EXEQUIBILIDADE DOCS</button>
+    <div class="modal-actions" style="justify-content:center;">
+      <button type="button" class="save" id="confirmDoc">Confirmar</button>
+      <button type="button" class="cancel-close" data-close="docOverlay">Cancelar</button>
     </div>
   </div>
 </div>
