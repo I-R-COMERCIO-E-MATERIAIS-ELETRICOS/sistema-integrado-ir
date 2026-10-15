@@ -9,16 +9,21 @@ const PORTAL_URL = window.location.origin;
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fecaca' };
-const STATUS_VALUES = ['agendado','ganho','ocorrido','suspenso','encerrado','cancelado'];
-const STATUS_LABEL = { agendado:'AGENDADO', ganho:'GANHO', ocorrido:'OCORRIDO', suspenso:'SUSPENSO', encerrado:'ENCERRADO', cancelado:'CANCELADO' };
+const STATUS_LABEL = {
+  aguardando:'AGUARDANDO DISPUTA',
+  ganho:'GANHO',
+  realizado:'REALIZADO',
+  suspenso:'SUSPENSO',
+  encerrado:'ENCERRADO',
+  cancelado:'CANCELADO'
+};
 
 let sessionToken = null;
 let currentUserName = null;
 let records=[], users=[], banks=[];
-let stats={total:0,disputa:0,ganhos:0,ocorridos:0,pulse:false};
+let stats={total:0,disputa:0,ganhos:0,realizados:0,pulse:false};
 let current=null, items=[], activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
-let statusTargetId=null, statusSelected=null;
 let lastSnapshot = '';
 let delId = null;
 let colorPop = null;
@@ -42,15 +47,17 @@ const fmtDate = v => { if(!v) return '—'; const p=String(v).split('-'); return
 const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 function effectiveStatus(r){
-  const st = r.status || (r.ganho ? 'ganho' : 'agendado');
-  if(st === 'agendado' && r.data_pregao && r.data_pregao < todayStr()) return 'ocorrido';
-  return st;
+  if (r.ganho) return 'ganho';
+  const s = String(r.status || '').toLowerCase();
+  if (s === 'suspenso' || s === 'encerrado' || s === 'cancelado') return s;
+  if (r.data_pregao && r.data_pregao < todayStr()) return 'realizado';
+  return 'aguardando';
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
   document.body.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F8F9FA;color:#1A1A1A;text-align:center;padding:2rem;font-family:'Inter','Segoe UI',sans-serif;">
-      <h1 style="font-size:2.2rem;margin-bottom:1rem;color:#1A1A1A;">${mensagem}</h1>
+      <h1 style="font-size:2.2rem;margin-bottom:1rem;">${mensagem}</h1>
       <p style="color:#6B7280;margin-bottom:2rem;">Somente usuários autenticados podem acessar esta área.</p>
       <a href="${PORTAL_URL}" style="display:inline-block;background:#3B82F6;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Ir para o Portal</a>
     </div>
@@ -163,26 +170,28 @@ $('uf').innerHTML += states.map(s=>`<option>${s}</option>`).join('');
 $('requirements').innerHTML = reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
 $('requirements').querySelectorAll('[data-req]').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('selected')));
 
-const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-detail'];
+const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-prazos','tab-detail'];
+const TAB_KEYS = ['info','orgao','req','prazos','detail'];
 function setTab(n){
-  activeTab = Math.max(0, Math.min(3, n));
+  activeTab = Math.max(0, Math.min(4, n));
   document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach((b,i)=>b.classList.toggle('active', i===activeTab));
   TAB_IDS.forEach((id,i)=>$(id).classList.toggle('active', i===activeTab));
   $('prevTab').style.display = activeTab===0 ? 'none' : '';
-  $('nextTab').style.display = activeTab===3 ? 'none' : '';
+  $('nextTab').style.display = activeTab===4 ? 'none' : '';
 }
 document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach(b=>{
   b.addEventListener('click', ()=>{
-    const idx = ['info','orgao','req','detail'].indexOf(b.dataset.tab);
+    const idx = TAB_KEYS.indexOf(b.dataset.tab);
     if(idx>=0) setTab(idx);
   });
 });
 $('prevTab').addEventListener('click', ()=>setTab(activeTab-1));
 $('nextTab').addEventListener('click', ()=>setTab(activeTab+1));
 
+const VIEW_TABS = ['vinfo','vorgao','vreq','vprazos','vdetail'];
 function setViewTab(id){
   document.querySelectorAll('[data-vtab]').forEach(b=>b.classList.toggle('active', b.dataset.vtab===id));
-  ['vinfo','vorgao','vreq','vdetail'].forEach(i=>$(i).classList.toggle('active', i===id));
+  VIEW_TABS.forEach(i=>$(i).classList.toggle('active', i===id));
 }
 document.querySelectorAll('[data-vtab]').forEach(b=>b.addEventListener('click',()=>setViewTab(b.dataset.vtab)));
 
@@ -212,7 +221,7 @@ async function loadStats(){
     $('dashTotal').textContent = stats.total ?? 0;
     $('dashDisputa').textContent = stats.disputa ?? 0;
     $('dashGanhos').textContent = stats.ganhos ?? 0;
-    $('dashOcorridos').textContent = stats.ocorridos ?? 0;
+    $('dashRealizados').textContent = stats.realizados ?? 0;
     $('cardDisputa').classList.toggle('pulse', !!stats.pulse);
   }catch(e){}
 }
@@ -274,9 +283,9 @@ function renderTable(){
     return `
       <tr data-id="${r.id}" class="${cls}">
         <td style="text-align:center;">
-          <div class="checkbox-wrapper" data-chk="${r.id}">
-            <input type="checkbox" class="styled-checkbox" id="chk-${r.id}" ${st==='ganho'?'checked':''} data-noop="1">
-            <label for="chk-${r.id}" class="checkbox-label-styled" title="Definir status"></label>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" class="styled-checkbox ganho-chk" id="chk-${r.id}" ${r.ganho?'checked':''} data-id="${r.id}">
+            <label for="chk-${r.id}" class="checkbox-label-styled" title="Marcar como ganho"></label>
           </div>
         </td>
         <td><strong>${esc(up(r.numero_pregao))}</strong></td>
@@ -305,12 +314,35 @@ function renderTable(){
   tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); editRecord(b.dataset.edit); }));
   tbody.querySelectorAll('[data-itens]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); showItems(b.dataset.itens); }));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); confirmDeleteFlow(b.dataset.del); }));
-  tbody.querySelectorAll('.checkbox-wrapper[data-chk]').forEach(w=>{
-    w.addEventListener('click', e=>{
-      e.preventDefault(); e.stopPropagation();
-      openStatusModal(w.dataset.chk);
+  tbody.querySelectorAll('.ganho-chk').forEach(chk=>{
+    chk.addEventListener('change', async e=>{
+      e.stopPropagation();
+      await toggleGanho(chk.dataset.id, chk.checked, chk);
     });
+    chk.addEventListener('click', e=>e.stopPropagation());
   });
+}
+
+async function toggleGanho(id, ganho, chkEl){
+  const r = records.find(x=>x.id===id);
+  const numP = up(r?.numero_pregao || '');
+  try{
+    await api(`/api/licitacoes/${id}/ganho`, { method:'PATCH', body: JSON.stringify({ ganho }) });
+    if (r) r.ganho = ganho;
+    const tr = chkEl ? chkEl.closest('tr') : null;
+    if (tr){
+      tr.classList.toggle('row-ganho', ganho);
+      const st = effectiveStatus(r);
+      const td = tr.querySelector('td:nth-child(8)');
+      if(td) td.innerHTML = `<span class="badge-status ${st}">${STATUS_LABEL[st]||up(st)}</span>`;
+    }
+    if (ganho) toastSuccess(`O ${numP} foi marcado como ganho`);
+    else toastSuccess(`Pregão ${numP} atualizado`);
+    loadStats();
+  }catch(err){
+    if (chkEl) chkEl.checked = !ganho;
+    toastError(err.message);
+  }
 }
 
 function renderPagination(){
@@ -337,42 +369,6 @@ function renderPagination(){
     page = p; loadList();
   }));
 }
-
-function openStatusModal(id){
-  const r = records.find(x=>x.id===id);
-  if(!r) return;
-  statusTargetId = id;
-  const st = effectiveStatus(r);
-  statusSelected = (STATUS_VALUES.includes(st) && st !== 'agendado') ? st : null;
-  $('statusNumero').textContent = up(r.numero_pregao);
-  document.querySelectorAll('.status-card').forEach(c=>{
-    c.classList.toggle('selected', c.dataset.status === statusSelected);
-  });
-  open('statusOverlay');
-}
-
-document.querySelectorAll('.status-card').forEach(c=>{
-  c.addEventListener('click', ()=>{
-    statusSelected = c.dataset.status;
-    document.querySelectorAll('.status-card').forEach(x=>x.classList.toggle('selected', x===c));
-  });
-});
-
-$('confirmStatus').addEventListener('click', async ()=>{
-  if(!statusSelected){ toastError('Selecione um status.'); return; }
-  const r = records.find(x=>x.id===statusTargetId);
-  const numP = up(r?.numero_pregao || '');
-  try{
-    await api(`/api/licitacoes/${statusTargetId}/status`, { method:'PATCH', body: JSON.stringify({ status: statusSelected }) });
-    close('statusOverlay');
-    if(statusSelected === 'ganho'){
-      toastSuccess(`O ${numP} foi marcado como ganho`);
-    } else {
-      toastSuccess(`Pregão ${numP} atualizado`);
-    }
-    await Promise.all([loadList(), loadStats()]);
-  }catch(e){ toastError(e.message); }
-});
 
 async function openDisputaModal(){
   $('disputaBody').innerHTML = '<tr><td colspan="3" class="empty">Carregando…</td></tr>';
@@ -407,6 +403,7 @@ function newRecord(){
   $('prazoPagamento').value = '30 DIAS CORRIDOS';
   $('modalidade').value = 'ABERTO';
   $('bancoPagamento').value = 'BANCO DO BRASIL';
+  $('statusManual').value = '';
   $('atualizadoPor').value = '';
   $('ultimaAtualizacao').value = '';
   $('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.remove('selected'));
@@ -435,6 +432,8 @@ function editRecord(id){
   $('validadeProposta').value = r.validade_proposta || '60 DIAS CORRIDOS';
   $('prazoEntrega').value = r.prazo_entrega || '30 DIAS CORRIDOS';
   $('prazoPagamento').value = r.prazo_pagamento || '30 DIAS CORRIDOS';
+  const stManual = String(r.status || '').toLowerCase();
+  $('statusManual').value = ['suspenso','encerrado','cancelado'].includes(stManual) ? stManual : '';
   $('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.toggle('selected', !!(r.requisitos||{})[b.dataset.req]));
   $('atualizadoPor').value = r.atualizado_por || '';
   $('ultimaAtualizacao').value = r.ultima_atualizacao ? new Date(r.ultima_atualizacao).toLocaleString('pt-BR') : '';
@@ -461,6 +460,7 @@ $('recordForm').addEventListener('submit', async e => {
     telefone: $('telefone').value.trim(),
     email: $('email').value.trim(),
     bancoPagamento: $('bancoPagamento').value,
+    status: $('statusManual').value || '',
     requisitos,
     validadeProposta: $('validadeProposta').value,
     prazoEntrega: $('prazoEntrega').value,
@@ -530,6 +530,9 @@ function viewRecord(id){
     <div>
       <p><b>Requisitos:</b> ${reqsArr.length? reqsArr.map(esc).join(', ') : '—'}</p>
       <p><b>Banco para pagamento:</b> ${esc(up(r.banco_pagamento)||'—')}</p>
+    </div>`;
+  $('vprazos').innerHTML = `
+    <div>
       <p><b>Validade da proposta:</b> ${esc(up(r.validade_proposta)||'—')}</p>
       <p><b>Prazo de entrega:</b> ${esc(up(r.prazo_entrega)||'—')}</p>
       <p><b>Prazo de pagamento:</b> ${esc(up(r.prazo_pagamento)||'—')}</p>
@@ -646,7 +649,15 @@ function bindItemEvents(){
     }
   });
   wrap.querySelectorAll('.row-btn.del').forEach(b=>{
-    b.addEventListener('click', ()=>{ b.closest('tr').remove(); recalc(); updateMarcaFilter(); });
+    b.addEventListener('click', ()=>{
+      const tr = b.closest('tr');
+      const idx = parseInt(tr.dataset.idx);
+      if(!isNaN(idx)) items.splice(idx, 1);
+      tr.remove();
+      renumberIdx();
+      recalc();
+      updateMarcaFilter();
+    });
   });
   wrap.querySelectorAll('.row-btn.brush').forEach(b=>{
     b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
@@ -663,6 +674,10 @@ function bindItemEvents(){
       recalc();
     });
   });
+}
+
+function renumberIdx(){
+  [...$('itemsBody').rows].forEach((tr,i)=>{ tr.dataset.idx = i; });
 }
 
 function cleanPasteHandler(e){
@@ -752,6 +767,7 @@ async function persistItems(){
       dataPregao: current.data_pregao, horarioPregao: current.horario_pregao,
       modalidade: current.modalidade,
       bancoPagamento: current.banco_pagamento, requisitos: current.requisitos || {},
+      status: current.status || '',
       validadeProposta: current.validade_proposta,
       prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
       items: data
@@ -820,7 +836,8 @@ $('backItems').addEventListener('click', async ()=>{
 });
 
 $('addItemBtn').addEventListener('click', ()=>{
-  const next = Math.max(0, ...collectItems().map(x=>num(x.item)))+1;
+  items = collectItems();
+  const next = Math.max(0, ...items.map(x=>num(x.item)))+1;
   items.push({ item:next, qtd:1, und:'UN', porcentagem:149, selecionado:false });
   items.sort((a,b)=>num(a.item)-num(b.item));
   renderItems();
@@ -860,7 +877,8 @@ function parseRange(raw){
 }
 
 function addItemRange(nums){
-  const existing = new Set(collectItems().map(x=>String(num(x.item))));
+  items = collectItems();
+  const existing = new Set(items.map(x=>String(num(x.item))));
   nums.forEach(n=>{
     if(!existing.has(String(n))){
       items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false });
@@ -976,14 +994,22 @@ $('confirmQuote').addEventListener('click', ()=>{
 });
 
 $('pdfBtn').addEventListener('click', ()=>{ open('docOverlay'); });
-$('optProposalPdf').addEventListener('click', ()=>{ close('docOverlay'); gerarPdf(false); });
-$('optFeasibility').addEventListener('click', ()=>{ close('docOverlay'); gerarPdf(true); });
-$('optProposalDoc').addEventListener('click', ()=>{ close('docOverlay'); gerarDocWord(); });
+document.querySelectorAll('.doc-card').forEach(c=>{
+  c.addEventListener('click', ()=>{
+    const t = c.dataset.doc;
+    close('docOverlay');
+    if(t === 'proposta-pdf') gerarPdf(false);
+    else if(t === 'exequibilidade-pdf') gerarPdf(true);
+    else if(t === 'proposta-docs') gerarDocWord(false);
+    else if(t === 'exequibilidade-docs') gerarDocWord(true);
+  });
+});
 
-function fileBase(r){
+function fileBase(r, suffix){
   const numP = up(r.numero_pregao || '');
   const uasg = (r.uasg||'').trim();
-  return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
+  const base = uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
+  return suffix ? base.replace('PROPOSTA', suffix) : base;
 }
 
 async function loadBanksIfNeeded(){
@@ -1195,7 +1221,8 @@ function runPdf(feasibility){
       doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
       doc.setTextColor(0,0,0);
     }
-    doc.save(`${fileBase(current)}.pdf`);
+    const fname = feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current);
+    doc.save(`${fname}.pdf`);
     toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
   };
 
@@ -1203,7 +1230,7 @@ function runPdf(feasibility){
   else { logo.onload = draw; logo.onerror = () => simplePdf(); }
 }
 
-async function gerarDocWord(){
+async function gerarDocWord(feasibility = false){
   if(!current) return;
   await loadBanksIfNeeded();
   const data = (current.items||[]).filter(x=>x.selecionado !== false);
@@ -1214,23 +1241,74 @@ async function gerarDocWord(){
     const vt = vu*num(x.qtd);
     return a + vt;
   }, 0);
+  const custoTotal = data.reduce((a,x)=>a + (num(x.custoUnt)*num(x.qtd)), 0);
   const dt = new Date();
   const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-  const linhas = data.map(x=>{
-    const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-    const vu = cu*pct/100;
-    const vt = vu*num(x.qtd);
-    return `<tr>
-      <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
-      <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
-      <td>${money(vu)}</td><td>${money(vt)}</td>
-    </tr>`;
-  }).join('');
+
+  let bodyContent = '';
+  if(feasibility){
+    const linhas = data.map(x=>{
+      const cu = num(x.custoUnt); const qtd = num(x.qtd);
+      const pct = num(x.porcentagem ?? 149);
+      const ct = cu * qtd;
+      const vu = cu*pct/100;
+      const vt = vu*qtd;
+      return `<tr>
+        <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.descricao))}</td>
+        <td>${money(cu)}</td><td>${money(ct)}</td>
+        <td>${money(vu)}</td><td>${money(vt)}</td>
+      </tr>`;
+    }).join('');
+    bodyContent = `
+      <h3 style="text-align:center;">COMPROVANTE DE EXEQUIBILIDADE</h3>
+      <p>Pregão ${esc(up(current.numero_pregao))} — ${esc(up(current.nome_orgao))}</p>
+      <table>
+        <thead><tr><th>ITEM</th><th>QTD</th><th>DESCRIÇÃO</th><th>CUSTO UNIT.</th><th>CUSTO TOTAL</th><th>VENDA UNIT.</th><th>VENDA TOTAL</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+      <p class="total">CUSTO TOTAL: ${money(custoTotal)}</p>
+      <p class="total">VALOR TOTAL DA PROPOSTA: ${money(total)}</p>`;
+  } else {
+    const linhas = data.map(x=>{
+      const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
+      const vu = cu*pct/100;
+      const vt = vu*num(x.qtd);
+      return `<tr>
+        <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
+        <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
+        <td>${money(vu)}</td><td>${money(vt)}</td>
+      </tr>`;
+    }).join('');
+    bodyContent = `
+      <h3>AO ${esc(up(current.nome_orgao))}</h3>
+      <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
+      <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
+      <table>
+        <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+      <p class="total">VALOR TOTAL: ${money(total)}</p>
+      <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
+      <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
+      <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
+      <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
+      <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
+      <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
+      <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
+      <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
+      <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
+      <p class="date">SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}</p>
+      <div class="sign-space"></div>
+      <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
+      <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
+      <p class="sign-sub">DIRETORA</p>`;
+  }
+
   const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       lang="pt-BR"><head><meta charset="utf-8">
-<title>${esc(fileBase(current))}</title>
+<title>${esc(feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current))}</title>
 <style>
   @page Section1{size:595.3pt 841.9pt;margin:36pt 26pt 60pt 26pt;
     mso-header-margin:14pt;mso-footer-margin:22pt;mso-header:h1;mso-footer:f1;mso-paper-source:0;}
@@ -1251,30 +1329,7 @@ async function gerarDocWord(){
   .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
 </style></head>
 <body>
-<div class="Section1">
-  <h3>AO ${esc(up(current.nome_orgao))}</h3>
-  <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
-  <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
-  <table>
-    <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
-    <tbody>${linhas}</tbody>
-  </table>
-  <p class="total">VALOR TOTAL: ${money(total)}</p>
-  <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
-  <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
-  <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
-  <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
-  <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
-  <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
-  <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
-  <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
-  <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
-  <p class="date">SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}</p>
-  <div class="sign-space"></div>
-  <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
-  <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
-  <p class="sign-sub">DIRETORA</p>
-</div>
+<div class="Section1">${bodyContent}</div>
 <div style='mso-element:header' id="h1">
   <p class="MsoHeader" style="text-align:left;">
     <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:80pt;height:auto;vertical-align:middle;margin-right:6pt;">
@@ -1293,7 +1348,8 @@ async function gerarDocWord(){
   const blob = new Blob(['\ufeff', html], { type:'application/msword;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${fileBase(current)}.doc`;
+  const fname = feasibility ? fileBase(current, 'EXEQUIBILIDADE') : fileBase(current);
+  a.download = `${fname}.doc`;
   a.click();
   URL.revokeObjectURL(a.href);
   toastSuccess('Documento Word gerado');
