@@ -94,7 +94,7 @@ module.exports = function (supabase) {
     try {
       const today = todayStr();
       const { data, error } = await supabase.from(table)
-        .select('id,numero_pregao,vendedor,nome_orgao')
+        .select('id,data_pregao,horario_pregao,numero_pregao,vendedor,nome_orgao')
         .eq('data_pregao', today)
         .order('horario_pregao', { ascending: true, nullsFirst: false });
       if (error) throw error;
@@ -185,6 +185,7 @@ module.exports = function (supabase) {
       prazo_entrega: clean(b.prazoEntrega),
       prazo_pagamento: clean(b.prazoPagamento),
       items: Array.isArray(b.items) ? b.items : [],
+      grupos: Array.isArray(b.grupos) ? b.grupos : [],
       atualizado_por: req.user?.name || req.user?.username || b.vendedor || null,
       ultima_atualizacao: new Date().toISOString()
     };
