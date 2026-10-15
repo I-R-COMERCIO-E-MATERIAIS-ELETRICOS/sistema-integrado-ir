@@ -10,6 +10,10 @@ const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO'
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fecaca' };
 const STATUS_LABEL = {
+  aguardando:'AGUARDANDO DISPUTA',
+  'disputa-aberta':'DISPUTA ABERTA',
+  ganho:'GANHO',
+  realizado:'REALIZADO',
   suspenso:'SUSPENSO',
   encerrado:'ENCERRADO',
   cancelado:'CANCELADO'
@@ -47,8 +51,18 @@ function effectiveStatus(r){
   if (r.ganho) return 'ganho';
   const s = String(r.status || '').toLowerCase();
   if (s === 'suspenso' || s === 'encerrado' || s === 'cancelado') return s;
-  if (r.data_pregao && r.data_pregao < todayStr()) return 'realizado';
-  return 'aguardando';
+  const d = r.data_pregao || '';
+  if (!d) return 'aguardando';
+  const today = todayStr();
+  if (d < today) return 'realizado';
+  if (d > today) return 'aguardando';
+  if (r.horario_pregao) {
+    const [h, m] = r.horario_pregao.split(':').map(Number);
+    const dt = new Date(); dt.setHours(h||0, m||0, 0, 0);
+    if (dt.getTime() <= Date.now()) return 'disputa-aberta';
+    return 'aguardando';
+  }
+  return 'disputa-aberta';
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
