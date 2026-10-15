@@ -145,7 +145,7 @@
           <div class="form-group"><label>Número do Pregão</label><input id="numeroPregao" required></div>
           <div class="form-group"><label>Status</label>
             <select id="statusManual">
-              <option value="">-</option>
+              <option value="">AUTOMÁTICO</option>
               <option value="suspenso">SUSPENSO</option>
               <option value="encerrado">ENCERRADO</option>
               <option value="cancelado">CANCELADO</option>
@@ -267,16 +267,16 @@
     <p class="helper">Escolha o documento:</p>
     <div class="doc-choices">
       <button type="button" class="doc-choice" data-doc="proposta-pdf">
-        <span class="doc-icon red">PDF</span><span>Proposta PDF</span>
-      </button>
-      <button type="button" class="doc-choice" data-doc="exequibilidade-pdf">
-        <span class="doc-icon red">PDF</span><span>Exequibilidade PDF</span>
+        <span class="doc-dot pdf"></span><span class="doc-label">PROPOSTA PDF</span>
       </button>
       <button type="button" class="doc-choice" data-doc="proposta-docs">
-        <span class="doc-icon word">W</span><span>Proposta Docs</span>
+        <span class="doc-dot docs"></span><span class="doc-label">PROPOSTA DOCS</span>
+      </button>
+      <button type="button" class="doc-choice" data-doc="exequibilidade-pdf">
+        <span class="doc-dot pdf"></span><span class="doc-label">EXEQUIBILIDADE PDF</span>
       </button>
       <button type="button" class="doc-choice" data-doc="exequibilidade-docs">
-        <span class="doc-icon word">W</span><span>Exequibilidade Docs</span>
+        <span class="doc-dot docs"></span><span class="doc-label">EXEQUIBILIDADE DOCS</span>
       </button>
     </div>
     <div class="modal-actions" style="justify-content:center;">
