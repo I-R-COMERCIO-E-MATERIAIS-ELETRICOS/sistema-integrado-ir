@@ -92,12 +92,13 @@ tbody tr.row-cancelado{background:rgba(239,68,68,.08) !important;border-left:3px
 .action-btn.delete{background:var(--btn-delete)}
 .actions-cell{white-space:nowrap;min-width:280px;text-align:center}
 .badge-status{display:inline-block;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:120px;text-align:center;
+  text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:150px;text-align:center;
   background:#e5e7eb;color:#374151;border:1px solid #d1d5db}
 .badge-status.ganho{background:rgba(34,197,94,.15);color:#16A34A;border-color:rgba(34,197,94,.35)}
 .badge-status.cancelado{background:rgba(239,68,68,.12);color:#DC2626;border-color:rgba(239,68,68,.35)}
 .badge-status.realizado{background:#e5e7eb;color:#374151;border-color:#d1d5db}
-.badge-status.aguardando{background:rgba(59,130,246,.12);color:#2563EB;border-color:rgba(59,130,246,.35)}
+.badge-status.aguardando{background:rgba(107,114,128,.12);color:#374151;border-color:rgba(107,114,128,.35)}
+.badge-status.disputa-aberta{background:rgba(255,82,29,.12);color:#C2410C;border-color:rgba(255,82,29,.35)}
 .badge-status.suspenso{background:#e5e7eb;color:#374151;border-color:#d1d5db}
 .badge-status.encerrado{background:#e5e7eb;color:#374151;border-color:#d1d5db}
 .pagination{display:flex;gap:.35rem;justify-content:center;padding:1rem;background:var(--bg-card);
@@ -189,55 +190,25 @@ button.cancel-close{background:#dc2626;color:#fff}
 .items-warnings:empty{display:none}
 .warn-item{background:#fee2e2;border-left:4px solid #dc2626;color:#b91c1c;padding:.5rem .75rem;
   border-radius:6px;font-size:.82rem;font-weight:500}
-
-/* ===== TABELA DE ITENS — inputs sem caixa ===== */
 .items-wrap{overflow:visible !important}
 .items-table{table-layout:fixed;width:100%;border-collapse:collapse;background:transparent}
 .items-table thead th{background:var(--th-bg);color:var(--th-color);font-size:10px;text-transform:uppercase;
   letter-spacing:.3px;padding:10px 4px;text-align:center;white-space:nowrap;overflow:hidden;border:1px solid #1a1a1a}
 .items-table td{padding:6px 4px;font-size:11px;border:1px solid var(--border-color);vertical-align:middle;
   background:transparent;text-transform:none}
-
 .items-table input,
 .items-table textarea{
-  width:100%;
-  min-width:0;
-  padding:4px 2px;
-  font-size:11px;
-  border:none;
-  border-radius:0;
-  background:transparent !important;
-  box-shadow:none !important;
-  box-sizing:border-box;
-  font-family:inherit;
-  color:var(--text-primary);
-  text-transform:none;
-  outline:none;
-  appearance:none;
+  width:100%;min-width:0;padding:4px 2px;font-size:11px;border:none;border-radius:0;
+  background:transparent !important;box-shadow:none !important;box-sizing:border-box;
+  font-family:inherit;color:var(--text-primary);text-transform:none;outline:none;appearance:none;
 }
-.items-table input:hover,
-.items-table textarea:hover,
-.items-table input:focus,
-.items-table textarea:focus{
-  background:transparent !important;
-  box-shadow:none !important;
-  outline:none;
-  border:none;
+.items-table input:hover,.items-table textarea:hover,
+.items-table input:focus,.items-table textarea:focus{
+  background:transparent !important;box-shadow:none !important;outline:none;border:none;
 }
-.items-table textarea{
-  resize:none;
-  overflow:hidden;
-  line-height:1.35;
-  word-break:break-word;
-  white-space:pre-wrap;
-  min-height:20px;
-  field-sizing:content;
-}
-.items-table input[readonly],
-.items-table input.calculated{
-  color:#374151;
-  cursor:default;
-}
+.items-table textarea{resize:none;overflow:hidden;line-height:1.35;word-break:break-word;white-space:pre-wrap;
+  min-height:20px;field-sizing:content}
+.items-table input[readonly],.items-table input.calculated{color:#374151;cursor:default}
 .items-table input.num{text-align:right}
 .items-table input.itemno{text-align:center}
 .items-table .checkbox-wrapper{display:inline-flex;align-items:center;justify-content:center;margin:0 auto}
@@ -250,7 +221,6 @@ button.cancel-close{background:#dc2626;color:#fff}
   border-color:var(--success-color)}
 .items-table .styled-checkbox:checked + .checkbox-label-styled::after{content:'✓';color:white;font-size:1rem;
   font-weight:700}
-
 .col-check{width:5%;text-align:center}
 .col-item{width:4%}
 .col-desc{width:22%}
