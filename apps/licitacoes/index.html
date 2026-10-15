@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Licitações | I.R. Comércio</title>
+<title>Licitações</title>
 <link rel="icon" href="/apps/imagens/IR ICONE.png">
 <link rel="stylesheet" href="/licitacoes/styles.css">
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -112,47 +112,34 @@
           <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
-      <button type="button" class="sync-btn" id="addItemBtn" title="Adicionar Item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-      <button type="button" class="sync-btn" id="addRangeBtn" title="Adicionar Intervalo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
       <button type="button" class="sync-btn" id="pdfBtn" title="Gerar documento"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line></svg></button>
       <button type="button" class="sync-btn" id="cotacaoBtn" title="Cotação de Preço"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></button>
       <button type="button" class="sync-btn" id="syncItemsBtn" title="Sincronizar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
     </div>
   </div>
 
-  <div id="itemsWarnings" class="items-warnings"></div>
-
-  <div class="card table-card items-card">
-    <div class="items-wrap">
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th class="col-check">✓</th>
-            <th class="col-item">ITEM</th>
-            <th class="col-desc">DESCRIÇÃO</th>
-            <th class="col-qtd">QTD</th>
-            <th class="col-und">UND</th>
-            <th class="col-marca">MARCA</th>
-            <th class="col-modelo">MODELO</th>
-            <th class="col-num">ESTIM. UNT</th>
-            <th class="col-num">ESTIM. TOTAL</th>
-            <th class="col-num">CUSTO UNT</th>
-            <th class="col-num">CUSTO TOTAL</th>
-            <th class="col-pct">%</th>
-            <th class="col-num">VENDA UNT</th>
-            <th class="col-num">VENDA TOTAL</th>
-            <th class="col-actions"></th>
-          </tr>
-        </thead>
-        <tbody id="itemsBody"></tbody>
-      </table>
-    </div>
+  <div class="items-toolbar-top">
+    <button type="button" class="btn-toggle-table" data-add="main">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Tabela de Itens
+    </button>
+    <button type="button" class="btn-toggle-table" data-add="grupo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      Grupo de Itens
+    </button>
   </div>
 
-  <div class="totals-bar">
-    <div class="totals-item"><span>ESTIMADO</span><strong id="totalEstimado">R$ 0,00</strong></div>
-    <div class="totals-item"><span>CUSTO</span><strong id="totalCusto">R$ 0,00</strong></div>
-    <div class="totals-item"><span>VENDA</span><strong id="totalVenda">R$ 0,00</strong></div>
+  <div id="tablesContainer"></div>
+
+  <div class="items-toolbar-bottom">
+    <button type="button" class="btn-toggle-table" data-add="main">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Tabela de Itens
+    </button>
+    <button type="button" class="btn-toggle-table" data-add="grupo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      Grupo de Itens
+    </button>
   </div>
 </section>
 
@@ -265,13 +252,13 @@
 <div class="modal-overlay" id="disputaOverlay">
   <div class="modal-content">
     <div class="modal-header">
-      <h3 class="modal-title">Pregões em Disputa (hoje)</h3>
+      <h3 class="modal-title">Alerta de Disputa</h3>
       <button type="button" class="close-modal" data-close="disputaOverlay">✕</button>
     </div>
     <div class="card table-card">
       <table>
-        <thead><tr><th>Pregão</th><th>Vendedor</th><th>Órgão</th></tr></thead>
-        <tbody id="disputaBody"><tr><td colspan="3" class="empty">Carregando…</td></tr></tbody>
+        <thead><tr><th>Data</th><th>Hora</th><th>Pregão</th><th>Vendedor</th><th>Órgão</th></tr></thead>
+        <tbody id="disputaBody"><tr><td colspan="5" class="empty">Carregando…</td></tr></tbody>
       </table>
     </div>
     <div class="modal-actions"><button type="button" class="cancel-close" data-close="disputaOverlay">Fechar</button></div>
@@ -284,7 +271,7 @@
       <h3 class="modal-title">Adicionar Intervalo</h3>
       <button type="button" class="close-modal" data-close="rangeOverlay">✕</button>
     </div>
-    <p class="helper">Informe os itens ou intervalos. Ex.: <b>1-5, 12, 100-180</b></p>
+    <p class="helper">Informe os itens ou intervalos em ordem crescente. Ex.: <b>1-5, 12, 100-180</b></p>
     <div class="form-group"><input id="rangeInput" placeholder="Ex: 1-5, 12, 100-180"></div>
     <div class="modal-actions">
       <button type="button" class="save" id="confirmRange">Confirmar</button>
@@ -294,16 +281,18 @@
 </div>
 
 <div class="modal-overlay" id="docOverlay">
-  <div class="modal-content modal-small">
+  <div class="modal-content modal-doc">
     <div class="modal-header">
       <h3 class="modal-title">Gerar documento</h3>
       <button type="button" class="close-modal" data-close="docOverlay">✕</button>
     </div>
     <p class="helper">Escolha o documento:</p>
-    <div class="status-carousel">
+    <div class="status-carousel doc-carousel">
       <button type="button" class="status-card doc-card" data-doc="proposta-pdf">PROPOSTA PDF</button>
-      <button type="button" class="status-card doc-card" data-doc="proposta-docs">PROPOSTA DOCS</button>
       <button type="button" class="status-card doc-card" data-doc="exequibilidade-pdf">EXEQUIBILIDADE PDF</button>
+    </div>
+    <div class="status-carousel doc-carousel">
+      <button type="button" class="status-card doc-card" data-doc="proposta-docs">PROPOSTA DOCS</button>
       <button type="button" class="status-card doc-card" data-doc="exequibilidade-docs">EXEQUIBILIDADE DOCS</button>
     </div>
   </div>
