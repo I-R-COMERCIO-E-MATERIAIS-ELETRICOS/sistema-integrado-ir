@@ -1068,6 +1068,17 @@ async function confirmarEmissaoComNF(id) {
     else await executarEmissaoSemEstoque(id, nf);
 }
 
+// ─── Ajuste de estoque com registro de movimentação ──────────────────────────
+// Envia numero_pedido e atualizado_por (responsável do pedido) para o backend
+// do módulo Estoque registrar a movimentação e vincular ao pedido correto.
+function buildEstoqueMovPayload(pedido, novaQuantidade) {
+    return JSON.stringify({
+        quantidade: novaQuantidade,
+        numero_pedido: pedido.codigo,
+        atualizado_por: pedido.responsavel || pedido.vendedor || null
+    });
+}
+
 async function executarEmissao(id, numero_nf = null) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) return;
@@ -1083,7 +1094,7 @@ async function executarEmissao(id, numero_nf = null) {
             const resp = await fetch(`${API_URL}/estoque/${itemEstoque.codigo}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-                body: JSON.stringify({ quantidade: novaQuantidade })
+                body: buildEstoqueMovPayload(pedido, novaQuantidade)
             });
             if (!resp.ok) throw new Error('Erro ao atualizar estoque');
         }
@@ -1146,7 +1157,7 @@ async function executarReverterEmissao(id) {
             const resp = await fetch(`${API_URL}/estoque/${itemEstoque.codigo}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-                body: JSON.stringify({ quantidade: novaQuantidade })
+                body: buildEstoqueMovPayload(pedido, novaQuantidade)
             });
             if (!resp.ok) throw new Error('Erro ao atualizar estoque');
         }
