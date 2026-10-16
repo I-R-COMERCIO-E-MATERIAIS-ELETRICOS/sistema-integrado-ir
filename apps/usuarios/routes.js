@@ -23,7 +23,7 @@ module.exports = function (supabase, supabaseAdmin) {
     const VALID_MODULES = [
         'licitacoes',
         'precos', 'compra', 'transportadoras', 'cotacoes',
-        'faturamento', 'frete', 'estoque', 'receber', 'pagar', 'lucro'
+        'faturamento', 'estoque', 'frete', 'receber', 'pagar', 'lucro'
     ];
 
     async function requireAdmin(req, res, next) {
@@ -45,6 +45,7 @@ module.exports = function (supabase, supabaseAdmin) {
         next();
     }
 
+    // Ordem dos cards na aba "Módulos" — mesma ordem exibida no portal.
     router.get('/meta/modules', requireAdmin, (req, res) => {
         res.json([
             { id: 'licitacoes',      name: 'Licitações' },
@@ -53,6 +54,7 @@ module.exports = function (supabase, supabaseAdmin) {
             { id: 'transportadoras', name: 'Transportadoras' },
             { id: 'cotacoes',        name: 'Cotações de Frete' },
             { id: 'faturamento',     name: 'Pedidos de Faturamento' },
+            { id: 'estoque',         name: 'Estoque' },
             { id: 'frete',           name: 'Controle de Frete' },
             { id: 'receber',         name: 'Contas a Receber' },
             { id: 'pagar',           name: 'Contas a Pagar' },
