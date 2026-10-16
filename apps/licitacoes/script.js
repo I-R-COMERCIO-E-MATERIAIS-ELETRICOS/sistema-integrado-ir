@@ -1438,7 +1438,6 @@ function triggerDownload(blob, filename){
   let clicked = false;
   try { a.click(); clicked = true; } catch (e) { clicked = false; }
   if (!clicked) {
-    // Fallback final: navegação direta para o blob
     try { window.location.href = url; } catch (e) {}
   }
   setTimeout(()=>{
@@ -1687,14 +1686,15 @@ async function runPdf(){
   const sign = assets && assets.sign;
   const iw = 55;
   const ih = sign ? (sign.h / sign.w) * iw : 20;
-  const blockH = 12 + 22 + ih + 14 + 5 + 4 + 4;
+  const blockH = 12 + 14 + ih + 14 + 5 + 4 + 4;
   if(y + blockH > limitY){ doc.addPage(); y = 20; }
 
   const dt = new Date();
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
   doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
 
-  y += 22;
+  // AJUSTE: aproxima a assinatura da data (era 22, agora 14)
+  y += 14;
   if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
   y += ih + 14;
 
@@ -1755,6 +1755,7 @@ async function gerarDocWord(){
          </td>`
       : '';
 
+    // AJUSTE: .sign-space reduzido de 70pt para 58pt → aproxima a data da assinatura
     const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word" lang="pt-BR">
@@ -1778,7 +1779,7 @@ async function gerarDocWord(){
   .total{text-align:right;font-weight:bold;margin:8pt 0}
   .decl{text-align:center;margin:10pt 0;line-height:1.5}
   .date{text-align:center;margin-top:26pt}
-  p.sign-space{height:70pt;line-height:70pt;mso-line-height-rule:exactly;margin:0;font-size:10pt}
+  p.sign-space{height:58pt;line-height:58pt;mso-line-height-rule:exactly;margin:0;font-size:10pt}
   .sign-name{text-align:center;font-weight:bold;margin:0}
   .sign-sub{text-align:center;font-size:9pt;margin:0}
   .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
@@ -1827,7 +1828,6 @@ async function gerarDocWord(){
 </div>
 </body></html>`;
 
-    // MIME mais compatível + BOM para o Word detectar UTF-8
     const blob = new Blob(['\ufeff', html], { type:'application/vnd.ms-word;charset=utf-8' });
     const filename = `${safeFilename(fileBase(current))}.doc`;
     triggerDownload(blob, filename);
