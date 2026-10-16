@@ -44,7 +44,7 @@ module.exports = function (supabase, supabaseAdmin) {
         { id: 'pagar',          name: 'Contas a Pagar',           url: '/pagar',          available: true },
         { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
         { id: 'licitacoes',     name: 'Licitações',               url: '/licitacoes',     available: true },
-        { id: 'estoque',        name: 'Estoque',                  url: '/estoque',        available: false },
+        { id: 'estoque',        name: 'Estoque',                  url: '/estoque',        available: true },
     ];
 
     async function requireAuth(req, res, next) {
