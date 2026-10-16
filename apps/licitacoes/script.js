@@ -78,14 +78,41 @@ function effectiveStatus(r){
   return 'aguardando';
 }
 
-function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-  document.body.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F8F9FA;color:#1A1A1A;text-align:center;padding:2rem;font-family:'Inter','Segoe UI',sans-serif;">
-      <h1 style="font-size:2.2rem;margin-bottom:1rem;">${mensagem}</h1>
-      <p style="color:#6B7280;margin-bottom:2rem;">Somente usuários autenticados podem acessar esta área.</p>
-      <a href="${PORTAL_URL}" style="display:inline-block;background:#3B82F6;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Ir para o Portal</a>
-    </div>
-  `;
+/* ================================================================
+   LOGOUT GLOBAL — quando a sessão expira, NÃO renderiza tela
+   dentro do iframe. Avisa o parent (via IR.denied ou postMessage)
+   e redireciona a janela TOP para o portal.
+   ================================================================ */
+function triggerGlobalLogout(message) {
+  const msg = message || 'Sua sessão expirou';
+
+  // 1) Se a página-pai injetou a API IR, usa-a
+  try {
+    if (window.IR && typeof IR.denied === 'function') {
+      IR.denied(msg);
+      return;
+    }
+  } catch (e) { /* segue para fallback */ }
+
+  // 2) Se estiver dentro de um iframe, comunica o parent
+  let inIframe = false;
+  try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+
+  if (inIframe) {
+    try {
+      window.top.postMessage({ type: 'IR_LOGOUT', message: msg, source: 'licitacoes' }, '*');
+    } catch (e) { /* cross-origin silencioso */ }
+
+    // Mesma origem: força redirect na janela do topo
+    try {
+      window.top.location.href = PORTAL_URL + '/?logout=1&reason=session';
+      return;
+    } catch (e) { /* cross-origin: aguarda o parent tratar a msg */ }
+    return;
+  }
+
+  // 3) Não estamos em iframe — redireciona direto
+  window.location.href = PORTAL_URL + '/?logout=1&reason=session';
 }
 
 async function fetchSessionUser() {
@@ -125,8 +152,7 @@ function verificarAutenticacao() {
   }
 
   if (!sessionToken) {
-    if (window.IR && typeof IR.denied === 'function') IR.denied('Sessão expirada');
-    else mostrarTelaAcessoNegado('SESSÃO EXPIRADA');
+    triggerGlobalLogout('Sessão expirada');
     return;
   }
 
@@ -150,8 +176,7 @@ const api = async (url, opts = {}) => {
 
   if (!DEVELOPMENT_MODE && (r.status === 401 || r.status === 403)) {
     sessionStorage.removeItem(MODULE_SESSION_KEY);
-    if (window.IR && typeof IR.denied === 'function') IR.denied('Sua sessão expirou');
-    else mostrarTelaAcessoNegado('SESSÃO EXPIRADA');
+    triggerGlobalLogout('Sua sessão expirou');
     throw new Error('Sessão expirada');
   }
 
