@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Licitações | I.R. Comércio</title>
+<title>Licitações</title>
 <link rel="icon" href="/apps/imagens/IR ICONE.png">
 <link rel="stylesheet" href="/licitacoes/styles.css">
-<script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -145,7 +145,7 @@
           <div class="form-group"><label>Número do Pregão</label><input id="numeroPregao" required></div>
           <div class="form-group"><label>Status</label>
             <select id="statusManual">
-              <option value="">AUTOMÁTICO</option>
+              <option value="">-</option>
               <option value="suspenso">SUSPENSO</option>
               <option value="encerrado">ENCERRADO</option>
               <option value="cancelado">CANCELADO</option>
@@ -266,18 +266,10 @@
     </div>
     <p class="helper">Escolha o documento:</p>
     <div class="doc-choices">
-      <button type="button" class="doc-choice" data-doc="proposta-pdf">
-        <span class="doc-dot pdf"></span><span class="doc-label">PROPOSTA PDF</span>
-      </button>
-      <button type="button" class="doc-choice" data-doc="proposta-docs">
-        <span class="doc-dot docs"></span><span class="doc-label">PROPOSTA DOCS</span>
-      </button>
-      <button type="button" class="doc-choice" data-doc="exequibilidade-pdf">
-        <span class="doc-dot pdf"></span><span class="doc-label">EXEQUIBILIDADE PDF</span>
-      </button>
-      <button type="button" class="doc-choice" data-doc="exequibilidade-docs">
-        <span class="doc-dot docs"></span><span class="doc-label">EXEQUIBILIDADE DOCS</span>
-      </button>
+      <button type="button" class="doc-choice" data-doc="proposta-pdf">PROPOSTA PDF</button>
+      <button type="button" class="doc-choice" data-doc="proposta-docs">PROPOSTA DOCS</button>
+      <button type="button" class="doc-choice" data-doc="exequibilidade-pdf">EXEQUIBILIDADE PDF</button>
+      <button type="button" class="doc-choice" data-doc="exequibilidade-docs">EXEQUIBILIDADE DOCS</button>
     </div>
     <div class="modal-actions" style="justify-content:center;">
       <button type="button" class="save" id="confirmDoc">Confirmar</button>
