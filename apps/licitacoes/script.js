@@ -325,11 +325,12 @@ function renderTable(){
         <td>${esc(r.horario_pregao||'—')}</td>
         <td style="text-align:center;">${badge}</td>
         <td class="actions-cell">
-          <div class="actions">
-            <button type="button" class="action-btn edit" data-edit="${r.id}">Editar</button>
-            <button type="button" class="action-btn itens" data-itens="${r.id}">Itens</button>
-            <button type="button" class="action-btn delete" data-del="${r.id}">Excluir</button>
-          </div>
+<div class="actions">
+  <button type="button" class="action-btn edit" data-edit="${r.id}">Editar</button>
+  <button type="button" class="action-btn itens" data-itens="${r.id}">Itens</button>
+  <button type="button" class="action-btn arquivos" data-arquivos="${r.id}">Arquivos</button>
+  <button type="button" class="action-btn delete" data-del="${r.id}">Excluir</button>
+</div>
         </td>
       </tr>`;
   }).join('');
