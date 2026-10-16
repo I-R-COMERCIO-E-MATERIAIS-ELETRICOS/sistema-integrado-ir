@@ -56,6 +56,15 @@
             </select>
             <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
+          <div class="month-navigation-inline">
+            <button type="button" class="month-nav-arrow" id="monthPrev" title="Mês anterior">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="month-display-inline"><span id="currentMonth">Carregando...</span></div>
+            <button type="button" class="month-nav-arrow" id="monthNext" title="Próximo mês">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
         </div>
         <button type="button" class="sync-btn" id="syncBtn" title="Sincronizar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
       </div>
@@ -138,6 +147,7 @@
       <input type="hidden" id="recordId">
       <div class="tab-content active" id="tab-info">
         <div class="form-grid">
+          <div class="form-group"><label>Data Registro *</label><input id="dataRegistro" type="date" required></div>
           <div class="form-group"><label>Vendedor</label><select id="vendedor" required></select></div>
           <div class="form-group"><label>Data do Pregão</label><input id="dataPregao" type="date"></div>
           <div class="form-group"><label>Horário do Pregão</label><input id="horarioPregao" type="time"></div>
