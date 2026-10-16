@@ -1,7 +1,7 @@
 /* ================================================================
  * shared/ui-refined.css
  * Padrão visual global — botões, modais, toasts, overlay de acesso,
- * responsividade desktop e bloqueio mobile.
+ * responsividade desktop e mobile.
  * ================================================================ */
 
 /* ─── VARIÁVEIS GLOBAIS ────────────────────────────────────────── */
@@ -247,7 +247,6 @@ button.close-modal:hover,
 .tabs-nav-toolbar .tab-next { background: var(--ir-gray); color: #fff; }
 
 /* ─── RESPONSIVIDADE DESKTOP ───────────────────────────────────── */
-/* Nada estoura em telas menores; mobile é bloqueado separadamente */
 html, body {
     width: 100%;
     min-width: 0;
@@ -267,28 +266,80 @@ table { max-width: 100%; }
 }
 img { max-width: 100%; height: auto; }
 
-/* ─── BLOQUEIO MOBILE ──────────────────────────────────────────── */
-#unsupportedDevice {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    align-items: center;
-    justify-content: center;
-    padding: 28px;
-    background: #fff;
-    color: #111827;
-    text-align: center;
-    font: 600 18px/1.5 system-ui, -apple-system, sans-serif;
-}
-body.mobile-blocked > *:not(#unsupportedDevice) { display: none !important; }
-body.mobile-blocked #unsupportedDevice { display: flex !important; }
+/* ─── COMPATIBILIDADE: esconde o aviso legado de dispositivo ───── */
+/* Alguns módulos ainda têm esse <div> no HTML; esta regra mantém
+   ele invisível agora que o bloqueio mobile foi removido. */
+#unsupportedDevice { display: none !important; }
 
 /* ─── SPLASH: nunca exibir nos módulos ─────────────────────────── */
-/* O carregamento é feito pelo Portal antes de apresentar o iframe */
 .splash-screen,
 #splashScreen { display: none !important; }
 
 /* Botão azul padrão */
 .ir-btn-blue { background: #3B82F6 !important; color: #fff !important; min-width: 120px; padding: 12px 24px; border-radius: 8px; border: 0; font-weight: 600; cursor: pointer; font-size: 0.95rem; }
 .ir-btn-blue:hover { background: #2563EB !important; }
+
+/* ─── RESPONSIVIDADE MOBILE ────────────────────────────────────── */
+@media (max-width: 768px) {
+    html, body { overflow-x: hidden; }
+
+    /* Modais: encostam nas bordas e ficam mais compactos */
+    .ir-modal-overlay,
+    .modal-overlay {
+        padding: 8px;
+        align-items: flex-start;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    .ir-modal-box,
+    .modal-content {
+        max-width: 100%;
+        width: 100%;
+        border-radius: 14px;
+        padding: 1.25rem;
+        max-height: calc(100vh - 20px);
+    }
+    .ir-modal-confirm {
+        max-width: 100%;
+        padding: 2rem 1.25rem 1.25rem;
+    }
+    .ir-confirm-msg { font-size: 1rem; margin-bottom: 1.25rem; }
+    .ir-confirm-actions { gap: .5rem; }
+    .ir-btn-green,
+    .ir-btn-red {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 16px;
+    }
+
+    /* Botão de fechar (X) maior para toque */
+    .close-modal,
+    .ir-close {
+        width: 40px;
+        height: 40px;
+        font-size: 1.6rem;
+    }
+
+    /* Evita zoom automático ao focar um input no iOS */
+    input, select, textarea { font-size: 16px; }
+
+    /* Toast full-width */
+    .ir-toast {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        min-width: 0;
+        max-width: none;
+    }
+
+    /* Botões da barra de ações dos modais empilham */
+    .modal-actions { flex-direction: column-reverse; }
+    .modal-actions button {
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+    }
+
+    /* Navegação entre abas: permite scroll horizontal */
+    .tabs-nav-toolbar { flex-wrap: wrap; }
+}
