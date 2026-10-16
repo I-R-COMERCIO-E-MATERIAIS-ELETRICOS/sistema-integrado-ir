@@ -194,7 +194,7 @@ button:hover:not(:disabled){opacity:.9;transform:translateY(-1px)}
 button.save{background:var(--btn-save);color:#fff}
 button.cancel-close{background:#dc2626;color:#fff}
 
-/* Modal de documentos — botões mais largos para caber "PROPOSTA PDF / PROPOSTA DOCS" */
+/* Modal de documentos — botões mais largos */
 .doc-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:.5rem}
 .doc-choice{display:flex;align-items:center;justify-content:center;
   padding:16px 18px;border:1px solid var(--border-color);border-radius:8px;background:#fff;
@@ -217,7 +217,6 @@ button.cancel-close{background:#dc2626;color:#fff}
 .items-page .search-bar-wrapper{margin-bottom:0}
 .items-page .search-bar{border-bottom:1px solid var(--border-color);border-radius:12px}
 
-/* Botões "Tabela de Itens" / "Grupo/Lote" */
 .items-toolbar-center{
   display:flex;justify-content:center;gap:.6rem;margin:.2rem auto .1rem;flex-wrap:wrap;
 }
@@ -349,26 +348,15 @@ button.cancel-close{background:#dc2626;color:#fff}
 .toast.warn{background:#F59E0B;border:1px solid #D97706;color:#111}
 @keyframes slideInBottom{from{opacity:0;transform:translateY(100px)}to{opacity:1;transform:translateY(0)}}
 
-/* Painel de avisos persistentes (valores acima do estimado) */
+/* Painel de avisos persistentes */
 .warning-panel{
-  position:fixed;
-  bottom:24px;
-  left:24px;
-  z-index:9999998;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  max-width:460px;
-  pointer-events:none;
+  position:fixed;bottom:24px;left:24px;z-index:9999998;
+  display:flex;flex-direction:column;gap:8px;
+  max-width:460px;pointer-events:none;
 }
 .warning-panel .warn-msg{
-  background:#EF4444;
-  color:#fff;
-  padding:12px 18px;
-  border-radius:8px;
-  font-size:.88rem;
-  font-weight:600;
-  line-height:1.4;
+  background:#EF4444;color:#fff;padding:12px 18px;border-radius:8px;
+  font-size:.88rem;font-weight:600;line-height:1.4;
   box-shadow:0 4px 12px rgba(0,0,0,.25);
   animation:slideInLeft .3s ease;
 }
