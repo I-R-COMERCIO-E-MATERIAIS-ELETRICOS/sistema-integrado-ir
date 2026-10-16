@@ -62,24 +62,49 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Stats — total/ganhos/realizados do mês selecionado (via data_registro);
+  // Alerta de Disputa (disputa/pulse) SEMPRE universal (todos os registros).
   router.get('/licitacoes/stats', async (req, res) => {
     try {
-      const { data, error } = await supabase.from(table).select('id,data_pregao,horario_pregao,ganho,status');
+      const { data, error } = await supabase
+        .from(table)
+        .select('id,data_pregao,horario_pregao,ganho,status,data_registro');
       if (error) throw error;
+
+      const mesParam = req.query.mes;
+      const anoParam = req.query.ano;
+      const hasMonth = mesParam !== undefined && anoParam !== undefined && mesParam !== '' && anoParam !== '';
+
       const today = todayStr();
       const nowMs = Date.now();
       const all = data || [];
-      let total = all.length, ganhos = 0, disputa = 0, realizados = 0, pulse = false;
-      for (const r of all) {
+
+      let scoped = all;
+      if (hasMonth) {
+        const m = String(parseInt(mesParam)).padStart(2, '0');
+        const y = String(parseInt(anoParam));
+        const prefix = `${y}-${m}`;
+        scoped = all.filter(r => String(r.data_registro || '').startsWith(prefix));
+      }
+
+      let total = scoped.length, ganhos = 0, realizados = 0;
+      for (const r of scoped) {
         if (r.ganho) { ganhos++; continue; }
         const s = String(r.status || '').toLowerCase();
         if (['suspenso','encerrado','cancelado'].includes(s)) continue;
         const d = r.data_pregao || '';
         if (!d) continue;
-        if (d < today) { realizados++; continue; }
-        if (d === today) {
+        if (d < today) realizados++;
+      }
+
+      // Disputa: sempre universal (hoje, independente do mês navegado)
+      let disputa = 0, pulse = false;
+      for (const r of all) {
+        if (r.ganho) continue;
+        const s = String(r.status || '').toLowerCase();
+        if (['suspenso','encerrado','cancelado'].includes(s)) continue;
+        if ((r.data_pregao || '') === today) {
           disputa++;
-          // Só pulsa se existir registro com DISPUTA ABERTA (data de hoje + horário já alcançado)
           if (r.horario_pregao) {
             const [h, m] = r.horario_pregao.split(':').map(Number);
             const dt = new Date(); dt.setHours(h || 0, m || 0, 0, 0);
@@ -87,6 +112,7 @@ module.exports = function (supabase) {
           }
         }
       }
+
       res.json({ total, ganhos, disputa, realizados, pulse });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -112,9 +138,22 @@ module.exports = function (supabase) {
       const search = String(req.query.search || '').trim();
       const vendedor = String(req.query.vendedor || '').trim().toUpperCase();
       const status = String(req.query.status || '').trim();
+      const mesParam = req.query.mes;
+      const anoParam = req.query.ano;
+      const hasMonth = mesParam !== undefined && anoParam !== undefined && mesParam !== '' && anoParam !== '';
       const today = todayStr();
 
       let query = supabase.from(table).select('*', { count: 'exact' });
+
+      // Escopo por mês (data_registro)
+      if (hasMonth) {
+        const m = parseInt(mesParam);
+        const y = parseInt(anoParam);
+        const start = `${y}-${String(m + 1).padStart(2,'0')}-01`;
+        const last = new Date(y, m + 1, 0).getDate();
+        const end = `${y}-${String(m + 1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+        query = query.gte('data_registro', start).lte('data_registro', end);
+      }
 
       if (search) {
         const s = search.replace(/[%,()*.:\\'"]/g, '').trim();
@@ -178,6 +217,7 @@ module.exports = function (supabase) {
       email: clean(b.email),
       data_pregao: clean(b.dataPregao),
       horario_pregao: clean(b.horarioPregao),
+      data_registro: clean(b.dataRegistro) || todayStr(),
       modalidade: clean(b.modalidade) || 'ABERTO',
       requisitos: b.requisitos || {},
       banco_pagamento: clean(b.bancoPagamento) || 'BANCO DO BRASIL',
