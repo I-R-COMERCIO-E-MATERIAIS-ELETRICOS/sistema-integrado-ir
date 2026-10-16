@@ -1,5 +1,5 @@
 // ============================================================
-// Portal · I.R. Comércio (desktop)
+// Portal · I.R. Comércio
 // ============================================================
 
 const MODULE_ICONS = {
@@ -23,6 +23,9 @@ let modules = [];
 let activeModuleId = null;
 const loaderTimeouts = {};
 let greetingTimeout = null;
+
+const MOBILE_BREAKPOINT = 768;
+const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
 
 function resolveToken() {
     const p = new URLSearchParams(window.location.search);
@@ -48,7 +51,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { window.location.href = '/'; return; }
 
-    // Sinaliza ao iframe qual é o token atual (módulos podem aguardar via postMessage)
     try { IR.setToken(accessToken); } catch (_) {}
 
     try {
@@ -70,14 +72,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderSidebar();
         escreverSaudacao();
 
-        // Dashboard entra com fade mais suave e levemente mais tarde,
-        // deixando a saudação respirar.
         setTimeout(() => {
             const dash = document.getElementById('dashboard');
             if (dash) requestAnimationFrame(() => dash.classList.add('ready'));
         }, 900);
 
-        // Abre o primeiro módulo permitido (oculto atrás da saudação)
         const primeiro = modules.find(m => m.allowed);
         if (primeiro) {
             openModule(primeiro);
@@ -92,6 +91,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR MOBILE — gaveta controlada por toggle + backdrop
+   ═══════════════════════════════════════════════════════════════ */
+window.toggleSidebar = function () {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('sidebarBackdrop');
+    if (!sb) return;
+    const isOpen = sb.classList.toggle('mobile-open');
+    if (bd) bd.classList.toggle('show', isOpen);
+};
+
+window.closeSidebar = function () {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('sidebarBackdrop');
+    if (sb) sb.classList.remove('mobile-open');
+    if (bd) bd.classList.remove('show');
+};
+
+// Fecha a gaveta com a tecla Esc (útil em tablets com teclado)
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSidebar();
+});
+
+// Ao voltar para desktop, limpa o estado da gaveta
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (!isMobile()) closeSidebar();
+    }, 150);
+});
+
+/* ─── SAUDAÇÃO ─────────────────────────────────────────────── */
 function escreverSaudacao() {
     const name = userInfo.name || userInfo.username || 'Usuário';
     const firstName = name.split(' ')[0];
@@ -103,7 +135,6 @@ function esconderSaudacao() {
     const el = document.getElementById('greetingOverlay');
     if (el && !el.classList.contains('hide')) {
         el.classList.add('hide');
-        // Sai suave e levemente mais demorado
         setTimeout(() => el.remove(), 1200);
     }
     clearTimeout(greetingTimeout);
@@ -205,6 +236,9 @@ function openModule(mod) {
 
     document.querySelectorAll('.iframe-container').forEach(c => c.classList.remove('active'));
     requestAnimationFrame(() => container.classList.add('active'));
+
+    // No mobile, fecha a gaveta após selecionar um módulo
+    if (isMobile()) closeSidebar();
 }
 
 function esconderLoader(moduleId) {
@@ -242,7 +276,10 @@ window.addEventListener('message', (event) => {
     }
 });
 
-window.showLogout = () => document.getElementById('logoutModal').classList.add('show');
+window.showLogout = () => {
+    closeSidebar();
+    document.getElementById('logoutModal').classList.add('show');
+};
 window.closeLogout = () => document.getElementById('logoutModal').classList.remove('show');
 window.confirmLogout = () => {
     sessionStorage.removeItem('irToken');
