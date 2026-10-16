@@ -22,6 +22,7 @@ const STATUS_LABEL = {
   cancelado:'CANCELADO'
 };
 const MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+const MESES_CURTO = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 let sessionToken = null;
 let currentUserName = null;
@@ -40,6 +41,7 @@ let pdfBusy = false;
 let selectedDoc = null;
 let assetsPromise = null;
 let lastWarnSig = '';
+let currentMonth = new Date();
 
 const $ = id => document.getElementById(id);
 
@@ -245,9 +247,31 @@ document.querySelectorAll('.stat-card[data-filter]').forEach(c=>{
   });
 });
 
+/* --------- NAVEGAÇÃO ENTRE MESES --------- */
+function updateMonthDisplay(){
+  const el = $('currentMonth');
+  if(el) el.textContent = `${MESES_CURTO[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+}
+function changeMonth(direction){
+  currentMonth.setMonth(currentMonth.getMonth() + direction);
+  page = 1;
+  records = [];
+  updateMonthDisplay();
+  loadList();
+  loadStats();
+}
+$('monthPrev').addEventListener('click', ()=>changeMonth(-1));
+$('monthNext').addEventListener('click', ()=>changeMonth(1));
+
+function monthParams(){
+  return { mes: String(currentMonth.getMonth()), ano: String(currentMonth.getFullYear()) };
+}
+
 async function loadStats(){
   try{
-    stats = await api('/api/licitacoes/stats');
+    const p = monthParams();
+    const qs = new URLSearchParams(p).toString();
+    stats = await api('/api/licitacoes/stats?' + qs);
     $('dashTotal').textContent = stats.total ?? 0;
     $('dashDisputa').textContent = stats.disputa ?? 0;
     $('dashGanhos').textContent = stats.ganhos ?? 0;
@@ -277,6 +301,9 @@ async function loadList(){
   try{
     const params = new URLSearchParams();
     params.set('page', String(page));
+    const { mes, ano } = monthParams();
+    params.set('mes', mes);
+    params.set('ano', ano);
     const s = $('search').value.trim(); if(s) params.set('search', s);
     const v = $('filterVendedor').value.trim(); if(v) params.set('vendedor', v);
     const st = $('filterStatus').value.trim(); if(st) params.set('status', st);
@@ -303,7 +330,7 @@ async function syncNow(){
 function renderTable(){
   const tbody = $('records');
   if(!records.length){
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma licitação cadastrada.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma licitação cadastrada neste mês.</td></tr>';
     return;
   }
   tbody.innerHTML = records.map(r=>{
@@ -438,6 +465,7 @@ function newRecord(){
   $('statusManual').value = '';
   $('atualizadoPor').value = '';
   $('ultimaAtualizacao').value = '';
+  $('dataRegistro').value = todayStr();
   $('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.remove('selected'));
   open('formOverlay');
 }
@@ -450,6 +478,7 @@ function editRecord(id){
   $('formTitle').textContent = 'Editar Licitação';
   $('btnSubmitForm').textContent = 'Atualizar';
   $('vendedor').value = r.vendedor_id || '';
+  $('dataRegistro').value = r.data_registro || '';
   $('dataPregao').value = r.data_pregao || '';
   $('horarioPregao').value = r.horario_pregao || '';
   $('modalidade').value = r.modalidade || 'ABERTO';
@@ -481,6 +510,7 @@ $('recordForm').addEventListener('submit', async e => {
   const body = {
     vendedorId: user?.id || null,
     vendedor: user?.name || '',
+    dataRegistro: $('dataRegistro').value || todayStr(),
     dataPregao: $('dataPregao').value || '',
     horarioPregao: $('horarioPregao').value || '',
     modalidade: $('modalidade').value,
@@ -515,8 +545,7 @@ $('recordForm').addEventListener('submit', async e => {
   }catch(err){ toastError(err.message); }
 });
 
-/* ---------- Exclusão (pregão e tabela/grupo usam o mesmo modal de confirmação) ---------- */
-
+/* ---------- Exclusão ---------- */
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -525,7 +554,6 @@ function confirmDeleteFlow(id){
   $('deleteMsg').textContent = `Deseja excluir o pregão ${up(r.numero_pregao)}?`;
   open('deleteOverlay');
 }
-
 function confirmDeleteTable(tIdx){
   const t = tables[tIdx];
   if(!t) return;
@@ -537,7 +565,6 @@ function confirmDeleteTable(tIdx){
   $('deleteMsg').textContent = `Deseja excluir ${nome}${extra}?`;
   open('deleteOverlay');
 }
-
 $('confirmDelete').addEventListener('click', async ()=>{
   if(delTableIdx !== null){
     const tI = delTableIdx;
@@ -571,6 +598,7 @@ function viewRecord(id){
   $('vinfo').innerHTML = `
     <div>
       <p><b>Vendedor:</b> ${esc(up(r.vendedor)||'—')}</p>
+      <p><b>Data de Registro:</b> ${esc(fmtDate(r.data_registro))}</p>
       <p><b>Data do Pregão:</b> ${esc(fmtDate(r.data_pregao))}</p>
       <p><b>Horário:</b> ${esc(r.horario_pregao||'—')}</p>
       <p><b>Modalidade:</b> ${esc(up(r.modalidade)||'—')}</p>
@@ -1069,6 +1097,7 @@ async function persistItems(){
       vendedorId: current.vendedor_id, vendedor: current.vendedor,
       numeroPregao: current.numero_pregao, uasg: current.uasg, nomeOrgao: current.nome_orgao,
       cidade: current.cidade, uf: current.uf, telefone: current.telefone, email: current.email,
+      dataRegistro: current.data_registro,
       dataPregao: current.data_pregao, horarioPregao: current.horario_pregao,
       modalidade: current.modalidade,
       bancoPagamento: current.banco_pagamento, requisitos: current.requisitos || {},
@@ -1760,6 +1789,7 @@ async function gerarDocWord(){
 async function startApp(){
   if(booted) return;
   booted = true;
+  updateMonthDisplay();
   await loadOpcoes();
   await Promise.all([loadList(), loadStats()]);
   setInterval(()=>{ Promise.all([loadList(), loadStats()]); }, 30000);
