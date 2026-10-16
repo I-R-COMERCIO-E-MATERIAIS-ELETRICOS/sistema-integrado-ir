@@ -342,3 +342,18 @@ button.cancel-close{background:#dc2626;color:#fff}
   .actions-cell{min-width:auto}
   .actions{flex-wrap:wrap}
 }
+
+/* Botão "+" para escolher pasta */
+.pasta-row{display:flex;gap:8px;align-items:stretch;}
+.pasta-row input{flex:1;}
+.btn-plus-folder{
+  background:var(--btn-register);color:#fff;border:none;
+  width:44px;min-width:44px;border-radius:8px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .2s ease;padding:0;
+}
+.btn-plus-folder:hover{background:#2563EB;transform:translateY(-1px);}
+.btn-plus-folder:active{transform:translateY(0);}
+
+/* Botão "Arquivos" na tabela de registros */
+.action-btn.arquivos{background:#0EA5E9;}
