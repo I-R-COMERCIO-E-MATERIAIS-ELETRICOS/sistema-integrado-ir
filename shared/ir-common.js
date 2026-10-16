@@ -325,14 +325,4 @@
 
     // Esconde splash por padrão em todos os módulos
     IR.suppressSplash();
-
-    // Dispositivos móveis não são compatíveis: tela cheia com mensagem centralizada
-    (function () {
-        const ua = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
-        const touchPequeno = window.screen && Math.min(screen.width, screen.height) < 600 && (navigator.maxTouchPoints > 0);
-        if (ua || touchPequeno) {
-            const aplicar = () => document.body && document.body.classList.add('mobile-blocked');
-            if (document.body) aplicar(); else document.addEventListener('DOMContentLoaded', aplicar);
-        }
-    })();
 })(window);
