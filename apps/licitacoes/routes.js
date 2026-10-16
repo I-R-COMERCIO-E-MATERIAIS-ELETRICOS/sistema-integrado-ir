@@ -62,8 +62,8 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Stats — total/ganhos/realizados do mês selecionado (via data_registro);
-  // Alerta de Disputa (disputa/pulse) SEMPRE universal (todos os registros).
+  // Stats — total/ganhos/realizados do mês selecionado (data_registro).
+  // Alerta de Disputa é UNIVERSAL (todos os registros).
   router.get('/licitacoes/stats', async (req, res) => {
     try {
       const { data, error } = await supabase
@@ -81,7 +81,7 @@ module.exports = function (supabase) {
 
       let scoped = all;
       if (hasMonth) {
-        const m = String(parseInt(mesParam)).padStart(2, '0');
+        const m = String(parseInt(mesParam) + 1).padStart(2, '0');
         const y = String(parseInt(anoParam));
         const prefix = `${y}-${m}`;
         scoped = all.filter(r => String(r.data_registro || '').startsWith(prefix));
@@ -97,7 +97,6 @@ module.exports = function (supabase) {
         if (d < today) realizados++;
       }
 
-      // Disputa: sempre universal (hoje, independente do mês navegado)
       let disputa = 0, pulse = false;
       for (const r of all) {
         if (r.ganho) continue;
@@ -145,7 +144,6 @@ module.exports = function (supabase) {
 
       let query = supabase.from(table).select('*', { count: 'exact' });
 
-      // Escopo por mês (data_registro)
       if (hasMonth) {
         const m = parseInt(mesParam);
         const y = parseInt(anoParam);
