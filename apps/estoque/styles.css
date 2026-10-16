@@ -99,6 +99,9 @@ h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; dis
 .sync-btn.spinning { animation: spin 0.6s linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* Botão de documento não gira */
+.sync-btn.doc-btn:hover { transform: none !important; }
+
 /* TABLE */
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 thead { background: var(--th-bg); }
@@ -107,16 +110,21 @@ th {
     color: var(--th-color); font-size: 0.8rem; text-transform: uppercase;
     letter-spacing: 0.5px; border-bottom: 1px solid var(--th-border);
 }
-td { padding: 14px 16px; border-bottom: 1px solid rgba(128,128,128,0.1); font-size: 0.9rem; color: var(--text-primary); }
+td { padding: 14px 16px; border-bottom: 1px solid rgba(128,128,128,0.1); font-size: 0.9rem; color: var(--text-primary); word-break: break-word; }
 tbody tr { background: var(--bg-card); transition: background 0.2s ease; cursor: pointer; }
 tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
+
+/* Célula de ID: selecionável, sem abrir modal */
+.id-cell { cursor: text; user-select: text; white-space: nowrap; }
+.id-cell strong { user-select: text; }
+
 .actions-cell { white-space: nowrap; min-width: 260px; }
 
 .action-btn { padding: 7px 12px; font-size: 0.8rem; margin: 0 3px; min-width: 70px; border-radius: 6px; font-weight: 500; border: none; color: #fff; cursor: pointer; }
 .action-btn.edit   { background: var(--btn-edit); }
 .action-btn.entry  { background: var(--success-color); }
-.action-btn.exit   { background: var(--warning-color); }
+.action-btn.exit   { background: var(--btn-delete); }
 .action-btn:hover  { opacity: 0.9; }
 
 /* TOTAIS */
@@ -158,16 +166,16 @@ button.save, button[type="submit"] { background: var(--btn-save); }
 button.secondary { background: #6B7280; }
 button.small { padding: 8px 12px; font-size: 0.85rem; }
 
-/* MINI BUTTON (+) ao lado do grupo */
+/* MINI BUTTON (+) ao lado do grupo — CINZA */
 .input-with-btn { display: flex; gap: 8px; align-items: stretch; }
 .input-with-btn select { flex: 1; }
 .btn-plus {
-    background: var(--btn-save); color: #fff; border: none;
+    background: #6B7280; color: #fff; border: none;
     min-width: 46px; border-radius: 8px; font-size: 1.2rem; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center;
     padding: 0; margin: 0; cursor: pointer; transition: 0.2s;
 }
-.btn-plus:hover { background: #16A34A; transform: translateY(-1px); }
+.btn-plus:hover { background: #4B5563; transform: translateY(-1px); }
 
 /* MODAL */
 .modal-overlay {
@@ -196,7 +204,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     margin-bottom: 1.5rem; padding-bottom: 1rem;
     border-bottom: 1px solid rgba(128,128,128,0.2);
 }
-.modal-title { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.modal-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 
 .close-modal {
     background: transparent !important; border: none !important;
@@ -219,31 +227,52 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .modal-actions .tab-prev, .modal-actions .tab-next { order: 0; background: #6B7280; }
 
 /* TABS */
+.tabs-container { margin-bottom: 1.5rem; }
 .tabs-nav {
-    display: flex; gap: 0; margin-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(128,128,128,0.2);
+    display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+    overflow-x: auto; flex-wrap: wrap;
 }
 .tab-btn {
-    background: transparent; border: none; padding: 0.85rem 1.5rem;
-    cursor: pointer; font-size: 0.92rem; font-weight: 600;
-    color: var(--text-secondary); border-bottom: 2px solid transparent;
-    transition: all 0.15s ease; margin-bottom: -1px; margin-right: 0; border-radius: 0;
+    background: transparent; border: none; padding: 12px 20px;
+    cursor: pointer; font-size: 0.9rem; font-weight: 600;
+    color: var(--text-secondary); border-bottom: 3px solid transparent;
+    transition: all 0.15s ease; margin-bottom: -2px; margin-right: 0; border-radius: 0;
 }
-.tab-btn:hover { color: var(--text-primary); }
+.tab-btn:hover { color: var(--text-primary); background: rgba(255, 82, 29, 0.05); }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
 .tab-content { display: none; animation: fadeInTab 0.2s ease; }
 .tab-content.active { display: block; }
 @keyframes fadeInTab { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* TABELA DE MOVIMENTAÇÕES dentro do modal */
-.mov-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.mov-table th, .mov-table td { padding: 8px 10px; border: 1px solid var(--border-color); text-align: left; }
-.mov-table th { background: var(--th-bg); color: var(--th-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.4px; }
+/* ─── VISUALIZAÇÃO (info-section) — IDÊNTICO AO FATURAMENTO ─── */
+.info-section { margin-bottom: 1.5rem; }
+.info-section h4 {
+    color: var(--primary); margin-bottom: 0.75rem; font-size: 1.1rem;
+    padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color);
+}
+.info-section p { margin-bottom: 0.5rem; line-height: 1.6; }
+.info-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0; }
+.info-label { font-weight: 700; color: var(--text-primary); white-space: nowrap; flex-shrink: 0; }
+.info-value { color: var(--text-primary); word-break: break-word; }
+
+/* Tabela de movimentações dentro do modal de visualização */
+.mov-table { width: 100%; margin: 1rem 0; table-layout: fixed; border-collapse: collapse; }
+.mov-table th, .mov-table td {
+    padding: 12px 8px; border: 1px solid var(--border-color);
+    text-align: left; vertical-align: middle; overflow: hidden;
+    word-break: break-word;
+}
+.mov-table th {
+    background: var(--th-bg); color: var(--th-color);
+    font-weight: 600; font-size: 0.75rem; text-transform: uppercase;
+    white-space: nowrap;
+}
 .mov-table td.mov-entrada { color: #16A34A; font-weight: 700; }
 .mov-table td.mov-saida   { color: #DC2626; font-weight: 700; }
 .empty-mov { text-align: center; color: var(--text-secondary); padding: 1.5rem; }
 
-/* MODAL CONFIRM (Entrada/Saída/Exclusão) */
+/* MODAL CONFIRM (Entrada/Saída/Exclusão/Grupo) */
 .ir-modal-confirm { max-width: 460px; padding: 2.5rem 2rem 2rem; text-align: center; position: relative; }
 .ir-modal-confirm .ir-close { position: absolute; top: 1rem; right: 1rem; font-size: 1.4rem; color: #dc2626; background: transparent !important; border: 0 !important; cursor: pointer; padding: 0; }
 .ir-confirm-msg { font-size: 1.05rem; font-weight: 500; margin: 0.5rem 0 2rem; color: #111; }
@@ -253,7 +282,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .ir-btn-red   { background: #dc2626 !important; color: #fff !important; min-width: 120px; padding: 12px 24px; border-radius: 8px; border: 0; font-weight: 600; cursor: pointer; font-size: 0.95rem; }
 .ir-btn-red:hover { background: #b91c1c !important; }
 
-/* ACESSO NEGADO (fallback sem IR) */
+/* ACESSO NEGADO */
 .access-denied { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 2rem; }
 .access-denied h1 { font-size: 2rem; margin-bottom: 1rem; }
 .access-denied a { display: inline-block; background: var(--btn-register); color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; }
