@@ -57,6 +57,28 @@ h1{font-size:2rem;font-weight:700;color:#000;letter-spacing:-.5px;display:flex;a
 .filter-dropdown-inline select:focus{outline:none;border-color:var(--primary)}
 .filter-dropdown-inline .dropdown-icon{position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
   pointer-events:none;color:var(--text-secondary)}
+
+/* Navegação entre meses (padrão Ordem de Compra) */
+.month-navigation-inline{
+  display:flex;align-items:center;gap:.25rem;
+  background:var(--input-bg);
+  padding:.35rem;border-radius:6px;
+  border:1px solid var(--border-color);
+  height:38px;min-width:180px;
+}
+.month-nav-arrow{
+  background:transparent;border:none;
+  color:var(--text-secondary);cursor:pointer;
+  padding:.35rem;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s ease;
+}
+.month-nav-arrow:hover{background:rgba(0,0,0,.05);color:var(--text-primary)}
+.month-display-inline{
+  padding:0 .5rem;font-size:.85rem;font-weight:600;
+  color:var(--text-primary);white-space:nowrap;flex:1;text-align:center;
+}
+
 .sync-btn{background:transparent;border:none;color:var(--text-secondary);cursor:pointer;padding:.5rem;border-radius:6px;
   display:flex;align-items:center;justify-content:center;transition:all .2s ease;margin-left:.25rem}
 .sync-btn:hover{background:var(--input-bg);color:var(--primary)}
@@ -117,7 +139,7 @@ tbody tr.row-cancelado{background:rgba(239,68,68,.08) !important;border-left:3px
 .modal-content{background:var(--bg-card);border-radius:16px;padding:2rem;width:min(1120px,100%);max-height:90vh;
   overflow-y:auto;box-shadow:0 20px 60px var(--shadow);border:1px solid var(--border-color);
   transform:scale(.9);animation:scaleIn .2s ease forwards;position:relative}
-.modal-small{width:min(440px,100%)}
+.modal-small{width:min(540px,100%)}
 .modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;
   padding-bottom:1rem;border-bottom:2px solid var(--border-color);gap:1rem}
 .modal-title{font-size:1.5rem;font-weight:700;color:var(--text-primary);margin:0}
@@ -172,12 +194,13 @@ button:hover:not(:disabled){opacity:.9;transform:translateY(-1px)}
 button.save{background:var(--btn-save);color:#fff}
 button.cancel-close{background:#dc2626;color:#fff}
 
-/* Modal de documentos — compacto, sem bolinhas */
-.doc-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:.4rem}
+/* Modal de documentos — botões mais largos para caber "PROPOSTA PDF / PROPOSTA DOCS" */
+.doc-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:.5rem}
 .doc-choice{display:flex;align-items:center;justify-content:center;
-  padding:10px 8px;border:1px solid var(--border-color);border-radius:8px;background:#fff;
-  cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.4px;color:#374151;
-  text-transform:uppercase;transition:all .2s ease;text-align:center;min-width:0}
+  padding:16px 18px;border:1px solid var(--border-color);border-radius:8px;background:#fff;
+  cursor:pointer;font-size:13px;font-weight:800;letter-spacing:.6px;color:#374151;
+  text-transform:uppercase;transition:all .2s ease;text-align:center;min-width:0;
+  min-height:52px;white-space:nowrap}
 .doc-choice:hover{border-color:var(--primary);color:var(--primary)}
 .doc-choice.selected{border-color:#46b875;background:rgba(34,197,94,.08);color:#13713c;
   box-shadow:inset 0 0 0 1px #46b875}
@@ -369,4 +392,6 @@ button.cancel-close{background:#dc2626;color:#fff}
   .items-header{flex-direction:column;align-items:stretch}
   .actions-cell{min-width:auto}
   .actions{flex-wrap:wrap}
+  .month-navigation-inline{width:100%;justify-content:space-between}
+  .doc-choices{grid-template-columns:1fr}
 }
