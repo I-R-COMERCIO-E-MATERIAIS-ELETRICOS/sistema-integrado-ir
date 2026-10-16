@@ -121,6 +121,7 @@
   <div id="tablesContainer"></div>
 </section>
 
+<!-- MODAL CADASTRO -->
 <div class="modal-overlay" id="formOverlay">
   <div class="modal-content">
     <div class="modal-header">
@@ -151,6 +152,16 @@
               <option value="cancelado">CANCELADO</option>
             </select>
           </div>
+        </div>
+        <div class="form-group full-width">
+          <label>Pasta de Arquivos</label>
+          <div class="pasta-row">
+            <input id="pastaArquivos" placeholder="C:\Users\...\OneDrive\Licitacoes\Pregao-12345" autocomplete="off">
+            <button type="button" class="btn-plus-folder" id="pickFolderBtn" title="Selecionar pasta">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+          </div>
+          <p class="helper" style="margin-top:6px;">Clique no <b>+</b> para escolher a pasta (é necessário ter o IRFolder instalado).</p>
         </div>
       </div>
       <div class="tab-content" id="tab-orgao">
@@ -194,6 +205,7 @@
   </div>
 </div>
 
+<!-- MODAL VISUALIZAÇÃO -->
 <div class="modal-overlay" id="viewOverlay">
   <div class="modal-content">
     <div class="modal-header">
@@ -216,6 +228,7 @@
   </div>
 </div>
 
+<!-- MODAL EXCLUSÃO -->
 <div class="modal-overlay" id="deleteOverlay">
   <div class="modal-content ir-modal-confirm">
     <button type="button" class="close-modal ir-close" data-close="deleteOverlay">✕</button>
@@ -227,6 +240,7 @@
   </div>
 </div>
 
+<!-- MODAL ALERTA DE DISPUTA -->
 <div class="modal-overlay" id="disputaOverlay">
   <div class="modal-content">
     <div class="modal-header">
@@ -243,6 +257,7 @@
   </div>
 </div>
 
+<!-- MODAL INTERVALO -->
 <div class="modal-overlay" id="rangeOverlay">
   <div class="modal-content modal-small">
     <div class="modal-header">
@@ -258,6 +273,7 @@
   </div>
 </div>
 
+<!-- MODAL DOCUMENTOS -->
 <div class="modal-overlay" id="docOverlay">
   <div class="modal-content modal-small">
     <div class="modal-header">
@@ -278,6 +294,7 @@
   </div>
 </div>
 
+<!-- MODAL COTAÇÃO -->
 <div class="modal-overlay" id="quoteOverlay">
   <div class="modal-content modal-small">
     <div class="modal-header">
@@ -296,6 +313,24 @@
     <div class="modal-actions" style="justify-content:center;">
       <button type="button" class="save" id="confirmQuote">Confirmar</button>
       <button type="button" class="cancel-close" data-close="quoteOverlay">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FALLBACK DE PASTA (caso IRFolder não esteja instalado) -->
+<div class="modal-overlay" id="pastaFallbackOverlay">
+  <div class="modal-content modal-small">
+    <div class="modal-header">
+      <h3 class="modal-title">Abrir pasta manualmente</h3>
+      <button type="button" class="close-modal" data-close="pastaFallbackOverlay">✕</button>
+    </div>
+    <p class="helper">Se a pasta não abriu automaticamente, copie o caminho abaixo e cole no Explorer (Win+E):</p>
+    <div class="form-group">
+      <input id="pastaFallbackInput" readonly onclick="this.select()">
+    </div>
+    <div class="modal-actions" style="justify-content:center;">
+      <button type="button" class="save" id="btnCopyPasta">Copiar caminho</button>
+      <button type="button" class="cancel-close" data-close="pastaFallbackOverlay">Fechar</button>
     </div>
   </div>
 </div>
