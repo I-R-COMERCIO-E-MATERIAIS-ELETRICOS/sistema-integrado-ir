@@ -86,7 +86,6 @@ function effectiveStatus(r){
 function triggerGlobalLogout(message) {
   const msg = message || 'Sua sessão expirou';
 
-  // 1) Se a página-pai injetou a API IR, usa-a
   try {
     if (window.IR && typeof IR.denied === 'function') {
       IR.denied(msg);
@@ -94,7 +93,6 @@ function triggerGlobalLogout(message) {
     }
   } catch (e) { /* segue para fallback */ }
 
-  // 2) Se estiver dentro de um iframe, comunica o parent
   let inIframe = false;
   try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
 
@@ -103,7 +101,6 @@ function triggerGlobalLogout(message) {
       window.top.postMessage({ type: 'IR_LOGOUT', message: msg, source: 'licitacoes' }, '*');
     } catch (e) { /* cross-origin silencioso */ }
 
-    // Mesma origem: força redirect na janela do topo
     try {
       window.top.location.href = PORTAL_URL + '/?logout=1&reason=session';
       return;
@@ -111,7 +108,6 @@ function triggerGlobalLogout(message) {
     return;
   }
 
-  // 3) Não estamos em iframe — redireciona direto
   window.location.href = PORTAL_URL + '/?logout=1&reason=session';
 }
 
@@ -1415,6 +1411,42 @@ $('confirmDoc').addEventListener('click', ()=>{
   else if(t === 'proposta-docs') gerarDocWord();
 });
 
+/* ---------- FIX: sanitização e download robusto ---------- */
+
+function safeFilename(name){
+  return String(name || 'PROPOSTA')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')   // remove caracteres inválidos (Windows/browsers)
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')                       // não termina em ponto/espaço
+    .trim()
+    .slice(0, 180) || 'PROPOSTA';
+}
+
+function triggerDownload(blob, filename){
+  const safe = safeFilename(filename);
+  // Fallback legado (IE/Edge antigo)
+  if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
+    try { window.navigator.msSaveOrOpenBlob(blob, safe); return; } catch (e) {}
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = safe;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  let clicked = false;
+  try { a.click(); clicked = true; } catch (e) { clicked = false; }
+  if (!clicked) {
+    // Fallback final: navegação direta para o blob
+    try { window.location.href = url; } catch (e) {}
+  }
+  setTimeout(()=>{
+    try { a.remove(); } catch (e) {}
+    try { URL.revokeObjectURL(url); } catch (e) {}
+  }, 4000);
+}
+
 function fileBase(r){
   const numP = up(r.numero_pregao || '');
   const uasg = (r.uasg||'').trim();
@@ -1683,7 +1715,7 @@ async function runPdf(){
     doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
     doc.setTextColor(0,0,0);
   }
-  doc.save(`${fileBase(current)}.pdf`);
+  doc.save(`${safeFilename(fileBase(current))}.pdf`);
   toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
 }
 
@@ -1726,7 +1758,7 @@ async function gerarDocWord(){
     const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word" lang="pt-BR">
-<head><meta charset="utf-8"><title>${esc(fileBase(current))}</title>
+<head><meta charset="utf-8"><title>${esc(safeFilename(fileBase(current)))}</title>
 <style>
   @page Section1{size:595.3pt 841.9pt;margin:${topMargin}pt 26pt 70pt 26pt;
     mso-header-margin:14pt;mso-footer-margin:22pt;mso-header:h1;mso-footer:f1;mso-paper-source:0;}
@@ -1795,14 +1827,10 @@ async function gerarDocWord(){
 </div>
 </body></html>`;
 
-    const blob = new Blob(['\ufeff', html], { type:'application/msword' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${fileBase(current)}.doc`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    // MIME mais compatível + BOM para o Word detectar UTF-8
+    const blob = new Blob(['\ufeff', html], { type:'application/vnd.ms-word;charset=utf-8' });
+    const filename = `${safeFilename(fileBase(current))}.doc`;
+    triggerDownload(blob, filename);
     toastSuccess('Documento Word gerado');
   }catch(e){
     toastError(e.message || 'Falha ao gerar documento.');
