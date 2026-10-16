@@ -6,6 +6,9 @@ const MODULE_SESSION_KEY = 'licitacoesSession';
 const DEVELOPMENT_MODE = false;
 const PORTAL_URL = window.location.origin;
 
+const LOGO_SRC = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+const SIGN_SRC = '/apps/imagens/assinatura.png';
+
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fca5a5' };
@@ -18,6 +21,7 @@ const STATUS_LABEL = {
   encerrado:'ENCERRADO',
   cancelado:'CANCELADO'
 };
+const MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 
 let sessionToken = null;
 let currentUserName = null;
@@ -29,10 +33,12 @@ let activeTab=0;
 let page=1, pages=1, searchTimer, saveTimer, quoteMode=null;
 let lastSnapshot = '';
 let delId = null;
+let delTableIdx = null;
 let colorPop = null;
 let booted = false;
 let pdfBusy = false;
 let selectedDoc = null;
+let assetsPromise = null;
 
 const $ = id => document.getElementById(id);
 
@@ -508,14 +514,43 @@ $('recordForm').addEventListener('submit', async e => {
   }catch(err){ toastError(err.message); }
 });
 
+/* ---------- Exclusão (pregão e tabela/grupo usam o mesmo modal de confirmação) ---------- */
+
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
   delId = id;
+  delTableIdx = null;
   $('deleteMsg').textContent = `Deseja excluir o pregão ${up(r.numero_pregao)}?`;
   open('deleteOverlay');
 }
+
+function confirmDeleteTable(tIdx){
+  const t = tables[tIdx];
+  if(!t) return;
+  delId = null;
+  delTableIdx = tIdx;
+  const qtd = t.items.length;
+  const nome = t.titulo ? `o grupo "${up(t.titulo)}"` : 'a tabela de itens';
+  const extra = qtd ? ` (${qtd} ${qtd === 1 ? 'item' : 'itens'})` : '';
+  $('deleteMsg').textContent = `Deseja excluir ${nome}${extra}?`;
+  open('deleteOverlay');
+}
+
 $('confirmDelete').addEventListener('click', async ()=>{
+  // Exclusão de tabela/grupo na página de itens
+  if(delTableIdx !== null){
+    const tI = delTableIdx;
+    delTableIdx = null;
+    close('deleteOverlay');
+    if(tables[tI]){
+      tables.splice(tI, 1);
+      renderAllTables();
+      scheduleSave();
+    }
+    return;
+  }
+  // Exclusão de pregão
   if(!delId) return;
   const r = records.find(x=>x.id===delId);
   const numP = up(r?.numero_pregao || '');
@@ -637,6 +672,8 @@ function showItems(id){
   $('itemsPage').hidden = false;
   renderAllTables();
   lastSnapshot = snapshotAll();
+  // Pré-carrega logo, assinatura e bancos em segundo plano (deixa o PDF/Word instantâneo)
+  preloadAssets();
 }
 
 function nextGroupNumber(){
@@ -649,53 +686,33 @@ function nextGroupNumber(){
   return max + 1;
 }
 
+const INSERT_BAR = at => `
+    <div class="items-toolbar-center">
+      <button type="button" class="btn-toggle-table" data-insert-at="${at}" data-type="main">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Tabela de Itens
+      </button>
+      <button type="button" class="btn-toggle-table" data-insert-at="${at}" data-type="grupo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Grupo/Lote
+      </button>
+    </div>`;
+
 function renderAllTables(){
   const container = $('tablesContainer');
 
   if(tables.length === 0){
-    container.innerHTML = `
-      <div class="items-toolbar-center">
-        <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="main">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Tabela de Itens
-        </button>
-        <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="grupo">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Grupo/Lote
-        </button>
-      </div>`;
+    container.innerHTML = INSERT_BAR(0);
     bindInsertButtons();
     updateMarcaFilter();
     applyFilters();
     return;
   }
 
-  let html = '';
-  html += `
-    <div class="items-toolbar-center">
-      <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="main">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Tabela de Itens
-      </button>
-      <button type="button" class="btn-toggle-table" data-insert-at="0" data-type="grupo">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-        Grupo/Lote
-      </button>
-    </div>`;
-
+  let html = INSERT_BAR(0);
   tables.forEach((t, tIdx)=>{
     html += renderSingleTable(t, tIdx);
-    html += `
-      <div class="items-toolbar-center">
-        <button type="button" class="btn-toggle-table" data-insert-at="${tIdx+1}" data-type="main">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Tabela de Itens
-        </button>
-        <button type="button" class="btn-toggle-table" data-insert-at="${tIdx+1}" data-type="grupo">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Grupo/Lote
-        </button>
-      </div>`;
+    html += INSERT_BAR(tIdx+1);
   });
 
   container.innerHTML = html;
@@ -839,8 +856,6 @@ function insertNewTable(at, type){
 
 function bindTableEvents(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
-    const tIdx = parseInt(gt.dataset.gidx);
-
     gt.querySelectorAll('input[data-k], textarea[data-k]').forEach(i=>{
       i.addEventListener('input', ()=>{ if(i.tagName==='TEXTAREA') autoResize(i); recalcAll(); });
       i.addEventListener('change', recalcAll);
@@ -874,18 +889,16 @@ function bindTableEvents(){
       });
     }
 
-    // Delete entire table
+    // Excluir tabela/grupo inteiro -> modal de confirmação
     gt.querySelectorAll('.grupo-icon-btn.del-table').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const tI = parseInt(btn.dataset.gidx);
         if(isNaN(tI)) return;
-        tables.splice(tI, 1);
-        renderAllTables();
-        scheduleSave();
+        confirmDeleteTable(tI);
       });
     });
 
-    // Delete row
+    // Excluir linha
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
       b.addEventListener('click', ()=>{
         const tr = b.closest('tr');
@@ -895,7 +908,6 @@ function bindTableEvents(){
         const before = tables[tI].items.length;
         tables[tI].items.splice(iI, 1);
         const after = tables[tI].items.length;
-        // Se ficou vazia (tinha itens e removeu todos), remove a tabela
         if(before > 0 && after === 0){
           tables.splice(tI, 1);
         }
@@ -1039,7 +1051,7 @@ function scheduleSave(){
 async function persistItems(){
   if(!current) return;
   const allItems = flatItems();
-  const cur = JSON.stringify(allItems);
+  const cur = JSON.stringify(allItems) + '|' + JSON.stringify(groupTitles());
   if(cur === lastSnapshot) return;
   try{
     const body = {
@@ -1066,7 +1078,7 @@ async function persistItems(){
 }
 
 function snapshotAll(){
-  return JSON.stringify(flatItems());
+  return JSON.stringify(flatItems()) + '|' + JSON.stringify(groupTitles());
 }
 
 function openColorPop(btn){
@@ -1316,6 +1328,8 @@ $('confirmQuote').addEventListener('click', ()=>{
   scheduleSave();
 });
 
+/* ==================== DOCUMENTOS (PDF / WORD) ==================== */
+
 $('pdfBtn').addEventListener('click', ()=>{
   selectedDoc = null;
   document.querySelectorAll('.doc-choice').forEach(c=>c.classList.remove('selected'));
@@ -1342,63 +1356,112 @@ function fileBase(r){
   return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
 }
 
+// Os bancos já vêm em /opcoes; só busca de novo se estiver vazio
 async function loadBanksIfNeeded(){
+  if(banks && banks.length) return;
   try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
+}
+
+function loadImg(src){
+  return new Promise(res=>{
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload = ()=>res(i);
+    i.onerror = ()=>res(null);
+    i.src = src;
+  });
+}
+
+// Reduz a imagem (canvas) e devolve data URL PNG leve; alpha opcional (marca d'água da logo)
+function imgToData(img, maxW, alpha){
+  if(!img || !img.width) return null;
+  try{
+    const s = Math.min(1, maxW / img.width);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * s));
+    c.height = Math.max(1, Math.round(img.height * s));
+    const ctx = c.getContext('2d');
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return { url: c.toDataURL('image/png'), w: c.width, h: c.height };
+  }catch{ return null; }
+}
+
+// Carrega logo (com 35% de opacidade), assinatura e bancos uma única vez, em paralelo
+function preloadAssets(){
+  if(!assetsPromise){
+    assetsPromise = (async ()=>{
+      const [logoImg, signImg] = await Promise.all([
+        loadImg(LOGO_SRC), loadImg(SIGN_SRC), loadBanksIfNeeded()
+      ]);
+      const out = { logo: imgToData(logoImg, 420, 0.35), sign: imgToData(signImg, 520, 1) };
+      if(!out.logo && !out.sign) assetsPromise = null; // tenta de novo na próxima vez
+      return out;
+    })();
+  }
+  return assetsPromise;
 }
 
 async function gerarPdf(){
   if(!current){ toastError('Nenhuma licitação aberta.'); return; }
-  if(pdfBusy){ toastWarn('Aguarde, gerando documento...'); return; }
+  if(pdfBusy) return;
   pdfBusy = true;
   try{
-    await loadBanksIfNeeded();
-    if(!(window.jspdf && window.jspdf.jsPDF)){
-      await new Promise(res => {
-        let tries=0;
-        const iv=setInterval(()=>{
-          tries++;
-          if(window.jspdf && window.jspdf.jsPDF){ clearInterval(iv); res(); }
-          else if(tries>25){ clearInterval(iv); res(); }
-        },150);
-      });
-    }
-    if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF não disponível.');
+    if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF não disponível. Recarregue a página.');
     await runPdf();
   }catch(e){
     toastError(e.message || 'Falha ao gerar PDF.');
   }finally{
-    setTimeout(()=>{ pdfBusy = false; }, 1000);
+    pdfBusy = false;
   }
+}
+
+// Quebra texto em linhas que cabem na largura w (inclusive palavras longas sem espaço)
+function hardWrap(doc, text, w){
+  const out = [];
+  String(text ?? '').split('\n').forEach(par=>{
+    doc.splitTextToSize(par, w).forEach(l=>{
+      if(doc.getTextWidth(l) <= w){ out.push(l); return; }
+      let cur = '';
+      for(const ch of l){
+        if(doc.getTextWidth(cur + ch) > w){ out.push(cur); cur = ch; }
+        else cur += ch;
+      }
+      if(cur) out.push(cur);
+    });
+  });
+  return out.length ? out : [''];
+}
+
+function propostaDados(){
+  const data = (current.items||[]).filter(x=>x.selecionado !== false);
+  const linhas = data.map(it=>{
+    const cu = num(it.custoUnt);
+    const pct = num(it.porcentagem ?? 149);
+    const vUnt = cu * pct / 100;
+    const vTot = vUnt * num(it.qtd);
+    return { it, vUnt, vTot };
+  });
+  const total = linhas.reduce((a,l)=>a + l.vTot, 0);
+  const bank = banks.find(b=>b.nome_banco === current.banco_pagamento) || {};
+  return { linhas, total, bank };
 }
 
 async function runPdf(){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
+  const { linhas, total, bank } = propostaDados();
+
+  const doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
   const margin = 15, pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
-  const data = (current.items||[]).filter(x=>x.selecionado !== false);
-  const bank = banks.find(b=>b.nome_banco === current.banco_pagamento) || {};
+  const tw = pw - margin*2;
+  const limitY = ph - 32; // reserva espaço do rodapé
 
-  const logo = new Image(); logo.crossOrigin='anonymous';
-  logo.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-
-  await new Promise(res=>{
-    if(logo.complete && logo.width) return res();
-    logo.onload = ()=>res();
-    logo.onerror = ()=>res();
-    setTimeout(res, 2000);
-  });
-
-  let lw=40, lh=12;
-  try{
-    if(logo.width && logo.height) lh = (logo.height/logo.width)*lw;
-  }catch{}
-
-  try{
-    doc.setGState(new doc.GState({ opacity: 0.35 }));
-    if(logo.width) doc.addImage(logo, 'PNG', 5, 5, lw, lh);
-    doc.setGState(new doc.GState({ opacity: 1.0 }));
-  }catch{}
-
+  // Cabeçalho (logo + nome da empresa)
+  const lw = 40;
+  const logo = assets && assets.logo;
+  const lh = logo ? (logo.h / logo.w) * lw : 12;
+  if(logo){ try{ doc.addImage(logo.url, 'PNG', 5, 5, lw, lh, undefined, 'FAST'); }catch{} }
   doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(150,150,150);
   const baseY = 5 + lh*0.4;
   doc.text('I.R COMÉRCIO E', 5+lw+3, baseY);
@@ -1406,17 +1469,6 @@ async function runPdf(){
   doc.setTextColor(0,0,0);
 
   let y = 5 + lh + 8;
-  const tw = pw - margin*2;
-  const cols = [
-    { w: tw*0.06, t:'ITEM', a:'center' },
-    { w: tw*0.08, t:'QTD', a:'center' },
-    { w: tw*0.08, t:'UND', a:'center' },
-    { w: tw*0.32, t:'DESCRIÇÃO', a:'left' },
-    { w: tw*0.14, t:'MARCA', a:'left' },
-    { w: tw*0.14, t:'MODELO', a:'left' },
-    { w: tw*0.09, t:'PREÇO UNIT.', a:'right' },
-    { w: tw*0.09, t:'PREÇO TOTAL', a:'right' }
-  ];
 
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
   doc.text(`AO ${up(current.nome_orgao)}`, margin, y); y += 5;
@@ -1424,74 +1476,97 @@ async function runPdf(){
   const linha3 = `PREGÃO ELETRÔNICO ${up(current.numero_pregao)}` + (current.uasg?` UASG ${up(current.uasg)}`:'');
   doc.text(linha3, margin, y); y += 7;
 
-  const rowH = 7;
-  doc.setFillColor(240,240,240); doc.setDrawColor(120,120,120);
-  let x = margin;
-  doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  cols.forEach(c=>{ doc.rect(x, y, c.w, rowH, 'FD'); doc.text(c.t, x + c.w/2, y + 4.7, { align:'center' }); x += c.w; });
-  y += rowH;
-  doc.setFont('helvetica','normal');
-  let total = 0;
-  data.forEach((it, idx) => {
-    const cu = num(it.custoUnt);
-    const pct = num(it.porcentagem ?? 149);
-    const vUnt = cu * pct/100;
-    const vTot = vUnt * num(it.qtd);
-    total += vTot;
-    const descLines = doc.splitTextToSize(up(it.descricao || ''), cols[3].w - 2);
-    const needed = Math.max(rowH, descLines.length * 4 + 3);
-    if(y + needed > ph - 40){ doc.addPage(); y = 20; }
-    x = margin;
+  const cols = [
+    { w: tw*0.06, t:'ITEM',        a:'center' },
+    { w: tw*0.07, t:'QTD',         a:'center' },
+    { w: tw*0.07, t:'UND',         a:'center' },
+    { w: tw*0.30, t:'DESCRIÇÃO',   a:'left'   },
+    { w: tw*0.13, t:'MARCA',       a:'left'   },
+    { w: tw*0.13, t:'MODELO',      a:'left'   },
+    { w: tw*0.12, t:'PREÇO UNIT.', a:'right'  },
+    { w: tw*0.12, t:'PREÇO TOTAL', a:'right'  }
+  ];
+  const LH = 3.6;   // altura de linha do corpo (mm)
+  const HLH = 3.3;  // altura de linha do cabeçalho (mm)
+
+  // Cabeçalho da tabela: fundo cinza claro + texto preto, quebra de linha automática
+  const drawHead = () => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    const heads = cols.map(c => hardWrap(doc, c.t, c.w - 2));
+    const hh = Math.max(7, Math.max(...heads.map(h=>h.length)) * HLH + 3.4);
+    let x = margin;
+    cols.forEach((c, i)=>{
+      doc.setFillColor(225,225,225);
+      doc.rect(x, y, c.w, hh, 'F');
+      doc.setDrawColor(120,120,120); doc.setLineWidth(0.2);
+      doc.rect(x, y, c.w, hh, 'S');
+      doc.setTextColor(0,0,0);
+      const startY = y + (hh - heads[i].length*HLH)/2 + 2.4;
+      heads[i].forEach((ln, k)=> doc.text(ln, x + c.w/2, startY + k*HLH, { align:'center' }));
+      x += c.w;
+    });
+    y += hh;
+  };
+  drawHead();
+
+  linhas.forEach(({ it, vUnt, vTot }, idx)=>{
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+    const cells = [
+      String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''), up(it.descricao || ''),
+      up(it.marca || ''), up(it.modelo || ''), money(vUnt), money(vTot)
+    ];
+    const wrapped = cells.map((t,i)=> hardWrap(doc, t, cols[i].w - 3));
+    const needed = Math.max(7, Math.max(...wrapped.map(w=>w.length)) * LH + 3);
+
+    if(y + needed > limitY){ doc.addPage(); y = 15; drawHead(); doc.setFont('helvetica','normal'); doc.setFontSize(8); }
+
     if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
-    const cells = [String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''), null, up(it.marca || ''), up(it.modelo || ''), money(vUnt), money(vTot)];
-    cols.forEach((c,i)=>{
-      doc.rect(x, y, c.w, needed);
-      if(i===3){
-        doc.text(descLines, x + 1.5, y + 4);
-      } else {
-        const cy = y + needed/2 + 1.2;
-        const tx = c.a==='right' ? x + c.w - 1.5 : (c.a==='center' ? x + c.w/2 : x + 1.5);
-        doc.text(String(cells[i]), tx, cy, { align: c.a });
-      }
+    let x = margin;
+    doc.setDrawColor(120,120,120); doc.setLineWidth(0.2);
+    cols.forEach((c, i)=>{
+      doc.rect(x, y, c.w, needed, 'S');
+      const tx = c.a==='right' ? x + c.w - 1.5 : (c.a==='center' ? x + c.w/2 : x + 1.5);
+      wrapped[i].forEach((ln, k)=> doc.text(ln, tx, y + 4 + k*LH, { align: c.a }));
       x += c.w;
     });
     y += needed;
   });
+
   y += 4;
+  if(y + 45 > limitY){ doc.addPage(); y = 20; }
+  doc.setTextColor(0,0,0);
   doc.setFont('helvetica','bold'); doc.setFontSize(10);
   doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, y, { align:'right' }); y += 8;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.setFontSize(9);
   doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
   doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
   doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
   doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, y); y += 5;
   doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, y); y += 5;
   doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, y); y += 10;
+
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
   const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
   const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
   const l1 = doc.splitTextToSize(d1, tw);
-  if(y + l1.length*4 + 45 > ph - 40){ doc.addPage(); y = 20; }
+  if(y + l1.length*4 + 20 > limitY){ doc.addPage(); y = 20; }
   doc.text(l1, pw/2, y, { align:'center' }); y += l1.length*4 + 4;
   doc.text(d2, pw/2, y, { align:'center' }); y += 6;
   doc.text(d3, pw/2, y, { align:'center' }); y += 14;
 
-  const dt = new Date();
-  const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-  doc.text(`SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
-  y += 12;
+  // Bloco de assinatura (data + espaço + assinatura + nome) sempre junto na mesma página
+  const sign = assets && assets.sign;
+  const iw = 55;
+  const ih = sign ? (sign.h / sign.w) * iw : 20;
+  const blockH = 12 + ih + 4 + 5 + 4 + 4;
+  if(y + blockH > limitY){ doc.addPage(); y = 20; }
 
-  const sign = new Image(); sign.crossOrigin='anonymous';
-  sign.src = '/apps/imagens/assinatura.png';
-  try{
-    if(sign.complete && sign.width){
-      const iw = 55;
-      const ih = (sign.height/sign.width)*iw;
-      doc.addImage(sign, 'PNG', pw/2 - iw/2, y, iw, ih);
-      y += ih + 4;
-    }
-  }catch{}
+  const dt = new Date();
+  doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
+  y += 12;
+  if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
+  y += ih + 4;
   doc.setFont('helvetica','bold'); doc.setFontSize(10);
   doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, y, { align:'center' }); y += 5;
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
@@ -1513,48 +1588,63 @@ async function runPdf(){
   toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
 }
 
+function b64Utf8(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for(let i=0; i<bytes.length; i+=0x8000){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i+0x8000));
+  }
+  return btoa(bin);
+}
+const chunk76 = s => s.replace(/.{1,76}/g, '$&\r\n');
+
 async function gerarDocWord(){
   if(!current) return;
-  await loadBanksIfNeeded();
-  const data = (current.items||[]).filter(x=>x.selecionado !== false);
-  const bank = banks.find(b=>b.nome_banco === current.banco_pagamento) || {};
-  const total = data.reduce((a,x)=>{
-    const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-    const vu = cu*pct/100;
-    return a + vu*num(x.qtd);
-  }, 0);
-  const dt = new Date();
-  const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-  const linhas = data.map(x=>{
-    const cu = num(x.custoUnt); const pct = num(x.porcentagem ?? 149);
-    const vu = cu*pct/100;
-    const vt = vu*num(x.qtd);
-    return `<tr>
-      <td>${esc(x.item)}</td><td>${esc(x.qtd)}</td><td>${esc(up(x.und))}</td>
-      <td>${esc(up(x.descricao))}</td><td>${esc(up(x.marca))}</td><td>${esc(up(x.modelo))}</td>
-      <td>${money(vu)}</td><td>${money(vt)}</td>
-    </tr>`;
-  }).join('');
-  const html = `<!doctype html>
+  if(pdfBusy) return;
+  pdfBusy = true;
+  try{
+    const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
+    const { linhas, total, bank } = propostaDados();
+    const dt = new Date();
+
+    // Logo idêntica à do PDF: 40 mm de largura, 35% de opacidade
+    const logo = assets && assets.logo;
+    const logoWpt = Math.round(40 * 2.8346);
+    const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
+    const topMargin = Math.round(14 + Math.max(logoHpt, 34) + 18);
+
+    const rows = linhas.map(({ it, vUnt, vTot })=>`<tr>
+      <td>${esc(it.item)}</td><td>${esc(it.qtd)}</td><td>${esc(up(it.und))}</td>
+      <td>${esc(up(it.descricao))}</td><td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
+      <td>${money(vUnt)}</td><td>${money(vTot)}</td>
+    </tr>`).join('');
+
+    const logoCell = logo
+      ? `<td class="hl" style="border:none;padding:0 8pt 0 0;vertical-align:middle;width:${logoWpt}pt;"><img src="logo.png" width="${logoWpt}" height="${logoHpt}" style="width:${logoWpt}pt;height:${logoHpt}pt;"></td>`
+      : '';
+
+    const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       lang="pt-BR"><head><meta charset="utf-8">
 <title>${esc(fileBase(current))}</title>
 <style>
-  @page Section1{size:595.3pt 841.9pt;margin:36pt 26pt 60pt 26pt;
+  @page Section1{size:595.3pt 841.9pt;margin:${topMargin}pt 26pt 70pt 26pt;
     mso-header-margin:14pt;mso-footer-margin:22pt;mso-header:h1;mso-footer:f1;mso-paper-source:0;}
   div.Section1{page:Section1}
   body{font:10pt Arial,sans-serif;color:#111}
   h3{margin:6pt 0;font-size:11pt;text-align:left}
   p{margin:4pt 0}
-  table{width:100%;border-collapse:collapse;margin:12pt 0;font-size:8pt}
-  th,td{border:1px solid #444;padding:4pt 3pt;vertical-align:top;overflow-wrap:anywhere}
-  th{text-align:center;background:#f0f0f0;white-space:nowrap}
-  td:nth-child(1),td:nth-child(2){text-align:center}
+  table.dados{width:100%;border-collapse:collapse;margin:12pt 0;font-size:8pt}
+  table.dados th,table.dados td{border:1px solid #444;padding:4pt 3pt;vertical-align:top;overflow-wrap:anywhere}
+  table.dados th{text-align:center;background:#f0f0f0;white-space:nowrap}
+  table.dados td:nth-child(1),table.dados td:nth-child(2){text-align:center}
+  table.hdr{width:auto;border-collapse:collapse;margin:0;font-size:11pt}
+  table.hdr td{border:none;padding:0}
   .total{text-align:right;font-weight:bold;margin:8pt 0}
   .decl{text-align:center;margin:10pt 0;line-height:1.5}
   .date{text-align:center;margin-top:26pt}
-  .sign-space{height:80pt}
+  p.sign-space{height:70pt;line-height:70pt;mso-line-height-rule:exactly;margin:0;font-size:10pt}
   .sign-name{text-align:center;font-weight:bold;margin:0}
   .sign-sub{text-align:center;font-size:9pt;margin:0}
   .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
@@ -1564,9 +1654,9 @@ async function gerarDocWord(){
   <h3>AO ${esc(up(current.nome_orgao))}</h3>
   <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
   <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
-  <table>
+  <table class="dados">
     <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
-    <tbody>${linhas}</tbody>
+    <tbody>${rows}</tbody>
   </table>
   <p class="total">VALOR TOTAL: ${money(total)}</p>
   <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
@@ -1578,17 +1668,21 @@ async function gerarDocWord(){
   <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
   <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
   <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
-  <p class="date">SERRA/ES, ${dt.getDate()} DE ${meses[dt.getMonth()]} DE ${dt.getFullYear()}</p>
-  <div class="sign-space"></div>
+  <p class="date">SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}</p>
+  <p class="sign-space" style="height:70pt;line-height:70pt;mso-line-height-rule:exactly;">&nbsp;</p>
   <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
   <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
   <p class="sign-sub">DIRETORA</p>
 </div>
 <div style='mso-element:header' id="h1">
-  <p class="MsoHeader" style="text-align:left;">
-    <img src="${location.origin}/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png" style="width:28pt;height:auto;vertical-align:middle;margin-right:6pt;">
-    <span style="color:#969696;font-weight:bold;font-size:11pt;">I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA</span>
-  </p>
+  <div class="MsoHeader">
+    <table class="hdr" style="border:none;border-collapse:collapse;margin:0;width:auto;"><tr>
+      ${logoCell}
+      <td style="border:none;padding:0;vertical-align:middle;white-space:nowrap;">
+        <p style="margin:0;color:#969696;font-weight:bold;font-size:17pt;line-height:20pt;mso-line-height-rule:exactly;font-family:Arial,sans-serif;">I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA</p>
+      </td>
+    </tr></table>
+  </div>
 </div>
 <div style='mso-element:footer' id="f1">
   <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
@@ -1599,13 +1693,30 @@ async function gerarDocWord(){
   </p>
 </div>
 </body></html>`;
-  const blob = new Blob(['\ufeff', html], { type:'application/msword;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${fileBase(current)}.doc`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toastSuccess('Documento Word gerado');
+
+    // Empacota como MHTML para a logo ficar embutida no arquivo (funciona offline no Word)
+    const B = '----=_NextPart_IR_' + Date.now().toString(16);
+    let mime = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${B}"; type="text/html"\r\n\r\n`;
+    mime += `--${B}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/proposta/proposta.htm\r\n\r\n${chunk76(b64Utf8(html))}\r\n`;
+    if(logo){
+      mime += `--${B}\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/proposta/logo.png\r\n\r\n${chunk76(logo.url.split(',')[1])}\r\n`;
+    }
+    mime += `--${B}--\r\n`;
+
+    const blob = new Blob([mime], { type:'application/msword' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fileBase(current)}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    toastSuccess('Documento Word gerado');
+  }catch(e){
+    toastError(e.message || 'Falha ao gerar documento.');
+  }finally{
+    pdfBusy = false;
+  }
 }
 
 async function startApp(){
