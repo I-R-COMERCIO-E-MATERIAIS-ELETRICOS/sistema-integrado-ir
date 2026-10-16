@@ -150,6 +150,8 @@ const ROUTE_TO_MODULE = {
     '/api/lucro-real':       'lucro',
     '/api/custo-fixo':       'lucro',
     '/api/monitorar-pedidos':'lucro',
+    // Grupos de estoque: exclusivo do módulo estoque (precisa vir antes do genérico)
+    '/api/estoque/grupos':   'estoque',
     '/api/estoque':          ['faturamento', 'estoque'],
     '/api/licitacoes':       'licitacoes'
 };
@@ -429,36 +431,8 @@ app.use('/api/fretes', require('./apps/frete/routes')(supabase));
 app.use('/api/receber', require('./apps/receber/routes')(supabase));
 app.use('/api', require('./apps/lucro/routes')(supabase));
 app.use('/api', require('./apps/pagar/routes')(supabase));
-
-// ─── ESTOQUE ─────────────────────────────────────────────────────────────────
-app.get('/api/estoque', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('estoque')
-            .select('*')
-            .order('codigo', { ascending: true });
-        if (error) throw error;
-        res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: 'Erro ao listar estoque' });
-    }
-});
-
-app.patch('/api/estoque/:codigo', async (req, res) => {
-    try {
-        const { quantidade } = req.body;
-        const { data, error } = await supabase
-            .from('estoque')
-            .update({ quantidade })
-            .eq('codigo', req.params.codigo)
-            .select()
-            .single();
-        if (error) throw error;
-        res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: 'Erro ao atualizar estoque' });
-    }
-});
+// ─── ESTOQUE (novo módulo completo: CRUD + grupos + movimentações) ───────────
+app.use('/api', require('./apps/estoque/routes')(supabase));
 
 // ─── VERIFICAÇÃO DE SESSÃO ───────────────────────────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
@@ -516,6 +490,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  GET  /api/cotacoes         → Cotações de Frete');
     console.log('  GET  /api/pedidos          → Pedidos de Faturamento');
     console.log('  GET  /api/estoque          → Estoque');
+    console.log('  GET  /api/estoque/grupos   → Grupos de Estoque');
+    console.log('  POST /api/estoque/:id/movimentacao → Movimentação manual');
     console.log('  GET  /api/precos           → Preços');
     console.log('  GET  /api/ordens           → Compras');
     console.log('  CRUD /api/fretes           → Controle de Frete');
