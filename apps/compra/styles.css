@@ -483,7 +483,6 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     .sync-btn { align-self: flex-end; margin-left: 0; padding: 0.35rem; }
     .search-bar > .sync-btn { align-self: center; }
     .search-bar > .sync-btn + .sync-btn { margin-top: -6px; }
-    /* Coloca os 2 botões sync lado a lado */
     .search-bar { position: relative; }
     .search-bar > .sync-btn { position: relative; align-self: auto; }
     .search-bar > .sync-btn:last-child { align-self: auto; }
