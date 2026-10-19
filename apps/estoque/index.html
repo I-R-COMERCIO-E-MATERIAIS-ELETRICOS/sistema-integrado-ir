@@ -5,13 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estoque - I.R. Comércio</title>
     
-    <!-- Estilos globais do sistema -->
+    <!-- Estilos -->
     <link rel="stylesheet" href="/shared/style.css">
-    <link rel="stylesheet" href="styles.css"> 
+    <link rel="stylesheet" href="styles.css">
 
- 
+    <!-- Bibliotecas para geração de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- CSS Específico para corrigir o Dashboard que estava quebrado -->
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s ease;
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stat-icon-info { background: rgba(59, 130, 246, 0.1); color: #3B82F6; }
+        .stat-icon-success { background: rgba(34, 197, 94, 0.1); color: #22C55E; }
+        .stat-content { flex: 1; }
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
     <div class="app-content">
@@ -23,12 +68,23 @@
                     <h1>ESTOQUE</h1>
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <!-- Botão Novo Item -->
                     <button type="button" class="btn-new-order-header" id="newBtn">
                         + Novo Item
                     </button>
-                    <button type="button" class="btn-new-order-header" id="pdfBtn" onclick="gerarPDFEstoque()" style="background:#ff521d; box-shadow: 0 1px 3px rgba(255, 82, 29, 0.3);">
-                        Gerar PDF
+                    
+                    <!-- Botão PDF como Ícone (RESTAURADO) -->
+                    <button type="button" class="sync-btn doc-btn" id="pdfBtn" onclick="gerarPDFEstoque()" title="Gerar PDF">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
                     </button>
+                    
+                    <!-- Botão Sync como Ícone -->
                     <button type="button" class="sync-btn" id="syncBtn" onclick="sincronizarDados(this)" title="Sincronizar Dados">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 4v6h-6"></path>
@@ -43,16 +99,24 @@
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-icon stat-icon-info">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="totalQtd">0</div>
                         <div class="stat-label">Total de Itens</div>
                     </div>
                 </div>
+                
                 <div class="stat-card">
                     <div class="stat-icon stat-icon-success">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="totalValor">R$ 0,00</div>
@@ -95,16 +159,15 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>ID (Código)</th>
-                                <th>Descrição</th>
-                                <th>Grupo</th>
-                                <th>Valor Unitário</th>
-                                <th>Qtd</th>
-                                <th style="text-align: center;">Ações</th>
+                                <th style="width: 15%;">ID (Código)</th>
+                                <th style="width: 30%;">Descrição</th>
+                                <th style="width: 15%;">Grupo</th>
+                                <th style="width: 15%;">Valor Unitário</th>
+                                <th style="width: 10%;">Qtd</th>
+                                <th style="width: 15%; text-align: center;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="estoqueTableBody">
-                            <!-- Os itens serão renderizados aqui via JS -->
                             <tr>
                                 <td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">
                                     Carregando dados...
@@ -118,7 +181,7 @@
         </div>
     </div>
 
-    <!-- Script do Módulo (certifique-se de que o nome esteja igual ao arquivo salvo) -->
+    <!-- Script do Módulo -->
     <script src="script.js"></script>
 </body>
 </html>
