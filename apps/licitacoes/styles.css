@@ -305,10 +305,13 @@ button.cancel-close{background:#dc2626;color:#fff}
 .col-pct{width:4.5%}
 .col-actions{width:5%;text-align:center}
 
+/* Cores das linhas */
 .row-warn{background:#fef2f2 !important}
 .row-color-amarelo{background:#fef9c3 !important}
+.row-color-azul{background:#bfdbfe !important}
 .row-color-cinza{background:#e5e7eb !important}
 .row-color-vermelho{background:#fca5a5 !important}
+.row-color-laranja{background:#fed7aa !important}
 .row-ganho-item{background:#dcfce7 !important;border-left:3px solid #16A34A}
 .row-ganho-item:hover{background:#bbf7d0 !important}
 .row-actions{display:flex;gap:4px;justify-content:center;align-items:center}
