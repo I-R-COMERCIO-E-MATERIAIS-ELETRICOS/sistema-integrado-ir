@@ -143,9 +143,9 @@ function renderUsuariosReplica() {
                 </div>
 
                 <div class="tabs-nav" data-tut="modal-tabs">
-                    <button type="button" class="tab-btn active" data-tut-tab="info">Informações</button>
-                    <button type="button" class="tab-btn" data-tut-tab="modules">Módulos</button>
-                    <button type="button" class="tab-btn" data-tut-tab="credentials">Credenciais</button>
+                    <button type="button" class="tab-btn active" data-tut-tab="info" data-tut="tab-btn-info">Informações</button>
+                    <button type="button" class="tab-btn" data-tut-tab="modules" data-tut="tab-btn-modules">Módulos</button>
+                    <button type="button" class="tab-btn" data-tut-tab="credentials" data-tut="tab-btn-credentials">Credenciais</button>
                 </div>
 
                 <div class="tab-content active" data-tut="tab-content-info" data-tut-pane="info">
@@ -194,15 +194,19 @@ function renderUsuariosReplica() {
                     </div>
                     <div class="form-group full" style="margin-top:1rem;">
                         <label>Status do usuário</label>
-                        <div class="status-preview">Selecione para desativar</div>
+                        <div class="status-preview" data-tut="credentials-status">Selecione para desativar</div>
                     </div>
                 </div>
 
-                <div class="modal-actions" data-tut="modal-actions">
-                    <button type="button" class="secondary tab-prev">Anterior</button>
-                    <button type="button" class="secondary tab-next">Próximo</button>
-                    <button type="button" class="save">Salvar</button>
-                    <button type="button" class="cancel-close">Cancelar</button>
+                <div class="modal-actions">
+                    <div data-tut="modal-nav-btns" style="display:flex; gap:0.75rem; width: 100%; justify-content: flex-end;">
+                        <button type="button" class="secondary tab-prev">Anterior</button>
+                        <button type="button" class="secondary tab-next">Próximo</button>
+                    </div>
+                    <div data-tut="modal-action-btns" style="display:flex; gap:0.75rem; width: 100%; justify-content: flex-end;">
+                        <button type="button" class="save">Salvar</button>
+                        <button type="button" class="cancel-close">Cancelar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -220,89 +224,102 @@ const TUTORIALS = {
             {
                 id: '1',
                 target: '[data-tut="btn-novo-usuario"]',
-                text: 'Este botão permite que novos usuários sejam registrados.',
+                text: 'Este botão permite cadastrar novos usuários no sistema, definindo suas credenciais de acesso, permissões e informações funcionais.',
                 modalOpen: false
             },
             {
                 id: '2',
                 target: '[data-tut="modal-tabs"]',
-                text: 'Estas são as abas de navegação para os campos necessários ao registro e informações do usuário.',
+                text: 'Estas abas permitem navegar entre as diferentes seções do formulário, organizadas para o preenchimento dos dados cadastrais, das credenciais de acesso, das permissões e das demais informações do usuário.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
-                id: '2.1',
-                target: '[data-tut="modal-actions"]',
-                text: "Para navegar entre as abas você pode selecionar os botões 'Próximo' ou 'Anterior'. Para registrar as informações, basta clicar em 'Salvar'. Para cancelar um registro basta selecionar o botão 'Cancelar'.",
+                id: '3',
+                target: '[data-tut="modal-nav-btns"]',
+                text: 'Utilize os botões PRÓXIMO e ANTERIOR para navegar entre as abas do formulário, avançando para a próxima seção ou retornando à anterior.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
-                id: '2.2',
-                target: '[data-tut="tab-content-info"]',
-                text: 'Esta aba contém informações a respeito do funcionário, contato e setor para o qual ele será designado.',
+                id: '4',
+                target: '[data-tut="modal-action-btns"]',
+                text: 'Para concluir o cadastro e registrar as informações preenchidas, clique em SALVAR. Caso deseje interromper o processo sem concluir o registro, selecione CANCELAR.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
-                id: '2.3',
-                target: '[data-tut="tab-content-modules"]',
-                text: 'Nesta aba você vai selecionar apenas os módulos que o usuário terá acesso após ser registrado.',
+                id: '5',
+                target: '[data-tut="tab-btn-info"]',
+                text: 'Nesta aba, você encontrará as informações cadastrais do funcionário, incluindo seus dados de contato e o setor ao qual será vinculado.',
+                modalOpen: true,
+                activeTab: 'info'
+            },
+            {
+                id: '6',
+                target: '[data-tut="tab-btn-modules"]',
+                text: 'Nesta aba, selecione os módulos aos quais o usuário terá acesso após a conclusão do cadastro. Apenas os módulos selecionados estarão disponíveis para o usuário.',
                 modalOpen: true,
                 activeTab: 'modules'
             },
             {
-                id: '2.4',
-                target: '[data-tut="tab-content-credentials"]',
-                text: 'Esta aba contém informações referentes às credenciais do usuário. Por motivos de segurança, após o registro a senha não fica visível, porém, você pode substituir por uma nova a qualquer momento preenchendo novamente o campo de senha através do Botão Editar. Para desativar e ativar um usuário, basta clicar na caixa de seleção abaixo dos campos. O usuário já é registrado ativo, por isso não há necessidade de selecionar o botão de ativação.',
+                id: '7',
+                target: '[data-tut="tab-btn-credentials"]',
+                text: 'Esta aba reúne as informações referentes às credenciais de acesso do usuário. Por motivos de segurança, a senha não é exibida após o cadastro. Caso deseje alterá-la, basta preencher novamente o campo correspondente ao acessar o modo de edição por meio do botão EDITAR.',
                 modalOpen: true,
                 activeTab: 'credentials'
             },
             {
-                id: '3',
-                target: '[data-tut="search-bar"]',
-                text: 'Para uma pesquisa rápida, selecione o filtro de busca e escreva o que deseja buscar neste módulo.',
-                modalOpen: false
-            },
-            {
-                id: '4',
-                target: '[data-tut="sector-filter"]',
-                text: 'Selecione o setor desejado e apenas usuários designados a ele serão apresentados na tabela de registros.',
-                modalOpen: false
-            },
-            {
-                id: '5',
-                target: '[data-tut="employee-filter"]',
-                text: 'Selecione o funcionário desejado e apenas ele será apresentado na tabela de registros.',
-                modalOpen: false
-            },
-            {
-                id: '6',
-                target: '[data-tut="sync-btn"]',
-                text: 'Ao selecionar este ícone você pode ter uma sincronização auxiliar, caso os dados não sejam atualizados de forma adequada pelo sistema.',
-                modalOpen: false
-            },
-            {
-                id: '7',
-                target: '[data-tut="table-header"]',
-                text: 'Este é o cabeçalho da tabela de registros, onde ficam dispostas em colunas algumas das informações registradas para o usuário.',
-                modalOpen: false
-            },
-            {
                 id: '8',
-                target: '[data-tut="edit-btn"]',
-                text: 'Este botão servirá para que você consiga modificar informações a respeito do usuário, inclusive alterar senhas, nomes de usuários entre outros.',
-                modalOpen: false
+                target: '[data-tut="credentials-status"]',
+                text: 'Para ativar ou desativar o usuário, utilize a caixa de seleção localizada abaixo dos campos. Por padrão, todo usuário recém-cadastrado é registrado como ativo, não sendo necessário realizar nenhuma ação adicional para habilitar seu acesso.',
+                modalOpen: true,
+                activeTab: 'credentials'
             },
             {
                 id: '9',
+                target: '[data-tut="search-bar"]',
+                text: 'Para realizar uma pesquisa rápida, selecione o filtro de busca desejado e digite o termo que pretende localizar neste módulo.',
+                modalOpen: false
+            },
+            {
+                id: '10',
+                target: '[data-tut="sector-filter"]',
+                text: 'Selecione o setor desejado para filtrar os registros. A tabela exibirá apenas os usuários vinculados ao setor selecionado.',
+                modalOpen: false
+            },
+            {
+                id: '11',
+                target: '[data-tut="employee-filter"]',
+                text: 'Selecione o funcionário desejado para filtrar os registros. A tabela exibirá apenas o usuário correspondente ao funcionário selecionado.',
+                modalOpen: false
+            },
+            {
+                id: '12',
+                target: '[data-tut="sync-btn"]',
+                text: 'Este ícone permite realizar uma sincronização manual dos dados, auxiliando na atualização das informações caso elas não sejam atualizadas automaticamente pelo sistema.',
+                modalOpen: false
+            },
+            {
+                id: '13',
+                target: '[data-tut="table-header"]',
+                text: 'Este é o cabeçalho da tabela de registros, responsável por organizar em colunas as principais informações cadastradas de cada usuário, facilitando a visualização e a identificação dos registros.',
+                modalOpen: false
+            },
+            {
+                id: '14',
+                target: '[data-tut="edit-btn"]',
+                text: 'Este botão permite editar as informações cadastradas do usuário, possibilitando atualizar dados como nome de usuário, senha, informações pessoais e demais configurações disponíveis no cadastro.',
+                modalOpen: false
+            },
+            {
+                id: '15',
                 target: '[data-tut="delete-btn"]',
-                text: 'Este botão servirá para que você exclua o usuário de forma definitiva, mas os acessos e atividades realizadas por ele ficarão guardados para consultas posteriores em caso de necessidade.',
+                text: 'Este botão permite excluir definitivamente o usuário do sistema. No entanto, os registros de acesso e as atividades realizadas por ele serão preservados para consultas futuras, garantindo a rastreabilidade das ações executadas, caso seja necessário.',
                 modalOpen: false
             }
         ]
     }
-    // Licitações, Preços, Compra, etc. serão adicionados depois
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -388,18 +405,13 @@ function openTutorial(moduleId) {
     currentSteps = tut.steps;
     currentStepIndex = 0;
 
-    // Mostra a view do tutorial
     $('tutorialDashboard').classList.add('hidden');
     $('tutorialStageView').classList.remove('hidden');
-
-    // Título
     $('tutorialTitle').textContent = tut.title;
 
-    // Renderiza replica
     $('stage').innerHTML = tut.render();
     computeStageScale();
 
-    // Renderiza primeiro step após pequeno delay para o DOM estabilizar
     setTimeout(() => renderStep(0), 60);
 }
 
@@ -415,16 +427,16 @@ function voltarDashboard() {
 
 /* ═══════════════════════════════════════════════════════════════
    ESCALA DO STAGE
-   Ajusta o stage (1600x1100) para caber no wrapper visível.
+   Ajusta o stage (1400x850) para caber no wrapper visível.
    ═══════════════════════════════════════════════════════════════ */
 function computeStageScale() {
     const wrapper = $('stageWrapper');
     const stage = $('stage');
     if (!wrapper || !stage) return;
 
-    const STAGE_W = 1600;
-    const STAGE_H = 1100;
-    const availW = wrapper.clientWidth - 32;   // margem
+    const STAGE_W = 1400;
+    const STAGE_H = 850;
+    const availW = wrapper.clientWidth - 32;
     const availH = wrapper.clientHeight - 32;
 
     const scaleW = availW / STAGE_W;
@@ -432,7 +444,6 @@ function computeStageScale() {
     stageScale = Math.min(1, scaleW, scaleH);
 
     stage.style.transform = `scale(${stageScale})`;
-    stage.style.marginTop = '16px';
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -447,19 +458,16 @@ function renderStep(index) {
     const step = currentSteps[index];
     const total = currentSteps.length;
 
-    // Progresso
     $('tutorialProgress').textContent = `${index + 1} / ${total}`;
     $('narrationStep').textContent = `Passo ${step.id}`;
     $('narrationText').textContent = step.text;
 
-    // Botões prev/next
     $('btnPrev').disabled = (index === 0);
     $('btnNext').disabled = (index === total - 1);
     $('btnNext').innerHTML = (index === total - 1)
         ? 'Finalizar'
         : 'Próximo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
 
-    // Modal: mostrar/ocultar e trocar de tab
     const modal = document.querySelector('.replica-modal');
     if (modal) {
         if (step.modalOpen) {
@@ -476,7 +484,6 @@ function renderStep(index) {
         }
     }
 
-    // Aguarda o DOM se ajustar antes de calcular o spotlight
     requestAnimationFrame(() => {
         requestAnimationFrame(repositionSpotlight);
     });
@@ -504,7 +511,6 @@ function repositionSpotlight() {
     const spotlight = $('spotlight');
     const target = document.querySelector(step.target);
     if (!target) {
-        // Elemento não encontrado — esconde o spotlight (não destaca nada)
         spotlight.style.opacity = '0';
         return;
     }
@@ -515,13 +521,10 @@ function repositionSpotlight() {
         return;
     }
 
-    // Área de toque do narração top (bottom bar) — evita que o spotlight
-    // fique por baixo do rodapé
-    const narrationHeight = $('narration')?.offsetHeight || 200;
+    const narrationHeight = $('narration')?.offsetHeight || 180;
     const usableBottom = window.innerHeight - narrationHeight;
     const usableTop = 56; // topbar
 
-    // Clamp dentro da área visível (não deixa o spotlight invadir o rodapé)
     let top = rect.top - 4;
     let left = rect.left - 4;
     let width = rect.width + 8;
