@@ -154,6 +154,7 @@ const ROUTE_TO_MODULE = {
     '/api/estoque/grupos':   'estoque',
     '/api/estoque':          ['faturamento', 'estoque'],
     '/api/licitacoes':       'licitacoes'
+    // Tutorial não possui API própria — não precisa de entrada aqui.
 };
 
 // Rotas compartilhadas que não pertencem a nenhum módulo específico
@@ -280,7 +281,7 @@ app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), {
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra',
     'transportadoras', 'cotacoes', 'faturamento', 'frete', 'receber',
-    'pagar', 'lucro', 'licitacoes', 'estoque'
+    'pagar', 'lucro', 'licitacoes', 'estoque', 'tutorial'
 ];
 
 // Bloqueia exposição de arquivos sensíveis (backend) via static
@@ -431,8 +432,9 @@ app.use('/api/fretes', require('./apps/frete/routes')(supabase));
 app.use('/api/receber', require('./apps/receber/routes')(supabase));
 app.use('/api', require('./apps/lucro/routes')(supabase));
 app.use('/api', require('./apps/pagar/routes')(supabase));
-// ─── ESTOQUE (novo módulo completo: CRUD + grupos + movimentações) ───────────
+// ─── ESTOQUE (módulo completo: CRUD + grupos + movimentações) ───────────────
 app.use('/api', require('./apps/estoque/routes')(supabase));
+// Tutorial é 100% frontend — não registra rotas de API.
 
 // ─── VERIFICAÇÃO DE SESSÃO ───────────────────────────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
@@ -498,5 +500,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  CRUD /api/receber          → Contas a Receber');
     console.log('  CRUD /api/lucro-real       → Lucro Real');
     console.log('  POST /api/custo-fixo       → Custo Fixo Mensal');
-    console.log('  CRUD /api/contas           → Contas a Pagar\n');
+    console.log('  CRUD /api/contas           → Contas a Pagar');
+    console.log('  (Tutorial é 100% frontend — sem rotas de API)\n');
 });
