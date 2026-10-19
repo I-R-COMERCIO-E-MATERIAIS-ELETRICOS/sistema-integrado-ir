@@ -1007,10 +1007,13 @@ function generatePDF(id) {
 }
 
 /**
- * Desenha o cabeçalho (logo + título + número da ordem) no topo da página atual.
- * Retorna a coordenada Y imediatamente abaixo do cabeçalho.
+ * Desenha o cabeçalho no topo da página atual.
+ * - includeTitle = true  → logo + "ORDEM DE COMPRA" + "Nº X" (SOMENTE na 1ª página)
+ * - includeTitle = false → apenas a marca (logo + "I.R COMÉRCIO E MATERIAIS ELÉTRICOS LTDA")
+ *   em páginas de continuação, sem repetir o título.
+ * Retorna a coordenada Y imediatamente abaixo do que foi desenhado.
  */
-function drawPageHeader(doc, ordem, pageWidth, logoImage) {
+function drawPageHeader(doc, ordem, pageWidth, logoImage, includeTitle = true) {
     let y = 3;
     if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
         try {
@@ -1038,6 +1041,12 @@ function drawPageHeader(doc, ordem, pageWidth, logoImage) {
     } else {
         y = 25;
     }
+
+    // Páginas de continuação: apenas a marca, sem título/número
+    if (!includeTitle) {
+        return y + 2;
+    }
+
     doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.setTextColor(0, 0, 0);
     doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' }); y += 8;
     doc.setFontSize(14);
@@ -1058,11 +1067,12 @@ function generatePDFForOrdem(ordem) {
     logoHeader.crossOrigin = 'anonymous';
     logoHeader.src = '/apps/imagens/I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
     logoHeader.onload = function () {
-        const y = drawPageHeader(doc, ordem, pageWidth, logoHeader);
+        // 1ª página: cabeçalho COMPLETO (logo + título + número da ordem)
+        const y = drawPageHeader(doc, ordem, pageWidth, logoHeader, true);
         continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, logoHeader);
     };
     logoHeader.onerror = function () {
-        const y = drawPageHeader(doc, ordem, pageWidth, null);
+        const y = drawPageHeader(doc, ordem, pageWidth, null, true);
         continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, null);
     };
 }
@@ -1070,10 +1080,11 @@ function generatePDFForOrdem(ordem) {
 function continuarGeracaoPDF(doc, ordem, startY, margin, pageWidth, pageHeight, lineHeight, maxWidth, logoImage) {
     let y = startY;
 
-    // Redesenha cabeçalho (página nova) e devolve o novo Y
-    const drawHeader = () => drawPageHeader(doc, ordem, pageWidth, logoImage);
+    // Todas as chamadas desta closure são para páginas de CONTINUAÇÃO
+    // → redesenham APENAS a marca (sem título "ORDEM DE COMPRA" / "Nº X")
+    const drawHeader = () => drawPageHeader(doc, ordem, pageWidth, logoImage, false);
 
-    // Cria página nova + cabeçalho se não houver espaço vertical suficiente
+    // Cria página nova + cabeçalho (só marca) se não houver espaço vertical suficiente
     const ensureSpace = (currentY, needed) => {
         if (currentY + needed > pageHeight - 30) {
             doc.addPage();
@@ -1082,7 +1093,7 @@ function continuarGeracaoPDF(doc, ordem, startY, margin, pageWidth, pageHeight, 
         return currentY;
     };
 
-    // Texto com quebra de linha + quebra de página (cada nova página recebe o cabeçalho)
+    // Texto com quebra de linha + quebra de página (cada nova página recebe só o cabeçalho da marca)
     const addTextWithWrap = function (text, x, yStart, maxW, lineH = 5) {
         const lines = doc.splitTextToSize(text, maxW);
         let currentY = yStart;
@@ -1105,7 +1116,7 @@ function continuarGeracaoPDF(doc, ordem, startY, margin, pageWidth, pageHeight, 
     const headers = ['ITEM', 'ESPECIFICAÇÃO', 'QTD', 'UNID', 'VALOR UN', 'IPI', 'ST', 'TOTAL'];
     const colKeys = ['item', 'especificacao', 'qtd', 'unid', 'valorUn', 'ipi', 'st', 'total'];
 
-    // Desenha apenas a linha de cabeçalho da tabela
+    // Desenha apenas a linha de cabeçalho da tabela (colunas)
     const drawTableHeader = (yPos) => {
         doc.setFillColor(108, 117, 125); doc.setDrawColor(180, 180, 180);
         doc.rect(margin, yPos, tableWidth, itemRowHeight, 'FD');
@@ -1186,10 +1197,10 @@ function continuarGeracaoPDF(doc, ordem, startY, margin, pageWidth, pageHeight, 
         const especLines = doc.splitTextToSize(toUpperCase(item.especificacao), colWidths.especificacao - 6);
         const necessaryHeight = Math.max(itemRowHeight, especLines.length * 4 + 4);
 
-        // Quebra de página: cabeçalho + título da continuação + cabeçalho da tabela
+        // Quebra de página: apenas cabeçalho da marca (sem título) + subtítulo + cabeçalho da tabela
         if (y + necessaryHeight > pageHeight - 30) {
             doc.addPage();
-            y = drawHeader();
+            y = drawHeader(); // só logo/marca, sem repetir "ORDEM DE COMPRA" nem "Nº X"
             doc.setFontSize(11); doc.setFont(undefined, 'bold');
             doc.text('ITENS DO PEDIDO (CONTINUAÇÃO)', margin, y); y += 6;
             y = drawTableHeader(y);
@@ -1320,12 +1331,12 @@ function continuarGeracaoPDF(doc, ordem, startY, margin, pageWidth, pageHeight, 
 
 /**
  * Rodapé institucional ("ATENÇÃO SR. FORNECEDOR").
- * Se precisar de página nova, redesque o cabeçalho nela.
+ * Se precisar de página nova, redesenha APENAS a marca (sem título/número).
  */
 function adicionarRodapePDF(doc, ordem, yFinal, margin, pageWidth, pageHeight, logoImage) {
     if (yFinal > pageHeight - 30) {
         doc.addPage();
-        yFinal = drawPageHeader(doc, ordem, pageWidth, logoImage);
+        yFinal = drawPageHeader(doc, ordem, pageWidth, logoImage, false); // só marca
     }
     doc.setFillColor(240, 240, 240);
     doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
