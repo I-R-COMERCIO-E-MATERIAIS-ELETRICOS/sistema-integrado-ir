@@ -1,6 +1,5 @@
 /* ================================================================
  * Tutorial · I.R. Comércio
- * Módulo de aprendizado visual e sequencial
  * ================================================================ */
 
 const MODULE_ICONS = {
@@ -32,6 +31,10 @@ const MODULE_INFO = {
     pagar:           { name: 'Contas a Pagar',          desc: 'Gestão de contas a pagar' },
     lucro:           { name: 'Lucro Real',              desc: 'Cálculo de lucro real' },
 };
+
+/* Variáveis de Permissão */
+let isAdmin = false;
+let userApps = [];
 
 /* ═══════════════════════════════════════════════════════════════
    REPLICA HTML — Usuários
@@ -116,18 +119,6 @@ function renderUsuariosReplica() {
                                     <button class="action-btn delete">Excluir</button>
                                 </td>
                             </tr>
-                            <tr>
-                                <td><strong>03</strong></td>
-                                <td><strong>LUCAS OLIVEIRA</strong></td>
-                                <td>lucas.oliveira</td>
-                                <td>ALMOXARIFADO</td>
-                                <td><span class="badge ativo">Ativo</span></td>
-                                <td>03/03/2025</td>
-                                <td style="text-align:center;">
-                                    <button class="action-btn edit">Editar</button>
-                                    <button class="action-btn delete">Excluir</button>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -176,8 +167,6 @@ function renderUsuariosReplica() {
                         <div class="module-card">Tabela de Preços</div>
                         <div class="module-card selected">Pedidos de Faturamento</div>
                         <div class="module-card">Estoque</div>
-                        <div class="module-card">Contas a Receber</div>
-                        <div class="module-card">Contas a Pagar</div>
                     </div>
                 </div>
 
@@ -199,14 +188,10 @@ function renderUsuariosReplica() {
                 </div>
 
                 <div class="modal-actions">
-                    <div data-tut="modal-nav-btns" style="display:flex; gap:0.75rem; width: 100%; justify-content: flex-end;">
-                        <button type="button" class="secondary tab-prev">Anterior</button>
-                        <button type="button" class="secondary tab-next">Próximo</button>
-                    </div>
-                    <div data-tut="modal-action-btns" style="display:flex; gap:0.75rem; width: 100%; justify-content: flex-end;">
-                        <button type="button" class="save">Salvar</button>
-                        <button type="button" class="cancel-close">Cancelar</button>
-                    </div>
+                    <button type="button" class="secondary tab-prev" data-tut="btn-prev">Anterior</button>
+                    <button type="button" class="secondary tab-next" data-tut="btn-next">Próximo</button>
+                    <button type="button" class="save" data-tut="btn-save">Salvar</button>
+                    <button type="button" class="cancel-close" data-tut="btn-cancel">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -236,42 +221,42 @@ const TUTORIALS = {
             },
             {
                 id: '3',
-                target: '[data-tut="modal-nav-btns"]',
+                target: ['[data-tut="btn-prev"]', '[data-tut="btn-next"]'],
                 text: 'Utilize os botões PRÓXIMO e ANTERIOR para navegar entre as abas do formulário, avançando para a próxima seção ou retornando à anterior.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
                 id: '4',
-                target: '[data-tut="modal-action-btns"]',
+                target: ['[data-tut="btn-save"]', '[data-tut="btn-cancel"]'],
                 text: 'Para concluir o cadastro e registrar as informações preenchidas, clique em SALVAR. Caso deseje interromper o processo sem concluir o registro, selecione CANCELAR.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
                 id: '5',
-                target: '[data-tut="tab-btn-info"]',
+                target: ['[data-tut="tab-btn-info"]', '[data-tut="tab-content-info"]'],
                 text: 'Nesta aba, você encontrará as informações cadastrais do funcionário, incluindo seus dados de contato e o setor ao qual será vinculado.',
                 modalOpen: true,
                 activeTab: 'info'
             },
             {
                 id: '6',
-                target: '[data-tut="tab-btn-modules"]',
+                target: ['[data-tut="tab-btn-modules"]', '[data-tut="tab-content-modules"]'],
                 text: 'Nesta aba, selecione os módulos aos quais o usuário terá acesso após a conclusão do cadastro. Apenas os módulos selecionados estarão disponíveis para o usuário.',
                 modalOpen: true,
                 activeTab: 'modules'
             },
             {
                 id: '7',
-                target: '[data-tut="tab-btn-credentials"]',
+                target: ['[data-tut="tab-btn-credentials"]', '[data-tut="tab-content-credentials"]'],
                 text: 'Esta aba reúne as informações referentes às credenciais de acesso do usuário. Por motivos de segurança, a senha não é exibida após o cadastro. Caso deseje alterá-la, basta preencher novamente o campo correspondente ao acessar o modo de edição por meio do botão EDITAR.',
                 modalOpen: true,
                 activeTab: 'credentials'
             },
             {
                 id: '8',
-                target: '[data-tut="credentials-status"]',
+                target: ['[data-tut="tab-btn-credentials"]', '[data-tut="credentials-status"]'],
                 text: 'Para ativar ou desativar o usuário, utilize a caixa de seleção localizada abaixo dos campos. Por padrão, todo usuário recém-cadastrado é registrado como ativo, não sendo necessário realizar nenhuma ação adicional para habilitar seu acesso.',
                 modalOpen: true,
                 activeTab: 'credentials'
@@ -328,23 +313,34 @@ const TUTORIALS = {
 let currentModuleId = null;
 let currentStepIndex = 0;
 let currentSteps = [];
-let stageScale = 1;
 
 const $ = id => document.getElementById(id);
 
 /* ═══════════════════════════════════════════════════════════════
    INIT
    ═══════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Verificar permissões antes de renderizar
+    try {
+        const token = window.IR ? IR.getToken() : new URLSearchParams(window.location.search).get('sessionToken');
+        const res = await fetch('/api/me', { headers: { 'X-Session-Token': token }});
+        if (res.ok) {
+            const user = await res.json();
+            isAdmin = user.is_admin;
+            userApps = user.apps || [];
+        }
+    } catch(e) { console.error('Erro ao carregar permissões:', e); }
+
+    // 2. Renderizar Dashboard
     renderDashboard();
 
+    // 3. Event Listeners
     $('btnVoltarDashboard').addEventListener('click', voltarDashboard);
-    $('btnPrev').addEventListener('click', () => stepPrev());
-    $('btnNext').addEventListener('click', () => stepNext());
+    $('btnPrev').addEventListener('click', stepPrev);
+    $('btnNext').addEventListener('click', stepNext);
 
     window.addEventListener('resize', () => {
         if (currentModuleId) {
-            computeStageScale();
             requestAnimationFrame(repositionSpotlight);
         }
     });
@@ -363,24 +359,38 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderDashboard() {
     const grid = $('dashGrid');
     grid.innerHTML = '';
+    let hasAnyTutorial = false;
 
     Object.keys(MODULE_INFO).forEach(modId => {
+        // Filtro de permissão
+        let allowed = isAdmin;
+        if (!allowed && modId === 'usuarios') allowed = false;
+        else if (!allowed) allowed = userApps.includes(modId);
+
+        if (!allowed) return;
+
         const info = MODULE_INFO[modId];
-        const isAvailable = !!TUTORIALS[modId];
+        const isImplemented = !!TUTORIALS[modId];
+        
+        if (isImplemented) hasAnyTutorial = true;
 
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = 'dash-card' + (isAvailable ? '' : ' disabled');
+        card.className = 'dash-card';
+        
+        // Cards não implementados ainda levam a um toast
+        if (!isImplemented) {
+            card.style.opacity = '0.6';
+            card.style.cursor = 'not-allowed';
+        }
+
         card.innerHTML = `
             <div class="dash-card-icon">${MODULE_ICONS[modId] || ''}</div>
             <div class="dash-card-title">${info.name}</div>
             <div class="dash-card-desc">${info.desc}</div>
-            <span class="dash-card-badge ${isAvailable ? 'available' : 'soon'}">
-                ${isAvailable ? 'Disponível' : 'Em breve'}
-            </span>
         `;
 
-        if (isAvailable) {
+        if (isImplemented) {
             card.addEventListener('click', () => openTutorial(modId));
         } else {
             card.addEventListener('click', () => {
@@ -392,6 +402,10 @@ function renderDashboard() {
 
         grid.appendChild(card);
     });
+
+    if (!hasAnyTutorial && grid.innerHTML === '') {
+        grid.innerHTML = '<p style="color: var(--text-secondary); padding: 2rem;">Nenhum tutorial disponível para o seu nível de acesso.</p>';
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -410,7 +424,9 @@ function openTutorial(moduleId) {
     $('tutorialTitle').textContent = tut.title;
 
     $('stage').innerHTML = tut.render();
-    computeStageScale();
+    
+    // Garante que o scroll do palco volte pro topo
+    $('stage').scrollTop = 0;
 
     setTimeout(() => renderStep(0), 60);
 }
@@ -419,31 +435,17 @@ function voltarDashboard() {
     currentModuleId = null;
     currentSteps = [];
     currentStepIndex = 0;
+    
+    // Esconde spotlight e limpa a tela
+    const spotlight = $('spotlight');
+    spotlight.style.opacity = '0';
+    spotlight.style.cssText = '';
+    
+    $('stage').innerHTML = '';
+    
+    // Troca as views
     $('tutorialStageView').classList.add('hidden');
     $('tutorialDashboard').classList.remove('hidden');
-    $('stage').innerHTML = '';
-    $('spotlight').style.cssText = '';
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   ESCALA DO STAGE
-   Ajusta o stage (1400x850) para caber no wrapper visível.
-   ═══════════════════════════════════════════════════════════════ */
-function computeStageScale() {
-    const wrapper = $('stageWrapper');
-    const stage = $('stage');
-    if (!wrapper || !stage) return;
-
-    const STAGE_W = 1400;
-    const STAGE_H = 850;
-    const availW = wrapper.clientWidth - 32;
-    const availH = wrapper.clientHeight - 32;
-
-    const scaleW = availW / STAGE_W;
-    const scaleH = availH / STAGE_H;
-    stageScale = Math.min(1, scaleW, scaleH);
-
-    stage.style.transform = `scale(${stageScale})`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -463,10 +465,13 @@ function renderStep(index) {
     $('narrationText').textContent = step.text;
 
     $('btnPrev').disabled = (index === 0);
-    $('btnNext').disabled = (index === total - 1);
-    $('btnNext').innerHTML = (index === total - 1)
-        ? 'Finalizar'
-        : 'Próximo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+    $('btnNext').disabled = false; // Permite clicar em finalizar
+    
+    if (index === total - 1) {
+        $('btnNext').innerHTML = 'Finalizar';
+    } else {
+        $('btnNext').innerHTML = 'Próximo <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+    }
 
     const modal = document.querySelector('.replica-modal');
     if (modal) {
@@ -492,6 +497,7 @@ function renderStep(index) {
 function stepPrev() {
     if (currentStepIndex > 0) renderStep(currentStepIndex - 1);
 }
+
 function stepNext() {
     if (currentStepIndex < currentSteps.length - 1) {
         renderStep(currentStepIndex + 1);
@@ -501,7 +507,7 @@ function stepNext() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SPOTLIGHT
+   SPOTLIGHT (Aceita múltiplos alvos)
    ═══════════════════════════════════════════════════════════════ */
 function repositionSpotlight() {
     if (!currentModuleId) return;
@@ -509,26 +515,39 @@ function repositionSpotlight() {
     if (!step) return;
 
     const spotlight = $('spotlight');
-    const target = document.querySelector(step.target);
-    if (!target) {
+    const targets = Array.isArray(step.target) ? step.target : [step.target];
+    
+    let minTop = Infinity, minLeft = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+    let hasTarget = false;
+
+    targets.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 || r.height > 0) {
+                hasTarget = true;
+                minTop = Math.min(minTop, r.top);
+                minLeft = Math.min(minLeft, r.left);
+                maxRight = Math.max(maxRight, r.right);
+                maxBottom = Math.max(maxBottom, r.bottom);
+            }
+        }
+    });
+
+    if (!hasTarget) {
         spotlight.style.opacity = '0';
         return;
     }
 
-    const rect = target.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-        spotlight.style.opacity = '0';
-        return;
-    }
+    // Margem para o spotlight não colar no botão
+    let top = minTop - 6;
+    let left = minLeft - 6;
+    let width = (maxRight - minLeft) + 12;
+    let height = (maxBottom - minTop) + 12;
 
     const narrationHeight = $('narration')?.offsetHeight || 180;
     const usableBottom = window.innerHeight - narrationHeight;
-    const usableTop = 56; // topbar
-
-    let top = rect.top - 4;
-    let left = rect.left - 4;
-    let width = rect.width + 8;
-    let height = rect.height + 8;
+    const usableTop = 56;
 
     if (top < usableTop) {
         height -= (usableTop - top);
