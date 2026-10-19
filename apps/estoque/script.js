@@ -10,12 +10,81 @@
 
 // ─── Configuração ───────────────────────────────────────────────────────────
 const API_BASE = '/api/estoque';
+const SESSION_KEY = 'irUserSession';
+const MODULE_SESSION_KEY = 'estoqueSession';
+const PORTAL_URL = window.location.origin;
 
 // ─── Estado ─────────────────────────────────────────────────────────────────
 let allItems = [];
 let grupos = [];
 let editingId = null;
 let filtros = { search: '', marca: '', grupo: '' };
+
+// ─── Autenticação e API ─────────────────────────────────────────────────────
+function getSessionToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('sessionToken');
+    
+    if (tokenFromUrl) {
+        sessionStorage.setItem(MODULE_SESSION_KEY, tokenFromUrl);
+        // Limpa a URL para não expor o token
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return tokenFromUrl;
+    }
+
+    let token = sessionStorage.getItem(MODULE_SESSION_KEY);
+    if (token) return token;
+
+    try {
+        const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            token = parsed.token || parsed.sessionToken || null;
+            if (token) return token;
+        }
+    } catch (e) { /* silencioso */ }
+
+    return null;
+}
+
+async function api(endpoint, options = {}) {
+    const token = getSessionToken();
+    
+    const headers = {
+        'Accept': 'application/json',
+        ...options.headers
+    };
+    
+    if (options.body && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
+    if (token) {
+        headers['X-Session-Token'] = token;
+    }
+
+    const response = await fetch(endpoint, { ...options, headers });
+
+    if (response.status === 401 || response.status === 403) {
+        console.error("Sessão expirada ou inválida.");
+        sessionStorage.removeItem(MODULE_SESSION_KEY);
+        if (window.IR && typeof IR.denied === 'function') {
+            IR.denied('Sua sessão expirou.');
+        } else {
+            window.location.href = PORTAL_URL + '/?logout=1&reason=session';
+        }
+        throw new Error('Sessão expirada');
+    }
+
+    if (!response.ok) {
+        let errData = {};
+        try { errData = await response.json(); } catch {}
+        throw new Error(errData.error || `Erro HTTP: ${response.status}`);
+    }
+
+    if (response.status === 204) return null;
+    try { return await response.json(); } catch { return {}; }
+}
 
 // ─── Utilidades ─────────────────────────────────────────────────────────────
 function escapeHtml(s) {
@@ -35,16 +104,10 @@ function formatCurrency(v) {
     });
 }
 
-async function parseJsonSafe(res) {
-    try { return await res.json(); } catch { return {}; }
-}
-
 function notificar(msg, tipo) {
-    // Se o projeto tiver um helper global (ir-common), usa; senão usa alert.
     if (typeof window.mostrarToast === 'function') {
         try { window.mostrarToast(msg, tipo || 'info'); return; } catch {}
     }
-    // Fallback simples e silencioso
     if (tipo === 'error') console.error(msg);
     else console.log(msg);
     alert(msg);
@@ -76,6 +139,16 @@ function fecharTodosModais() {
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    const token = getSessionToken();
+    if (!token) {
+        if (window.IR && typeof IR.denied === 'function') {
+            IR.denied('Sessão expirada.');
+        } else {
+            window.location.href = PORTAL_URL + '/?logout=1&reason=session';
+        }
+        return;
+    }
+
     const tbody = document.getElementById('estoqueTableBody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
@@ -92,24 +165,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Carregamento ───────────────────────────────────────────────────────────
 async function carregarGrupos() {
     try {
-        const res = await fetch(`${API_BASE}/grupos`);
-        if (!res.ok) throw new Error('Erro ao carregar grupos');
-        grupos = await res.json();
+        // Usando api() no lugar do fetch() para enviar o Token
+        grupos = await api(`${API_BASE}/grupos`);
         preencherFiltroGrupos();
     } catch (e) {
-        console.error(e);
+        console.error('Erro ao carregar grupos', e);
     }
 }
 
 async function carregarEstoque() {
     try {
-        const res = await fetch(API_BASE);
-        if (!res.ok) throw new Error('Erro ao carregar estoque');
-        allItems = await res.json();
+        // Usando api() no lugar do fetch() para enviar o Token
+        allItems = await api(API_BASE);
         preencherFiltroMarcas();
         renderTable();
     } catch (e) {
-        console.error(e);
+        console.error('Erro ao carregar estoque', e);
         notificar('Erro ao carregar estoque', 'error');
     }
 }
@@ -326,11 +397,9 @@ async function salvarItem(e, overlay) {
     if (!grupo) return notificar('Selecione o grupo', 'error');
 
     try {
-        let res;
         if (editingId) {
-            res = await fetch(`${API_BASE}/${editingId}`, {
+            await api(`${API_BASE}/${editingId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ descricao, grupo, valor_unitario: valor })
             });
         } else {
@@ -339,18 +408,14 @@ async function salvarItem(e, overlay) {
             const modelo = document.getElementById('fModelo').value.trim();
             const ncm    = document.getElementById('fNcm').value.trim();
 
-            res = await fetch(API_BASE, {
+            await api(API_BASE, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     descricao, grupo, valor_unitario: valor,
                     quantidade: qtd, marca, modelo, ncm
                 })
             });
         }
-
-        const data = await parseJsonSafe(res);
-        if (!res.ok) throw new Error(data.error || 'Erro ao salvar item');
 
         fecharModal(overlay);
         notificar(editingId ? 'Item atualizado!' : 'Item criado!', 'success');
@@ -377,11 +442,7 @@ function excluirItem(id) {
     overlay.querySelector('#btnCancelarExc').onclick = () => fecharModal(overlay);
     overlay.querySelector('#btnConfirmarExc').onclick = async () => {
         try {
-            const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
-            if (!res.ok && res.status !== 204) {
-                const data = await parseJsonSafe(res);
-                throw new Error(data.error || 'Erro ao excluir item');
-            }
+            await api(`${API_BASE}/${id}`, { method: 'DELETE' });
             fecharTodosModais();
             notificar('Item excluído', 'success');
             await carregarEstoque();
@@ -429,13 +490,10 @@ function openMovModal(id, tipo) {
         if (!qtd || qtd <= 0) return notificar('Informe uma quantidade válida', 'error');
 
         try {
-            const res = await fetch(`${API_BASE}/${item.id}/movimentacao`, {
+            await api(`${API_BASE}/${item.id}/movimentacao`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tipo, quantidade: qtd })
             });
-            const data = await parseJsonSafe(res);
-            if (!res.ok) throw new Error(data.error || 'Erro ao registrar movimentação');
 
             fecharModal(overlay);
             notificar(`${tipoLabel} registrada!`, 'success');
@@ -485,13 +543,10 @@ function abrirModalNovoGrupo() {
         }
 
         try {
-            const res = await fetch(`${API_BASE}/grupos`, {
+            const data = await api(`${API_BASE}/grupos`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome, abreviacao })
             });
-            const data = await parseJsonSafe(res);
-            if (!res.ok) throw new Error(data.error || 'Erro ao criar grupo');
 
             fecharModal(overlay);
             await carregarGrupos();
