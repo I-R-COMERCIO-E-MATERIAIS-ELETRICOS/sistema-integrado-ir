@@ -7,17 +7,17 @@
     
     <!-- Estilos -->
     <link rel="stylesheet" href="/shared/style.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 
-    <!-- Bibliotecas para geração de PDF -->
+    <!-- Bibliotecas para geração de PDF (Necessárias para o botão funcionar) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- CSS Específico para corrigir o Dashboard que estava quebrado -->
+    <!-- CSS de Correção do Dashboard (para os cards ficarem alinhados lado a lado) -->
     <style>
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
@@ -31,6 +31,10 @@
             align-items: center;
             gap: 1rem;
             transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         .stat-icon {
             width: 48px;
@@ -68,12 +72,13 @@
                     <h1>ESTOQUE</h1>
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    
                     <!-- Botão Novo Item -->
                     <button type="button" class="btn-new-order-header" id="newBtn">
                         + Novo Item
                     </button>
                     
-                    <!-- Botão PDF como Ícone (RESTAURADO) -->
+                    <!-- Botão PDF (Restaurado como Ícone) -->
                     <button type="button" class="sync-btn doc-btn" id="pdfBtn" onclick="gerarPDFEstoque()" title="Gerar PDF">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -84,7 +89,7 @@
                         </svg>
                     </button>
                     
-                    <!-- Botão Sync como Ícone -->
+                    <!-- Botão Sincronizar (Restaurado como Ícone) -->
                     <button type="button" class="sync-btn" id="syncBtn" onclick="sincronizarDados(this)" title="Sincronizar Dados">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 4v6h-6"></path>
