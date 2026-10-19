@@ -165,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Carregamento ───────────────────────────────────────────────────────────
 async function carregarGrupos() {
     try {
-        // Usando api() no lugar do fetch() para enviar o Token
         grupos = await api(`${API_BASE}/grupos`);
         preencherFiltroGrupos();
     } catch (e) {
@@ -175,7 +174,6 @@ async function carregarGrupos() {
 
 async function carregarEstoque() {
     try {
-        // Usando api() no lugar do fetch() para enviar o Token
         allItems = await api(API_BASE);
         preencherFiltroMarcas();
         renderTable();
@@ -268,9 +266,9 @@ function renderTable() {
                 <td>${formatCurrency(item.valor_unitario)}</td>
                 <td>${Number(item.quantidade) || 0}</td>
                 <td class="actions-cell" style="text-align:center;">
+                    <button type="button" class="action-btn edit"  onclick="event.stopPropagation(); openFormModal('${escapeHtml(item.id)}')">Editar</button>
                     <button type="button" class="action-btn entry" onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'entrada')">Entrada</button>
                     <button type="button" class="action-btn exit"  onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'saida')">Saída</button>
-                    <button type="button" class="action-btn edit"  onclick="event.stopPropagation(); openFormModal('${escapeHtml(item.id)}')">Editar</button>
                 </td>
             </tr>
         `).join('');
