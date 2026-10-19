@@ -136,7 +136,6 @@ module.exports = function (supabase) {
 
     // ═══════════════════════════════════════════════════════════════════
     // PATCH por CÓDIGO — compatibilidade com Faturamento
-    // Aceita opcionalmente: numero_pedido, tipo, atualizado_por
     // ═══════════════════════════════════════════════════════════════════
     router.patch('/estoque/:codigo', async (req, res) => {
         try {
@@ -200,7 +199,6 @@ module.exports = function (supabase) {
     // CRUD PRINCIPAL
     // ═══════════════════════════════════════════════════════════════════
 
-    // Lista completa — usada pelo Faturamento (GET /api/estoque)
     router.get('/estoque', async (req, res) => {
         try {
             const { data, error } = await supabase
@@ -295,13 +293,16 @@ module.exports = function (supabase) {
         }
     });
 
-    // Atualização — somente campos editáveis (Descrição, Grupo, Valor Unitário)
+    // Atualização — ATUALIZADO PARA ACEITAR MARCA, MODELO E NCM
     router.put('/estoque/:id', async (req, res) => {
         try {
             const b = req.body || {};
             const descricao = up(b.descricao);
             const grupo = up(b.grupo);
             const valorUnitario = parseFloat(b.valor_unitario) || 0;
+            const marca = up(b.marca);   // Novo campo aceito
+            const modelo = up(b.modelo); // Novo campo aceito
+            const ncm = norm(b.ncm);     // Novo campo aceito
 
             if (!descricao) return res.status(400).json({ error: 'Descrição é obrigatória' });
             if (!/^[A-Z]{4}$/.test(grupo)) return res.status(400).json({ error: 'Grupo inválido' });
@@ -310,6 +311,19 @@ module.exports = function (supabase) {
             const { data: g } = await supabase
                 .from('estoque_grupos').select('id').eq('abreviacao', grupo).maybeSingle();
             if (!g) return res.status(400).json({ error: 'Grupo não cadastrado' });
+
+            // Verifica se o modelo está sendo alterado para um já existente
+            if (modelo) {
+                const { data: dup } = await supabase
+                    .from('estoque')
+                    .select('id, modelo')
+                    .ilike('modelo', modelo)
+                    .neq('id', req.params.id)
+                    .maybeSingle();
+                if (dup) {
+                    return res.status(409).json({ error: `O modelo ${modelo} já possui cadastro` });
+                }
+            }
 
             const usuario = obterUsuario(req);
             const now = new Date().toISOString();
@@ -320,6 +334,9 @@ module.exports = function (supabase) {
                     descricao,
                     grupo,
                     valor_unitario: valorUnitario,
+                    marca: marca || null,
+                    modelo: modelo || null,
+                    ncm: ncm || null,
                     atualizado_por: usuario,
                     ultima_atualizacao: now
                 })
