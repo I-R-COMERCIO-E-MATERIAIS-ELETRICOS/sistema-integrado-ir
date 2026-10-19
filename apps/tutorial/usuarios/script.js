@@ -96,21 +96,96 @@ function renderUsuariosReplica() {
 }
 
 const STEPS = [
-    { id: '1', target: '[data-tut="btn-novo-usuario"]', text: 'Este botão permite cadastrar novos usuários no sistema, definindo suas credenciais de acesso, permissões e informações funcionais.', modalOpen: false },
-    { id: '2', target: '[data-tut="modal-tabs"]', text: 'Estas abas permitem navegar entre as diferentes seções do formulário, organizadas para o preenchimento dos dados cadastrais, das credenciais de acesso, das permissões e das demais informações do usuário.', modalOpen: true, activeTab: 'info' },
-    { id: '3', target: ['[data-tut="btn-prev"]', '[data-tut="btn-next"]'], text: 'Utilize os botões PRÓXIMO e ANTERIOR para navegar entre as abas do formulário, avançando para a próxima seção ou retornando à anterior.', modalOpen: true, activeTab: 'info' },
-    { id: '4', target: ['[data-tut="btn-save"]', '[data-tut="btn-cancel"]'], text: 'Para concluir o cadastro e registrar as informações preenchidas, clique em SALVAR. Caso deseje interromper o processo sem concluir o registro, selecione CANCELAR.', modalOpen: true, activeTab: 'info' },
-    { id: '5', target: ['[data-tut="tab-btn-info"]', '[data-tut="tab-content-info"]'], text: 'Nesta aba, você encontrará as informações cadastrais do funcionário, incluindo seus dados de contato e o setor ao qual será vinculado.', modalOpen: true, activeTab: 'info' },
-    { id: '6', target: ['[data-tut="tab-btn-modules"]', '[data-tut="tab-content-modules"]'], text: 'Nesta aba, selecione os módulos aos quais o usuário terá acesso após a conclusão do cadastro. Apenas os módulos selecionados estarão disponíveis para o usuário.', modalOpen: true, activeTab: 'modules' },
-    { id: '7', target: ['[data-tut="tab-btn-credentials"]', '[data-tut="tab-content-credentials"]'], text: 'Esta aba reúne as informações referentes às credenciais de acesso do usuário. Por motivos de segurança, a senha não é exibida após o cadastro. Caso deseje alterá-la, basta preencher novamente o campo correspondente ao acessar o modo de edição por meio do botão EDITAR.', modalOpen: true, activeTab: 'credentials' },
-    { id: '8', target: ['[data-tut="tab-btn-credentials"]', '[data-tut="credentials-status"]'], text: 'Para ativar ou desativar o usuário, utilize a caixa de seleção localizada abaixo dos campos. Por padrão, todo usuário recém-cadastrado é registrado como ativo, não sendo necessário realizar nenhuma ação adicional para habilitar seu acesso.', modalOpen: true, activeTab: 'credentials' },
-    { id: '9', target: '[data-tut="search-bar"]', text: 'Para realizar uma pesquisa rápida, selecione o filtro de busca desejado e digite o termo que pretende localizar neste módulo.', modalOpen: false },
-    { id: '10', target: '[data-tut="sector-filter"]', text: 'Selecione o setor desejado para filtrar os registros. A tabela exibirá apenas os usuários vinculados ao setor selecionado.', modalOpen: false },
-    { id: '11', target: '[data-tut="employee-filter"]', text: 'Selecione o funcionário desejado para filtrar os registros. A tabela exibirá apenas o usuário correspondente ao funcionário selecionado.', modalOpen: false },
-    { id: '12', target: '[data-tut="sync-btn"]', text: 'Este ícone permite realizar uma sincronização manual dos dados, auxiliando na atualização das informações caso elas não sejam atualizadas automaticamente pelo sistema.', modalOpen: false },
-    { id: '13', target: '[data-tut="table-header"]', text: 'Este é o cabeçalho da tabela de registros, responsável por organizar em colunas as principais informações cadastradas de cada usuário, facilitando a visualização e a identificação dos registros.', modalOpen: false },
-    { id: '14', target: '[data-tut="edit-btn"]', text: 'Este botão permite editar as informações cadastradas do usuário, possibilitando atualizar dados como nome de usuário, senha, informações pessoais e demais configurações disponíveis no cadastro.', modalOpen: false },
-    { id: '15', target: '[data-tut="delete-btn"]', text: 'Este botão permite excluir definitivamente o usuário do sistema. No entanto, os registros de acesso e as atividades realizadas por ele serão preservados para consultas futuras, garantindo a rastreabilidade das ações executadas, caso seja necessário.', modalOpen: false }
+    { 
+        id: '1', 
+        target: '[data-tut="btn-novo-usuario"]', 
+        text: 'Este botão permite cadastrar novos usuários no sistema, definindo suas credenciais de acesso, permissões e informações funcionais.', 
+        modalOpen: false 
+    },
+    { 
+        id: '2', 
+        target: '[data-tut="modal-tabs"]', 
+        text: 'Estas abas permitem navegar entre as diferentes seções do formulário, organizadas para o preenchimento dos dados cadastrais, das credenciais de acesso, das permissões e das demais informações do usuário.', 
+        modalOpen: true, 
+        activeTab: 'info' 
+    },
+    { 
+        id: '3', 
+        target: ['[data-tut="btn-prev"]', '[data-tut="btn-next"]'], 
+        text: 'Utilize os botões PRÓXIMO e ANTERIOR para navegar entre as abas do formulário, avançando para a próxima seção ou retornando à anterior.', 
+        modalOpen: true, 
+        activeTab: 'info' 
+    },
+    { 
+        id: '4', 
+        target: ['[data-tut="btn-save"]', '[data-tut="btn-cancel"]'], 
+        text: 'Para concluir o cadastro e registrar as informações preenchidas, clique em SALVAR. Caso deseje interromper o processo sem concluir o registro, selecione CANCELAR.', 
+        modalOpen: true, 
+        activeTab: 'info' 
+    },
+    { 
+        id: '5', 
+        target: ['[data-tut="tab-btn-info"]', '[data-tut="tab-content-info"]'], 
+        text: 'Nesta aba, você encontrará as informações cadastrais do funcionário, incluindo seus dados de contato e o setor ao qual será vinculado.', 
+        modalOpen: true, 
+        activeTab: 'info' 
+    },
+    { 
+        id: '6', 
+        target: ['[data-tut="tab-btn-modules"]', '[data-tut="tab-content-modules"]'], 
+        text: 'Nesta aba, selecione os módulos aos quais o usuário terá acesso após a conclusão do cadastro. Apenas os módulos selecionados estarão disponíveis para o usuário.', 
+        modalOpen: true, 
+        activeTab: 'modules' 
+    },
+    { 
+        id: '7', 
+        target: ['[data-tut="tab-btn-credentials"]', '[data-tut="tab-content-credentials"]'], 
+        text: 'Esta aba reúne as informações referentes às credenciais de acesso do usuário. Por motivos de segurança, a senha não é exibida após o cadastro. Caso deseje alterá-la, basta preencher novamente o campo correspondente ao acessar o modo de edição por meio do botão EDITAR. Para ativar ou desativar o usuário, utilize a caixa de seleção localizada abaixo dos campos. Por padrão, todo usuário recém-cadastrado é registrado como ativo, não sendo necessário realizar nenhuma ação adicional para habilitar seu acesso.', 
+        modalOpen: true, 
+        activeTab: 'credentials' 
+    },
+    { 
+        id: '8', 
+        target: '[data-tut="search-bar"]', 
+        text: 'Para realizar uma pesquisa rápida, selecione o filtro de busca desejado e digite o termo que pretende localizar neste módulo.', 
+        modalOpen: false 
+    },
+    { 
+        id: '9', 
+        target: '[data-tut="sector-filter"]', 
+        text: 'Selecione o setor desejado para filtrar os registros. A tabela exibirá apenas os usuários vinculados ao setor selecionado.', 
+        modalOpen: false 
+    },
+    { 
+        id: '10', 
+        target: '[data-tut="employee-filter"]', 
+        text: 'Selecione o funcionário desejado para filtrar os registros. A tabela exibirá apenas o usuário correspondente ao funcionário selecionado.', 
+        modalOpen: false 
+    },
+    { 
+        id: '11', 
+        target: '[data-tut="sync-btn"]', 
+        text: 'Este ícone permite realizar uma sincronização manual dos dados, auxiliando na atualização das informações caso elas não sejam atualizadas automaticamente pelo sistema.', 
+        modalOpen: false 
+    },
+    { 
+        id: '12', 
+        target: '[data-tut="table-header"]', 
+        text: 'Este é o cabeçalho da tabela de registros, responsável por organizar em colunas as principais informações cadastradas de cada usuário, facilitando a visualização e a identificação dos registros.', 
+        modalOpen: false 
+    },
+    { 
+        id: '13', 
+        target: '[data-tut="edit-btn"]', 
+        text: 'Este botão permite editar as informações cadastradas do usuário, possibilitando atualizar dados como nome de usuário, senha, informações pessoais e demais configurações disponíveis no cadastro.', 
+        modalOpen: false 
+    },
+    { 
+        id: '14', 
+        target: '[data-tut="delete-btn"]', 
+        text: 'Este botão permite excluir definitivamente o usuário do sistema. No entanto, os registros de acesso e as atividades realizadas por ele serão preservados para consultas futuras, garantindo a rastreabilidade das ações executadas, caso seja necessário.', 
+        modalOpen: false 
+    }
 ];
 
 let currentStepIndex = 0;
@@ -173,7 +248,6 @@ function stepNext() {
     if (currentStepIndex < STEPS.length - 1) {
         renderStep(currentStepIndex + 1);
     } else {
-        // Ao finalizar, volta para o dashboard do tutorial
         window.location.href = '/tutorial/';
     }
 }
@@ -207,16 +281,15 @@ function repositionSpotlight() {
         return;
     }
 
-    // Espaçamento extra para o círculo não colar
     let top = minTop - 6;
     let left = minLeft - 6;
     let width = (maxRight - minLeft) + 12;
     let height = (maxBottom - minTop) + 12;
 
-    const narrationHeight = 160;
-    const usableBottom = window.innerHeight - narrationHeight;
+    const usableBottom = window.innerHeight - 20;
+    const usableTop = 20;
 
-    if (top < 0) { height += top; top = 0; }
+    if (top < usableTop) { height += top; top = usableTop; }
     if (top + height > usableBottom) height = usableBottom - top;
 
     spotlight.style.opacity = '1';
