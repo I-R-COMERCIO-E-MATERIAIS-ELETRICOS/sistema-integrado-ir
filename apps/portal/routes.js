@@ -45,8 +45,6 @@ module.exports = function (supabase, supabaseAdmin) {
         { id: 'receber',        name: 'Contas a Receber',         url: '/receber',        available: true },
         { id: 'pagar',          name: 'Contas a Pagar',           url: '/pagar',          available: true },
         { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
-        // Módulo Tutorial: sempre disponível para todos os usuários autenticados
-        { id: 'tutorial',       name: 'Tutorial',                 url: '/tutorial',       available: true, alwaysAvailable: true },
     ];
 
     async function requireAuth(req, res, next) {
@@ -84,9 +82,7 @@ module.exports = function (supabase, supabaseAdmin) {
             },
             modules: MODULES.filter(m => m.available).map(m => ({
                 id: m.id, name: m.name, url: m.url,
-                allowed: m.alwaysAvailable
-                    ? true
-                    : (m.adminOnly ? !!is_admin : allowedIds.includes(m.id))
+                allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id)
             }))
         });
     });
