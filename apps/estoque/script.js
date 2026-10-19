@@ -16,16 +16,13 @@ let filtros = { search: '', marca: '', grupo: '' };
 function getSessionToken() {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('sessionToken');
-    
     if (tokenFromUrl) {
         sessionStorage.setItem(MODULE_SESSION_KEY, tokenFromUrl);
         window.history.replaceState({}, document.title, window.location.pathname);
         return tokenFromUrl;
     }
-
     let token = sessionStorage.getItem(MODULE_SESSION_KEY);
     if (token) return token;
-
     try {
         const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
         if (raw) {
@@ -33,37 +30,22 @@ function getSessionToken() {
             token = parsed.token || parsed.sessionToken || null;
             if (token) return token;
         }
-    } catch (e) { /* silencioso */ }
-
+    } catch (e) { }
     return null;
 }
 
 async function api(endpoint, options = {}) {
     const token = getSessionToken();
-    
-    const headers = {
-        'Accept': 'application/json',
-        ...options.headers
-    };
-    
-    if (options.body && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-    }
-    
-    if (token) {
-        headers['X-Session-Token'] = token;
-    }
+    const headers = { 'Accept': 'application/json', ...options.headers };
+    if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (token) headers['X-Session-Token'] = token;
 
     const response = await fetch(endpoint, { ...options, headers });
 
     if (response.status === 401 || response.status === 403) {
-        console.error("Sessão expirada ou inválida.");
         sessionStorage.removeItem(MODULE_SESSION_KEY);
-        if (window.IR && typeof IR.denied === 'function') {
-            IR.denied('Sua sessão expirou.');
-        } else {
-            window.location.href = PORTAL_URL + '/?logout=1&reason=session';
-        }
+        if (window.IR && typeof IR.denied === 'function') IR.denied('Sua sessão expirou.');
+        else window.location.href = PORTAL_URL + '/?logout=1&reason=session';
         throw new Error('Sessão expirada');
     }
 
@@ -80,31 +62,20 @@ async function api(endpoint, options = {}) {
 // ─── Utilidades ─────────────────────────────────────────────────────────────
 function escapeHtml(s) {
     if (s == null) return '';
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function formatCurrency(v) {
-    return Number(v || 0).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    });
+    return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// MENSAGENS FLUTUANTES PADRONIZADAS
+// MENSAGENS FLUTUANTES CORRIGIDAS (Padrão do sistema)
 function notificar(message, type = 'success') {
     document.querySelectorAll('.floating-message').forEach(msg => msg.remove());
-    
     const messageDiv = document.createElement('div');
     messageDiv.className = `floating-message ${type}`;
     messageDiv.textContent = message;
-    
     document.body.appendChild(messageDiv);
-    
     setTimeout(() => { 
         messageDiv.style.animation = 'slideOutBottom 0.3s ease forwards'; 
         setTimeout(() => messageDiv.remove(), 300); 
@@ -118,10 +89,7 @@ function criarModal(htmlInterno) {
     overlay.innerHTML = htmlInterno;
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('show'));
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) fecharModal(overlay);
-    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharModal(overlay); });
     return overlay;
 }
 
@@ -139,23 +107,18 @@ function fecharTodosModais() {
 document.addEventListener('DOMContentLoaded', () => {
     const token = getSessionToken();
     if (!token) {
-        if (window.IR && typeof IR.denied === 'function') {
-            IR.denied('Sessão expirada.');
-        } else {
-            window.location.href = PORTAL_URL + '/?logout=1&reason=session';
-        }
+        if (window.IR && typeof IR.denied === 'function') IR.denied('Sessão expirada.');
+        else window.location.href = PORTAL_URL + '/?logout=1&reason=session';
         return;
     }
 
     const tbody = document.getElementById('estoqueTableBody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
+            // Trava para não abrir o modal ao clicar na coluna ID ou em botões
             if (e.target.closest('button') || e.target.closest('.id-cell')) return;
-            
             const tr = e.target.closest('tr[data-id]');
-            if (tr) {
-                openViewModal(tr.dataset.id);
-            }
+            if (tr) openViewModal(tr.dataset.id);
         });
     }
     carregarGrupos();
@@ -167,9 +130,7 @@ async function carregarGrupos() {
     try {
         grupos = await api(`${API_BASE}/grupos`);
         preencherFiltroGrupos();
-    } catch (e) {
-        console.error('Erro ao carregar grupos', e);
-    }
+    } catch (e) { console.error('Erro ao carregar grupos', e); }
 }
 
 async function carregarEstoque() {
@@ -201,8 +162,7 @@ function preencherFiltroMarcas() {
     const sel = document.getElementById('filterMarca');
     if (!sel) return;
     const valorAtual = sel.value;
-    const marcas = [...new Set(allItems.map(i => i.marca).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b));
+    const marcas = [...new Set(allItems.map(i => i.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     sel.innerHTML = '<option value="">Todas as Marcas</option>';
     marcas.forEach(m => {
         const opt = document.createElement('option');
@@ -235,9 +195,7 @@ function getFilteredItems() {
         if (filtros.marca && (item.marca || '') !== filtros.marca) return false;
         if (filtros.grupo && (item.grupo || '') !== filtros.grupo) return false;
         if (filtros.search) {
-            const hay = [
-                item.codigo, item.descricao, item.marca, item.modelo, item.grupo
-            ].join(' ').toLowerCase();
+            const hay = [item.codigo, item.descricao, item.marca, item.modelo, item.grupo].join(' ').toLowerCase();
             if (!hay.includes(filtros.search)) return false;
         }
         return true;
@@ -251,21 +209,17 @@ function renderTable() {
     const items = getFilteredItems();
 
     if (!items.length) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">
-                    Nenhum item encontrado.
-                </td>
-            </tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">Nenhum item encontrado.</td></tr>`;
     } else {
         tbody.innerHTML = items.map(item => `
             <tr data-id="${escapeHtml(item.id)}">
-                <td class="id-cell" style="cursor:default;"><strong>${escapeHtml(item.codigo)}</strong></td>
+                <td class="id-cell"><strong>${escapeHtml(item.codigo)}</strong></td>
                 <td>${escapeHtml(item.descricao || '')}</td>
                 <td>${escapeHtml(item.grupo || '')}</td>
                 <td>${formatCurrency(item.valor_unitario)}</td>
                 <td>${Number(item.quantidade) || 0}</td>
                 <td class="actions-cell" style="text-align:center;">
+                    <!-- CORREÇÃO: Botão Editar primeiro -->
                     <button type="button" class="action-btn edit"  onclick="event.stopPropagation(); openFormModal('${escapeHtml(item.id)}')">Editar</button>
                     <button type="button" class="action-btn entry" onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'entrada')">Entrada</button>
                     <button type="button" class="action-btn exit"  onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'saida')">Saída</button>
@@ -279,17 +233,14 @@ function renderTable() {
 
 function updateTotals(items) {
     const totalQtd = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
-    const totalValor = items.reduce(
-        (s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)),
-        0
-    );
+    const totalValor = items.reduce((s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0);
     const qEl = document.getElementById('totalQtd');
     const vEl = document.getElementById('totalValor');
     if (qEl) qEl.textContent = totalQtd;
     if (vEl) vEl.textContent = formatCurrency(totalValor);
 }
 
-// ─── Modal de Visualização ──────────────────────────────────────────────────
+// ─── Modal de Visualização (Abas) ───────────────────────────────────────────
 async function openViewModal(id) {
     const item = allItems.find(i => String(i.id) === String(id));
     if (!item) return;
@@ -330,14 +281,11 @@ async function openViewModal(id) {
             </div>
 
             <div class="tab-content" id="tab-movs">
-                <div id="movsContainer" style="text-align:center; padding: 2rem; color:var(--text-secondary);">
-                    Carregando movimentações...
-                </div>
+                <div id="movsContainer" style="text-align:center; padding: 2rem; color:var(--text-secondary);">Carregando movimentações...</div>
             </div>
 
             <div class="modal-actions">
                 <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
-                <button type="button" class="edit" onclick="this.closest('.modal-overlay').remove(); openFormModal('${escapeHtml(item.id)}')">Editar Item</button>
             </div>
         </div>
     `;
@@ -347,16 +295,13 @@ async function openViewModal(id) {
     try {
         const movs = await api(`${API_BASE}/${item.id}/movimentacoes`);
         const container = overlay.querySelector('#movsContainer');
-        
         if (!movs || movs.length === 0) {
             container.innerHTML = '<p>Nenhuma movimentação registrada.</p>';
         } else {
             const rows = movs.map(m => `
                 <tr>
                     <td>${m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : '-'}</td>
-                    <td style="color: ${m.tipo === 'entrada' ? '#16A34A' : '#DC2626'}; font-weight: bold;">
-                        ${m.tipo.toUpperCase()}
-                    </td>
+                    <td class="${m.tipo === 'entrada' ? 'mov-entrada' : 'mov-saida'}">${m.tipo.toUpperCase()}</td>
                     <td>${m.quantidade}</td>
                     <td>${escapeHtml(m.atualizado_por || '-')}</td>
                     <td>${m.numero_pedido || '-'}</td>
@@ -365,14 +310,14 @@ async function openViewModal(id) {
 
             container.innerHTML = `
                 <div style="overflow-x: auto;">
-                    <table class="items-table" style="min-width: 100%; border-collapse: collapse;">
+                    <table class="mov-table">
                         <thead>
                             <tr>
-                                <th style="text-align:left;">Data/Hora</th>
-                                <th style="text-align:center;">Tipo</th>
-                                <th style="text-align:center;">Qtd</th>
-                                <th style="text-align:center;">Responsável</th>
-                                <th style="text-align:center;">Nº Pedido</th>
+                                <th>Data/Hora</th>
+                                <th>Tipo</th>
+                                <th>Qtd</th>
+                                <th>Responsável</th>
+                                <th>Nº Pedido</th>
                             </tr>
                         </thead>
                         <tbody>${rows}</tbody>
@@ -388,12 +333,11 @@ async function openViewModal(id) {
 function switchViewTab(tabId, btnId) {
     document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(btnId).classList.add('active');
-    
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
 }
 
-// ─── Formulário de Item (novo / editar) ─────────────────────────────────────
+// ─── Formulário de Item (Abas e Layout) ─────────────────────────────────────
 function openFormModal(id) {
     editingId = id || null;
     const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
@@ -413,38 +357,35 @@ function openFormModal(id) {
 
                 <!-- ABA PRODUTO -->
                 <div class="tab-content active" id="tab-produto">
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-grid">
                         ${item ? `
                         <div class="form-group full-width">
                             <label>ID (Código)</label>
                             <input type="text" value="${escapeHtml(item.codigo)}" readonly style="background:#eef1f5;cursor:not-allowed;">
                         </div>` : ''}
+                        
                         <div class="form-group">
                             <label>Descrição *</label>
                             <input type="text" id="fDescricao" required maxlength="255" value="${item ? escapeHtml(item.descricao) : ''}">
                         </div>
+                        
                         <div class="form-group">
                             <label>Grupo *</label>
                             ${item ? `
                             <select id="fGrupo" required>
-                                ${grupos.map(g => `
-                                    <option value="${escapeHtml(g.abreviacao)}" ${item.grupo === g.abreviacao ? 'selected' : ''}>
-                                        ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
-                                    </option>`).join('')}
+                                ${grupos.map(g => `<option value="${escapeHtml(g.abreviacao)}" ${item.grupo === g.abreviacao ? 'selected' : ''}>${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})</option>`).join('')}
                             </select>
                             ` : `
                             <div class="input-with-btn">
                                 <select id="fGrupo" required>
                                     <option value="">Selecione...</option>
-                                    ${grupos.map(g => `
-                                        <option value="${escapeHtml(g.abreviacao)}">
-                                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
-                                        </option>`).join('')}
+                                    ${grupos.map(g => `<option value="${escapeHtml(g.abreviacao)}">${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})</option>`).join('')}
                                 </select>
                                 <button type="button" class="btn-plus" onclick="abrirModalNovoGrupo()" title="Novo grupo">+</button>
                             </div>
                             `}
                         </div>
+                        
                         <div class="form-group full-width">
                             <label>NCM</label>
                             <input type="text" id="fNcm" maxlength="20" value="${item ? escapeHtml(item.ncm || '') : ''}">
@@ -454,7 +395,7 @@ function openFormModal(id) {
 
                 <!-- ABA FORNECEDOR -->
                 <div class="tab-content" id="tab-fornecedor">
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-grid">
                         <div class="form-group">
                             <label>Marca</label>
                             <input type="text" id="fMarca" maxlength="100" value="${item ? escapeHtml(item.marca || '') : ''}">
@@ -468,7 +409,7 @@ function openFormModal(id) {
 
                 <!-- ABA VALORES -->
                 <div class="tab-content" id="tab-valores">
-                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-grid">
                         <div class="form-group">
                             <label>Valor Unitário (R$)</label>
                             <input type="number" step="0.01" min="0" id="fValor" value="${item ? Number(item.valor_unitario) || 0 : '0.00'}">
@@ -497,7 +438,6 @@ function switchFormTab(tabId, btn) {
     const form = btn.closest('form');
     form.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     form.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
     btn.classList.add('active');
     form.querySelector('#' + tabId).classList.add('active');
 }
@@ -522,12 +462,9 @@ async function salvarItem(e, overlay) {
             });
         } else {
             const qtd = parseInt(document.getElementById('fQtd').value, 10) || 0;
-
             await api(API_BASE, {
                 method: 'POST',
-                body: JSON.stringify({
-                    descricao, grupo, valor_unitario: valor, quantidade: qtd, marca, modelo, ncm
-                })
+                body: JSON.stringify({ descricao, grupo, valor_unitario: valor, quantidade: qtd, marca, modelo, ncm })
             });
         }
 
@@ -617,7 +554,6 @@ function openMovModal(id, tipo) {
                 method: 'POST',
                 body: JSON.stringify({ tipo, quantidade: qtd })
             });
-
             fecharModal(overlay);
             notificar(`${tipoLabel} registrada com sucesso!`, 'success');
             await carregarEstoque();
@@ -627,7 +563,7 @@ function openMovModal(id, tipo) {
     };
 }
 
-// ─── Modal de novo grupo (chamado pelo botão +) ─────────────────────────────
+// ─── Modal de novo grupo ────────────────────────────────────────────────────
 function abrirModalNovoGrupo() {
     const html = `
         <div class="modal-content" style="max-width:460px;">
@@ -642,13 +578,10 @@ function abrirModalNovoGrupo() {
                 </div>
                 <div class="form-group">
                     <label>Abreviação (4 letras) *</label>
-                    <input type="text" id="gAbrev" required maxlength="4"
-                           style="text-transform:uppercase;"
-                           oninput="this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '')">
+                    <input type="text" id="gAbrev" required maxlength="4" style="text-transform:uppercase;" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '')">
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="cancel-close" style="background:#6B7280;"
-                            onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+                    <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
                     <button type="submit" class="save">Criar Grupo</button>
                 </div>
             </form>
@@ -658,12 +591,10 @@ function abrirModalNovoGrupo() {
     const overlay = criarModal(html);
     overlay.querySelector('#formGrupo').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const nome      = document.getElementById('gNome').value.trim();
+        const nome = document.getElementById('gNome').value.trim();
         const abreviacao = document.getElementById('gAbrev').value.trim().toUpperCase();
 
-        if (abreviacao.length !== 4) {
-            return notificar('A abreviação deve ter 4 letras', 'error');
-        }
+        if (abreviacao.length !== 4) return notificar('A abreviação deve ter 4 letras', 'error');
 
         try {
             const data = await api(`${API_BASE}/grupos`, {
@@ -676,14 +607,8 @@ function abrirModalNovoGrupo() {
 
             const sel = document.getElementById('fGrupo');
             if (sel) {
-                sel.innerHTML = '<option value="">Selecione...</option>' +
-                    grupos.map(g => `
-                        <option value="${escapeHtml(g.abreviacao)}"
-                                ${g.abreviacao === data.abreviacao ? 'selected' : ''}>
-                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
-                        </option>`).join('');
+                sel.innerHTML = '<option value="">Selecione...</option>' + grupos.map(g => `<option value="${escapeHtml(g.abreviacao)}" ${g.abreviacao === data.abreviacao ? 'selected' : ''}>${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})</option>`).join('');
             }
-
             notificar('Grupo criado com sucesso!', 'success');
         } catch (err) {
             notificar(err.message, 'error');
@@ -694,8 +619,8 @@ function abrirModalNovoGrupo() {
 // ─── Sincronização ──────────────────────────────────────────────────────────
 async function sincronizarDados(btn) {
     if (btn) {
-        btn.classList.add('spin');
-        setTimeout(() => btn.classList.remove('spin'), 1000);
+        btn.classList.add('spinning');
+        setTimeout(() => btn.classList.remove('spinning'), 1000);
     }
     await Promise.all([carregarGrupos(), carregarEstoque()]);
     notificar('Dados sincronizados com sucesso!', 'success');
@@ -705,43 +630,28 @@ async function sincronizarDados(btn) {
 function gerarPDFEstoque() {
     try {
         const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-        
-        if (!jsPDFConstructor) {
-            throw new Error('A biblioteca jsPDF não foi encontrada. Verifique se o script foi incluído no index.html.');
-        }
+        if (!jsPDFConstructor) throw new Error('A biblioteca jsPDF não foi encontrada.');
 
         const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-        if (typeof doc.autoTable !== 'function') {
-            throw new Error('O plugin autoTable não está carregado. Adicione as tags <script> recomendadas no index.html.');
-        }
+        if (typeof doc.autoTable !== 'function') throw new Error('O plugin autoTable não está carregado.');
 
         const items = getFilteredItems();
-
         doc.setFontSize(16);
         doc.setTextColor(255, 82, 29);
         doc.text('Relatório de Estoque', 14, 16);
-
         doc.setFontSize(9);
         doc.setTextColor(100);
         doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 22);
         doc.text(`Total de itens: ${items.length}`, 14, 27);
 
         const body = items.map(i => [
-            i.codigo || '',
-            i.descricao || '',
-            i.grupo || '',
-            i.marca || '',
-            i.modelo || '',
-            formatCurrency(i.valor_unitario),
-            String(Number(i.quantidade) || 0),
+            i.codigo || '', i.descricao || '', i.grupo || '', i.marca || '', i.modelo || '',
+            formatCurrency(i.valor_unitario), String(Number(i.quantidade) || 0),
             formatCurrency((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0))
         ]);
 
-        const totalQtd   = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
-        const totalValor = items.reduce(
-            (s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0
-        );
+        const totalQtd = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+        const totalValor = items.reduce((s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0);
 
         doc.autoTable({
             startY: 32,
@@ -751,21 +661,10 @@ function gerarPDFEstoque() {
             styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
             headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
             footStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [245, 245, 245] },
-            columnStyles: {
-                0: { cellWidth: 22 },
-                1: { cellWidth: 70 },
-                2: { cellWidth: 18 },
-                3: { cellWidth: 28 },
-                4: { cellWidth: 30 },
-                5: { cellWidth: 26, halign: 'right' },
-                6: { cellWidth: 16, halign: 'right' },
-                7: { cellWidth: 28, halign: 'right' }
-            }
+            alternateRowStyles: { fillColor: [245, 245, 245] }
         });
 
-        const dataStr = new Date().toISOString().slice(0, 10);
-        doc.save(`estoque-${dataStr}.pdf`);
+        doc.save(`estoque-${new Date().toISOString().slice(0, 10)}.pdf`);
         notificar('PDF gerado com sucesso!', 'success');
     } catch (err) {
         console.error(err);
