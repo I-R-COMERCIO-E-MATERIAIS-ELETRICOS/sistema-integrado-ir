@@ -27,7 +27,6 @@ function getSessionToken() {
     
     if (tokenFromUrl) {
         sessionStorage.setItem(MODULE_SESSION_KEY, tokenFromUrl);
-        // Limpa a URL para não expor o token
         window.history.replaceState({}, document.title, window.location.pathname);
         return tokenFromUrl;
     }
@@ -152,9 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById('estoqueTableBody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
+            // Bloqueia o clique se for em um botão ou na coluna de ID
+            if (e.target.closest('button') || e.target.closest('.id-cell')) return;
+            
             const tr = e.target.closest('tr[data-id]');
-            if (tr && !e.target.closest('button')) {
-                openFormModal(tr.dataset.id);
+            if (tr) {
+                openViewModal(tr.dataset.id); // Abre a Visualização
             }
         });
     }
@@ -260,7 +262,7 @@ function renderTable() {
     } else {
         tbody.innerHTML = items.map(item => `
             <tr data-id="${escapeHtml(item.id)}">
-                <td class="id-cell"><strong>${escapeHtml(item.codigo)}</strong></td>
+                <td class="id-cell" style="cursor:default;"><strong>${escapeHtml(item.codigo)}</strong></td>
                 <td>${escapeHtml(item.descricao || '')}</td>
                 <td>${escapeHtml(item.grupo || '')}</td>
                 <td>${formatCurrency(item.valor_unitario)}</td>
@@ -289,93 +291,199 @@ function updateTotals(items) {
     if (vEl) vEl.textContent = formatCurrency(totalValor);
 }
 
+// ─── Modal de Visualização ──────────────────────────────────────────────────
+async function openViewModal(id) {
+    const item = allItems.find(i => String(i.id) === String(id));
+    if (!item) return;
+
+    const html = `
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Visualizar Item</h2>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            
+            <div class="tabs-nav">
+                <button class="tab-btn active" id="btn-tab-dados" onclick="switchViewTab('tab-dados', 'btn-tab-dados')">Dados do Item</button>
+                <button class="tab-btn" id="btn-tab-movs" onclick="switchViewTab('tab-movs', 'btn-tab-movs')">Movimentações</button>
+            </div>
+
+            <div class="tab-content active" id="tab-dados">
+                <div class="info-section">
+                    <h4>Informações Gerais</h4>
+                    <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${escapeHtml(item.codigo)}</span></div>
+                    <div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(item.descricao)}</span></div>
+                    <div class="info-row"><span class="info-label">Grupo:</span><span class="info-value">${escapeHtml(item.grupo)}</span></div>
+                    <div class="info-row"><span class="info-label">Marca:</span><span class="info-value">${escapeHtml(item.marca || '-')}</span></div>
+                    <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
+                    <div class="info-row"><span class="info-label">NCM:</span><span class="info-value">${escapeHtml(item.ncm || '-')}</span></div>
+                </div>
+                <div class="info-section">
+                    <h4>Estoque e Valores</h4>
+                    <div class="info-row"><span class="info-label">Valor Unitário:</span><span class="info-value">${formatCurrency(item.valor_unitario)}</span></div>
+                    <div class="info-row"><span class="info-label">Quantidade em Estoque:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
+                    <div class="info-row"><span class="info-label">Valor Total em Estoque:</span><span class="info-value">${formatCurrency((item.valor_unitario || 0) * (item.quantidade || 0))}</span></div>
+                </div>
+                <div class="info-section">
+                    <h4>Auditoria</h4>
+                    <div class="info-row"><span class="info-label">Atualizado Por:</span><span class="info-value">${escapeHtml(item.atualizado_por || '-')}</span></div>
+                    <div class="info-row"><span class="info-label">Última Atualização:</span><span class="info-value">${item.ultima_atualizacao ? new Date(item.ultima_atualizacao).toLocaleString('pt-BR') : '-'}</span></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-movs">
+                <div id="movsContainer" style="text-align:center; padding: 2rem; color:var(--text-secondary);">
+                    Carregando movimentações...
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+                <button type="button" class="edit" onclick="this.closest('.modal-overlay').remove(); openFormModal('${escapeHtml(item.id)}')">Editar Item</button>
+            </div>
+        </div>
+    `;
+
+    const overlay = criarModal(html);
+
+    // Fetch Movimentações do Servidor
+    try {
+        const movs = await api(`${API_BASE}/${item.id}/movimentacoes`);
+        const container = overlay.querySelector('#movsContainer');
+        
+        if (!movs || movs.length === 0) {
+            container.innerHTML = '<p>Nenhuma movimentação registrada.</p>';
+        } else {
+            const rows = movs.map(m => `
+                <tr>
+                    <td>${m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : '-'}</td>
+                    <td style="color: ${m.tipo === 'entrada' ? '#16A34A' : '#DC2626'}; font-weight: bold;">
+                        ${m.tipo.toUpperCase()}
+                    </td>
+                    <td>${m.quantidade}</td>
+                    <td>${escapeHtml(m.atualizado_por || '-')}</td>
+                    <td>${m.numero_pedido || '-'}</td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table class="items-table" style="min-width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Data/Hora</th>
+                                <th style="text-align:center;">Tipo</th>
+                                <th style="text-align:center;">Qtd</th>
+                                <th style="text-align:center;">Responsável</th>
+                                <th style="text-align:center;">Nº Pedido</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+    } catch (err) {
+        overlay.querySelector('#movsContainer').innerHTML = `<p style="color:#DC2626;">Erro ao carregar movimentações: ${err.message}</p>`;
+    }
+}
+
+function switchViewTab(tabId, btnId) {
+    document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(btnId).classList.add('active');
+    
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+}
+
 // ─── Formulário de Item (novo / editar) ─────────────────────────────────────
 function openFormModal(id) {
     editingId = id || null;
     const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
 
-    const campos = item ? `
-        <div class="form-grid">
-            <div class="form-group full-width">
-                <label>Descrição *</label>
-                <input type="text" id="fDescricao" required maxlength="255" value="${escapeHtml(item.descricao)}">
-            </div>
-            <div class="form-group">
-                <label>Grupo *</label>
-                <select id="fGrupo" required>
-                    ${grupos.map(g => `
-                        <option value="${escapeHtml(g.abreviacao)}" ${item.grupo === g.abreviacao ? 'selected' : ''}>
-                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
-                        </option>`).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Valor Unitário (R$)</label>
-                <input type="number" step="0.01" min="0" id="fValor" value="${Number(item.valor_unitario) || 0}">
-            </div>
-        </div>
-        <div class="info-section" style="margin-top:0.5rem;">
-            <h4>Informações</h4>
-            <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${escapeHtml(item.codigo)}</span></div>
-            <div class="info-row"><span class="info-label">Quantidade:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
-            <div class="info-row"><span class="info-label">Marca:</span><span class="info-value">${escapeHtml(item.marca || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
-            <div class="info-row"><span class="info-label">NCM:</span><span class="info-value">${escapeHtml(item.ncm || '-')}</span></div>
-        </div>
-    ` : `
-        <div class="form-grid">
-            <div class="form-group full-width">
-                <label>Descrição *</label>
-                <input type="text" id="fDescricao" required maxlength="255">
-            </div>
-            <div class="form-group">
-                <label>Grupo *</label>
-                <div class="input-with-btn">
-                    <select id="fGrupo" required>
-                        <option value="">Selecione...</option>
-                        ${grupos.map(g => `
-                            <option value="${escapeHtml(g.abreviacao)}">
-                                ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
-                            </option>`).join('')}
-                    </select>
-                    <button type="button" class="btn-plus" onclick="abrirModalNovoGrupo()" title="Novo grupo">+</button>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Valor Unitário (R$)</label>
-                <input type="number" step="0.01" min="0" id="fValor" value="0.00">
-            </div>
-            <div class="form-group">
-                <label>Quantidade Inicial</label>
-                <input type="number" min="0" id="fQtd" value="0">
-            </div>
-            <div class="form-group">
-                <label>Marca</label>
-                <input type="text" id="fMarca" maxlength="100">
-            </div>
-            <div class="form-group">
-                <label>Modelo</label>
-                <input type="text" id="fModelo" maxlength="100">
-            </div>
-            <div class="form-group">
-                <label>NCM</label>
-                <input type="text" id="fNcm" maxlength="20">
-            </div>
-        </div>
-    `;
-
     const html = `
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <h2 class="modal-title">${item ? 'Editar Item' : 'Novo Item'}</h2>
                 <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
             </div>
             <form id="formItem">
-                ${campos}
+                <div class="tabs-nav">
+                    <button type="button" class="tab-btn active" onclick="switchFormTab('tab-produto', this)">Produto</button>
+                    <button type="button" class="tab-btn" onclick="switchFormTab('tab-fornecedor', this)">Fornecedor</button>
+                    <button type="button" class="tab-btn" onclick="switchFormTab('tab-valores', this)">Valores</button>
+                </div>
+
+                <div class="tab-content active" id="tab-produto">
+                    <div class="form-grid">
+                        ${item ? `
+                        <div class="form-group">
+                            <label>ID (Código)</label>
+                            <input type="text" value="${escapeHtml(item.codigo)}" readonly style="background:#eef1f5;cursor:not-allowed;">
+                        </div>` : ''}
+                        <div class="form-group ${item ? '' : 'full-width'}">
+                            <label>Descrição *</label>
+                            <input type="text" id="fDescricao" required maxlength="255" value="${item ? escapeHtml(item.descricao) : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Grupo *</label>
+                            ${item ? `
+                            <select id="fGrupo" required>
+                                ${grupos.map(g => `
+                                    <option value="${escapeHtml(g.abreviacao)}" ${item.grupo === g.abreviacao ? 'selected' : ''}>
+                                        ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
+                                    </option>`).join('')}
+                            </select>
+                            ` : `
+                            <div class="input-with-btn">
+                                <select id="fGrupo" required>
+                                    <option value="">Selecione...</option>
+                                    ${grupos.map(g => `
+                                        <option value="${escapeHtml(g.abreviacao)}">
+                                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
+                                        </option>`).join('')}
+                                </select>
+                                <button type="button" class="btn-plus" onclick="abrirModalNovoGrupo()" title="Novo grupo">+</button>
+                            </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-fornecedor">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="fMarca" maxlength="100" value="${item ? escapeHtml(item.marca || '') : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="fModelo" maxlength="100" value="${item ? escapeHtml(item.modelo || '') : ''}">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>NCM</label>
+                            <input type="text" id="fNcm" maxlength="20" value="${item ? escapeHtml(item.ncm || '') : ''}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-valores">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Valor Unitário (R$)</label>
+                            <input type="number" step="0.01" min="0" id="fValor" value="${item ? Number(item.valor_unitario) || 0 : '0.00'}">
+                        </div>
+                        <div class="form-group">
+                            <label>Quantidade</label>
+                            <input type="number" id="fQtd" value="${item ? Number(item.quantidade) || 0 : '0'}" ${item ? 'readonly style="background:#eef1f5;cursor:not-allowed;" title="A quantidade só pode ser alterada via Entrada/Saída"' : ''}>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal-actions">
                     ${item ? `<button type="button" class="cancel-close" style="background:#EF4444;" onclick="excluirItem('${escapeHtml(item.id)}')">Excluir</button>` : ''}
                     <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-                    <button type="submit" class="save">${item ? 'Salvar' : 'Criar Item'}</button>
+                    <button type="submit" class="save">${item ? 'Atualizar' : 'Salvar'}</button>
                 </div>
             </form>
         </div>
@@ -385,11 +493,23 @@ function openFormModal(id) {
     overlay.querySelector('#formItem').addEventListener('submit', (e) => salvarItem(e, overlay));
 }
 
+function switchFormTab(tabId, btn) {
+    const form = btn.closest('form');
+    form.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    form.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    btn.classList.add('active');
+    form.querySelector('#' + tabId).classList.add('active');
+}
+
 async function salvarItem(e, overlay) {
     e.preventDefault();
     const descricao = document.getElementById('fDescricao').value.trim();
     const grupo = document.getElementById('fGrupo').value.trim();
     const valor = parseFloat(document.getElementById('fValor').value) || 0;
+    const marca = document.getElementById('fMarca').value.trim();
+    const modelo = document.getElementById('fModelo').value.trim();
+    const ncm = document.getElementById('fNcm').value.trim();
 
     if (!descricao) return notificar('Informe a descrição', 'error');
     if (!grupo) return notificar('Selecione o grupo', 'error');
@@ -398,19 +518,15 @@ async function salvarItem(e, overlay) {
         if (editingId) {
             await api(`${API_BASE}/${editingId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ descricao, grupo, valor_unitario: valor })
+                body: JSON.stringify({ descricao, grupo, valor_unitario: valor, marca, modelo, ncm })
             });
         } else {
-            const qtd    = parseInt(document.getElementById('fQtd').value, 10) || 0;
-            const marca  = document.getElementById('fMarca').value.trim();
-            const modelo = document.getElementById('fModelo').value.trim();
-            const ncm    = document.getElementById('fNcm').value.trim();
+            const qtd = parseInt(document.getElementById('fQtd').value, 10) || 0;
 
             await api(API_BASE, {
                 method: 'POST',
                 body: JSON.stringify({
-                    descricao, grupo, valor_unitario: valor,
-                    quantidade: qtd, marca, modelo, ncm
+                    descricao, grupo, valor_unitario: valor, quantidade: qtd, marca, modelo, ncm
                 })
             });
         }
@@ -570,8 +686,9 @@ function abrirModalNovoGrupo() {
 // ─── Sincronização ──────────────────────────────────────────────────────────
 async function sincronizarDados(btn) {
     if (btn) {
-        btn.classList.add('spinning');
-        setTimeout(() => btn.classList.remove('spinning'), 600);
+        // CORRIGIDO: A classe no CSS é 'spin' e não 'spinning'
+        btn.classList.add('spin');
+        setTimeout(() => btn.classList.remove('spin'), 1000);
     }
     await Promise.all([carregarGrupos(), carregarEstoque()]);
     notificar('Dados sincronizados', 'success');
@@ -580,14 +697,21 @@ async function sincronizarDados(btn) {
 // ─── PDF ────────────────────────────────────────────────────────────────────
 function gerarPDFEstoque() {
     try {
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) throw new Error('jsPDF não carregado');
-        if (typeof jsPDF.API.autoTable !== 'function') {
-            throw new Error('Plugin autoTable não carregado. Inclua o script do autoTable.');
+        // Tenta obter o jsPDF global
+        const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+        
+        if (!jsPDFConstructor) {
+            throw new Error('A biblioteca jsPDF não foi encontrada. Verifique se o script foi incluído no index.html.');
+        }
+
+        const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        // CORREÇÃO: Verifica se o plugin autoTable está atrelado ao prototype
+        if (typeof doc.autoTable !== 'function') {
+            throw new Error('O plugin autoTable não está carregado. Verifique os scripts do jsPDF e jsPDF-AutoTable no index.html.');
         }
 
         const items = getFilteredItems();
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
         doc.setFontSize(16);
         doc.setTextColor(255, 82, 29);
