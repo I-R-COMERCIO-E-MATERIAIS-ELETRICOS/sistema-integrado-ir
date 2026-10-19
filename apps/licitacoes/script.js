@@ -254,17 +254,14 @@ $('search').addEventListener('input', ()=>{
   clearTimeout(searchTimer); searchTimer=setTimeout(()=>{ page=1; loadList(); },300);
 });
 $('filterVendedor').addEventListener('change', ()=>{ page=1; loadList(); });
-$('filterStatus').addEventListener('change', ()=>{ page=1; loadList(); });
+// Filtro de status removido do evento
 $('syncBtn').addEventListener('click', ()=>syncNow());
 
 document.querySelectorAll('.stat-card[data-filter]').forEach(c=>{
   c.addEventListener('click', ()=>{
     const f = c.dataset.filter;
     if(f === 'disputa'){ openDisputaModal(); return; }
-    document.querySelectorAll('.stat-card').forEach(x=>x.classList.remove('active'));
-    c.classList.add('active');
-    $('filterStatus').value = (f==='all') ? '' : f;
-    page=1; loadList();
+    // Ação de filtro removida para os demais cards
   });
 });
 
@@ -315,6 +312,13 @@ async function loadOpcoes(){
     fv.innerHTML = '<option value="">Todos os Vendedores</option>' +
       uniq.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if(fvOld) fv.value = fvOld;
+
+    // Oculta o campo de filtro de status
+    const fs = $('filterStatus');
+    if (fs) {
+      const parent = fs.closest('.filter-dropdown-inline');
+      if (parent) parent.style.display = 'none';
+    }
   }catch(e){ toastError(e.message); }
 }
 
@@ -327,14 +331,14 @@ async function loadList(){
     params.set('ano', ano);
     const s = $('search').value.trim(); if(s) params.set('search', s);
     const v = $('filterVendedor').value.trim(); if(v) params.set('vendedor', v);
-    const st = $('filterStatus').value.trim(); if(st) params.set('status', st);
+    // Parâmetro de status removido
     const res = await api('/api/licitacoes?'+params.toString());
     records = res.data || [];
     pages = res.pages || 1;
     renderTable();
     renderPagination();
   }catch(e){
-    $('records').innerHTML = `<tr><td colspan="9" class="empty">${esc(e.message)}</td></tr>`;
+    $('records').innerHTML = `<tr><td colspan="8" class="empty">${esc(e.message)}</td></tr>`;
     toastError(e.message);
   }
 }
@@ -351,13 +355,12 @@ async function syncNow(){
 function renderTable(){
   const tbody = $('records');
   if(!records.length){
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma licitação cadastrada neste mês.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhuma licitação cadastrada neste mês.</td></tr>';
     return;
   }
   tbody.innerHTML = records.map(r=>{
     const st = effectiveStatus(r);
     const cls = st==='ganho' ? 'row-ganho' : (st==='cancelado' ? 'row-cancelado' : '');
-    const badge = `<span class="badge-status ${st}">${STATUS_LABEL[st]||up(st)}</span>`;
     return `
       <tr data-id="${r.id}" class="${cls}">
         <td style="text-align:center;">
@@ -372,7 +375,6 @@ function renderTable(){
         <td>${esc(up(r.nome_orgao))}</td>
         <td>${esc(fmtDate(r.data_pregao))}</td>
         <td>${esc(r.horario_pregao||'—')}</td>
-        <td style="text-align:center;">${badge}</td>
         <td class="actions-cell">
           <div class="actions">
             <button type="button" class="action-btn edit" data-edit="${r.id}">Editar</button>
@@ -410,9 +412,6 @@ async function toggleGanho(id, ganho, chkEl){
     const tr = chkEl ? chkEl.closest('tr') : null;
     if (tr){
       tr.classList.toggle('row-ganho', ganho);
-      const st = effectiveStatus(r);
-      const td = tr.querySelector('td:nth-child(8)');
-      if(td) td.innerHTML = `<span class="badge-status ${st}">${STATUS_LABEL[st]||up(st)}</span>`;
     }
     if (ganho) toastSuccess(`O ${numP} foi marcado como ganho`);
     else toastSuccess(`Pregão ${numP} atualizado`);
@@ -614,7 +613,6 @@ function viewRecord(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
   $('viewNumero').textContent = up(r.numero_pregao);
-  const st = effectiveStatus(r);
   const reqsArr = Object.entries(r.requisitos||{}).filter(([k,v])=>v).map(([k])=>k);
   $('vinfo').innerHTML = `
     <div>
@@ -624,7 +622,6 @@ function viewRecord(id){
       <p><b>Horário:</b> ${esc(r.horario_pregao||'—')}</p>
       <p><b>Modalidade:</b> ${esc(up(r.modalidade)||'—')}</p>
       <p><b>Número do Pregão:</b> ${esc(up(r.numero_pregao))}</p>
-      <p><b>Status:</b> <span class="badge-status ${st}">${STATUS_LABEL[st]||up(st)}</span></p>
     </div>`;
   $('vorgao').innerHTML = `
     <div>
@@ -1029,7 +1026,7 @@ function readTableState(){
     const rows = [...gt.querySelectorAll('tbody tr[data-idx]')];
     const newItems = rows.map(tr=>{
       const o = {};
-      tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
+      tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = up(i.value));
       o.item = o.item ?? '';
       o.descricao = o.descricao ?? '';
       o.qtd = num(o.qtd);
@@ -1134,7 +1131,6 @@ async function persistItems(){
     current.grupos = groupTitles();
     const idx = records.findIndex(r=>r.id===current.id);
     if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
-    toastSuccess('Dados Atualizados.');
   }catch(e){ toastError('Falha ao salvar: '+e.message); }
 }
 
@@ -1653,7 +1649,8 @@ async function runPdf(){
     });
 
     if(g.titulo){
-      if(y + 8 > limitY){ doc.addPage(); y = 20; }
+      y += 5;
+      if(y + 10 > limitY){ doc.addPage(); y = 20; }
       doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
       doc.text(`TOTAL ${up(g.titulo)}: ${money(g.total)}`, pw - margin, y, { align:'right' });
       y += 6;
@@ -1693,7 +1690,6 @@ async function runPdf(){
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
   doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
 
-  // AJUSTE: aproxima a assinatura da data (era 22, agora 14)
   y += 14;
   if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
   y += ih + 14;
@@ -1755,7 +1751,6 @@ async function gerarDocWord(){
          </td>`
       : '';
 
-    // AJUSTE: .sign-space reduzido de 70pt para 58pt → aproxima a data da assinatura
     const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word" lang="pt-BR">
