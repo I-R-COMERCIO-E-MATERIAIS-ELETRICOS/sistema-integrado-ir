@@ -11,7 +11,9 @@ const SIGN_SRC = '/apps/imagens/assinatura.png';
 
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-const COLORS = { amarelo:'#fef9c3', cinza:'#e5e7eb', vermelho:'#fca5a5' };
+// amarelo permanece porque a feature de cotação o utiliza como marcador;
+// a paleta do pincel agora é: azul, cinza, vermelho, laranja
+const COLORS = { amarelo:'#fef9c3', azul:'#bfdbfe', cinza:'#e5e7eb', vermelho:'#fca5a5', laranja:'#fed7aa' };
 const STATUS_LABEL = {
   aguardando:'AGUARDANDO DISPUTA',
   'disputa-aberta':'DISPUTA ABERTA',
@@ -1127,7 +1129,8 @@ function openColorPop(btn){
   pop.className = 'color-pop';
   pop.style.top = (rect.bottom+6)+'px';
   pop.style.left = Math.max(8, rect.left-60)+'px';
-  ['amarelo','cinza','vermelho'].forEach(c=>{
+  // Paleta do pincel: azul, cinza, vermelho, laranja
+  ['azul','cinza','vermelho','laranja'].forEach(c=>{
     const b = document.createElement('button');
     b.style.background = COLORS[c];
     b.title = c.charAt(0).toUpperCase()+c.slice(1);
@@ -1691,16 +1694,6 @@ async function runPdf(){
   toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   gerarDocWord — CORRIGIDO PARA ABRIR NO WORD
-   Correções:
-   - <!DOCTYPE html> + xmlns HTML40
-   - <meta http-equiv Content-Type>, ProgId, Generator, Originator
-   - <!--[if gte mso 9]> com <w:WordDocument> (Word reconhece como Word real)
-   - MIME application/msword (mais universal que application/vnd.ms-word)
-   - overflow-wrap:anywhere → word-wrap:break-word (CSS antigo, compatível)
-   - Removido mso-paper-source:0 (desnecessário)
-   ════════════════════════════════════════════════════════════════════ */
 async function gerarDocWord(){
   if(!current) return;
   if(pdfBusy) return;
