@@ -78,36 +78,26 @@ function effectiveStatus(r){
   return 'aguardando';
 }
 
-/* ================================================================
-   LOGOUT GLOBAL — quando a sessão expira, NÃO renderiza tela
-   dentro do iframe. Avisa o parent (via IR.denied ou postMessage)
-   e redireciona a janela TOP para o portal.
-   ================================================================ */
 function triggerGlobalLogout(message) {
   const msg = message || 'Sua sessão expirou';
-
   try {
     if (window.IR && typeof IR.denied === 'function') {
       IR.denied(msg);
       return;
     }
-  } catch (e) { /* segue para fallback */ }
-
+  } catch (e) { }
   let inIframe = false;
   try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
-
   if (inIframe) {
     try {
       window.top.postMessage({ type: 'IR_LOGOUT', message: msg, source: 'licitacoes' }, '*');
-    } catch (e) { /* cross-origin silencioso */ }
-
+    } catch (e) { }
     try {
       window.top.location.href = PORTAL_URL + '/?logout=1&reason=session';
       return;
-    } catch (e) { /* cross-origin: aguarda o parent tratar a msg */ }
+    } catch (e) { }
     return;
   }
-
   window.location.href = PORTAL_URL + '/?logout=1&reason=session';
 }
 
@@ -128,7 +118,6 @@ async function fetchSessionUser() {
 function verificarAutenticacao() {
   const urlParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = urlParams.get('sessionToken');
-
   if (tokenFromUrl) {
     sessionToken = tokenFromUrl;
     sessionStorage.setItem(MODULE_SESSION_KEY, tokenFromUrl);
@@ -136,7 +125,6 @@ function verificarAutenticacao() {
   } else {
     sessionToken = sessionStorage.getItem(MODULE_SESSION_KEY);
   }
-
   if (!sessionToken) {
     try {
       const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
@@ -146,16 +134,13 @@ function verificarAutenticacao() {
       }
     } catch (e) {}
   }
-
   if (!sessionToken) {
     triggerGlobalLogout('Sessão expirada');
     return;
   }
-
   if (window.IR && typeof IR.setToken === 'function') {
     try { IR.setToken(sessionToken); } catch (e) {}
   }
-
   fetchSessionUser();
   startApp();
 }
@@ -167,15 +152,12 @@ const api = async (url, opts = {}) => {
     ...(opts.headers || {})
   };
   if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
-
   const r = await fetch(url, { ...opts, headers, credentials: 'same-origin' });
-
   if (!DEVELOPMENT_MODE && (r.status === 401 || r.status === 403)) {
     sessionStorage.removeItem(MODULE_SESSION_KEY);
     triggerGlobalLogout('Sua sessão expirou');
     throw new Error('Sessão expirada');
   }
-
   if (!r.ok) {
     let e = {};
     try { e = await r.json(); } catch {}
@@ -268,7 +250,6 @@ document.querySelectorAll('.stat-card[data-filter]').forEach(c=>{
   });
 });
 
-/* --------- NAVEGAÇÃO ENTRE MESES --------- */
 function updateMonthDisplay(){
   const el = $('currentMonth');
   if(el) el.textContent = `${MESES_CURTO[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
@@ -566,7 +547,6 @@ $('recordForm').addEventListener('submit', async e => {
   }catch(err){ toastError(err.message); }
 });
 
-/* ---------- Exclusão ---------- */
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
@@ -654,8 +634,6 @@ function viewRecord(id){
   setViewTab('vinfo');
   open('viewOverlay');
 }
-
-/* ==================== PÁGINA DE ITENS ==================== */
 
 function normalizeTables(r){
   const rawItems = Array.isArray(r.items) ? r.items : [];
@@ -1390,8 +1368,6 @@ $('confirmQuote').addEventListener('click', ()=>{
   scheduleSave();
 });
 
-/* ==================== DOCUMENTOS (PDF / WORD) ==================== */
-
 $('pdfBtn').addEventListener('click', ()=>{
   selectedDoc = null;
   document.querySelectorAll('.doc-choice').forEach(c=>c.classList.remove('selected'));
@@ -1411,20 +1387,17 @@ $('confirmDoc').addEventListener('click', ()=>{
   else if(t === 'proposta-docs') gerarDocWord();
 });
 
-/* ---------- FIX: sanitização e download robusto ---------- */
-
 function safeFilename(name){
   return String(name || 'PROPOSTA')
-    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')   // remove caracteres inválidos (Windows/browsers)
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
     .replace(/\s+/g, ' ')
-    .replace(/[.\s]+$/g, '')                       // não termina em ponto/espaço
+    .replace(/[.\s]+$/g, '')
     .trim()
     .slice(0, 180) || 'PROPOSTA';
 }
 
 function triggerDownload(blob, filename){
   const safe = safeFilename(filename);
-  // Fallback legado (IE/Edge antigo)
   if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
     try { window.navigator.msSaveOrOpenBlob(blob, safe); return; } catch (e) {}
   }
@@ -1693,7 +1666,6 @@ async function runPdf(){
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
   doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
 
-  // AJUSTE: aproxima a assinatura da data (era 22, agora 14)
   y += 14;
   if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
   y += ih + 14;
@@ -1719,6 +1691,16 @@ async function runPdf(){
   toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   gerarDocWord — CORRIGIDO PARA ABRIR NO WORD
+   Correções:
+   - <!DOCTYPE html> + xmlns HTML40
+   - <meta http-equiv Content-Type>, ProgId, Generator, Originator
+   - <!--[if gte mso 9]> com <w:WordDocument> (Word reconhece como Word real)
+   - MIME application/msword (mais universal que application/vnd.ms-word)
+   - overflow-wrap:anywhere → word-wrap:break-word (CSS antigo, compatível)
+   - Removido mso-paper-source:0 (desnecessário)
+   ════════════════════════════════════════════════════════════════════ */
 async function gerarDocWord(){
   if(!current) return;
   if(pdfBusy) return;
@@ -1755,35 +1737,58 @@ async function gerarDocWord(){
          </td>`
       : '';
 
-    // AJUSTE: .sign-space reduzido de 70pt para 58pt → aproxima a data da assinatura
-    const html = `<!doctype html>
+    const html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word" lang="pt-BR">
-<head><meta charset="utf-8"><title>${esc(safeFilename(fileBase(current)))}</title>
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40"
+      lang="pt-BR">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="Microsoft Word 15">
+<meta name="Originator" content="Microsoft Word 15">
+<title>${esc(safeFilename(fileBase(current)))}</title>
+<!--[if gte mso 9]><xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml><![endif]-->
 <style>
-  @page Section1{size:595.3pt 841.9pt;margin:${topMargin}pt 26pt 70pt 26pt;
-    mso-header-margin:14pt;mso-footer-margin:22pt;mso-header:h1;mso-footer:f1;mso-paper-source:0;}
-  div.Section1{page:Section1}
-  body{font:10pt Arial,sans-serif;color:#111}
-  h3{margin:6pt 0;font-size:11pt;text-align:left}
-  p{margin:4pt 0}
-  table.dados{width:100%;border-collapse:collapse;margin:12pt 0;font-size:8pt}
-  table.dados th,table.dados td{border:1px solid #444;padding:4pt 3pt;
-    vertical-align:middle;overflow-wrap:anywhere;text-align:center}
-  table.dados td.desc{text-align:left}
-  table.dados th{background:#f0f0f0;white-space:nowrap}
-  .group-title{font-weight:bold;font-size:10pt;margin:14pt 0 2pt;text-transform:uppercase}
-  .group-total{text-align:right;font-weight:bold;margin:4pt 0 0}
-  table.hdr{width:auto;border-collapse:collapse;margin:0;font-size:11pt}
-  table.hdr td{border:none;padding:0}
-  .total{text-align:right;font-weight:bold;margin:8pt 0}
-  .decl{text-align:center;margin:10pt 0;line-height:1.5}
-  .date{text-align:center;margin-top:26pt}
-  p.sign-space{height:58pt;line-height:58pt;mso-line-height-rule:exactly;margin:0;font-size:10pt}
-  .sign-name{text-align:center;font-weight:bold;margin:0}
-  .sign-sub{text-align:center;font-size:9pt;margin:0}
-  .MsoHeader,.MsoFooter{margin:0;font-family:Arial,sans-serif}
-</style></head>
+  @page Section1 {
+    size: 595.3pt 841.9pt;
+    margin: ${topMargin}pt 26pt 70pt 26pt;
+    mso-header-margin: 14pt;
+    mso-footer-margin: 22pt;
+    mso-header: h1;
+    mso-footer: f1;
+  }
+  div.Section1 { page: Section1; }
+  body { font: 10pt Arial, sans-serif; color: #111; }
+  h3 { margin: 6pt 0; font-size: 11pt; text-align: left; }
+  p { margin: 4pt 0; }
+  table.dados { width: 100%; border-collapse: collapse; margin: 12pt 0; font-size: 8pt; }
+  table.dados th, table.dados td {
+    border: 1px solid #444; padding: 4pt 3pt;
+    vertical-align: middle; text-align: center;
+    word-wrap: break-word;
+  }
+  table.dados td.desc { text-align: left; }
+  table.dados th { background: #f0f0f0; white-space: nowrap; }
+  .group-title { font-weight: bold; font-size: 10pt; margin: 14pt 0 2pt; text-transform: uppercase; }
+  .group-total { text-align: right; font-weight: bold; margin: 4pt 0 0; }
+  table.hdr { width: auto; border-collapse: collapse; margin: 0; font-size: 11pt; }
+  table.hdr td { border: none; padding: 0; }
+  .total { text-align: right; font-weight: bold; margin: 8pt 0; }
+  .decl { text-align: center; margin: 10pt 0; line-height: 1.5; }
+  .date { text-align: center; margin-top: 26pt; }
+  p.sign-space { height: 58pt; line-height: 58pt; mso-line-height-rule: exactly; margin: 0; font-size: 10pt; }
+  .sign-name { text-align: center; font-weight: bold; margin: 0; }
+  .sign-sub { text-align: center; font-size: 9pt; margin: 0; }
+  .MsoHeader, .MsoFooter { margin: 0; font-family: Arial, sans-serif; }
+</style>
+</head>
 <body>
 <div class="Section1">
   <h3>AO ${esc(up(current.nome_orgao))}</h3>
@@ -1806,19 +1811,21 @@ async function gerarDocWord(){
   <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
   <p class="sign-sub">DIRETORA</p>
 </div>
-<div style='mso-element:header' id="h1">
+<div style="mso-element:header" id="h1">
   <div class="MsoHeader">
-    <table class="hdr" style="border:none;border-collapse:collapse;margin:0;width:auto;"><tr>
-      ${logoCell}
-      <td style="border:none;padding:0;vertical-align:middle;white-space:nowrap;">
-        <p style="margin:0;color:#969696;font-weight:bold;font-size:17pt;line-height:20pt;
-          mso-line-height-rule:exactly;font-family:Arial,sans-serif;">
-          I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA</p>
-      </td>
-    </tr></table>
+    <table class="hdr" style="border:none;border-collapse:collapse;margin:0;width:auto;">
+      <tr>
+        ${logoCell}
+        <td style="border:none;padding:0;vertical-align:middle;white-space:nowrap;">
+          <p style="margin:0;color:#969696;font-weight:bold;font-size:17pt;line-height:20pt;mso-line-height-rule:exactly;font-family:Arial,sans-serif;">
+            I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA
+          </p>
+        </td>
+      </tr>
+    </table>
   </div>
 </div>
-<div style='mso-element:footer' id="f1">
+<div style="mso-element:footer" id="f1">
   <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
     RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
     TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>
@@ -1826,9 +1833,10 @@ async function gerarDocWord(){
     E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
   </p>
 </div>
-</body></html>`;
+</body>
+</html>`;
 
-    const blob = new Blob(['\ufeff', html], { type:'application/vnd.ms-word;charset=utf-8' });
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
     const filename = `${safeFilename(fileBase(current))}.doc`;
     triggerDownload(blob, filename);
     toastSuccess('Documento Word gerado');
