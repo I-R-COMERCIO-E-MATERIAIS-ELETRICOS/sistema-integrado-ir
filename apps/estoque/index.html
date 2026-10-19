@@ -3,190 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estoque - I.R. Comércio</title>
-    
-    <!-- Estilos -->
-    <link rel="stylesheet" href="/shared/style.css">
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Bibliotecas para geração de PDF (Necessárias para o botão funcionar) -->
+    <title>Estoque</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="stylesheet" href="/estoque/styles.css">
+    <link rel="stylesheet" href="/shared/ui-refined.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- ADICIONADO: Biblioteca do AutoTable para o PDF não dar erro -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-    <!-- CSS de Correção do Dashboard (para os cards ficarem alinhados lado a lado) -->
-    <style>
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .stat-card {
-            background: var(--bg-card);
-            padding: 1.25rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--card-shadow);
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            transition: all 0.2s ease;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .stat-icon-info { background: rgba(59, 130, 246, 0.1); color: #3B82F6; }
-        .stat-icon-success { background: rgba(34, 197, 94, 0.1); color: #22C55E; }
-        .stat-content { flex: 1; }
-        .stat-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            line-height: 1;
-            margin-bottom: 0.25rem;
-        }
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-    </style>
 </head>
 <body>
     <div class="app-content">
         <div class="container">
-            
-            <!-- Cabeçalho -->
             <div class="header">
-                <div class="header-left">
-                    <h1>ESTOQUE</h1>
-                </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                    
-                    <!-- Botão Novo Item -->
-                    <button type="button" class="btn-new-order-header" id="newBtn">
-                        + Novo Item
-                    </button>
-                    
-                    <!-- Botão PDF (Restaurado como Ícone) -->
-                    <button type="button" class="sync-btn doc-btn" id="pdfBtn" onclick="gerarPDFEstoque()" title="Gerar PDF">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                    </button>
-                    
-                    <!-- Botão Sincronizar (Restaurado como Ícone) -->
-                    <button type="button" class="sync-btn" id="syncBtn" onclick="sincronizarDados(this)" title="Sincronizar Dados">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M1 20v-6h6"></path>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
-                </div>
+                <div class="header-left"><h1>Estoque</h1></div>
+                <button onclick="openFormModal(null)" class="btn-new-order-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Novo Item
+                </button>
             </div>
 
-            <!-- Dashboard de Totais -->
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-info">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="totalQtd">0</div>
-                        <div class="stat-label">Total de Itens</div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon stat-icon-success">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="totalValor">R$ 0,00</div>
-                        <div class="stat-label">Valor Total em Estoque</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Barra de Pesquisa e Filtros -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
-                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" id="search" placeholder="Buscar por código, descrição, marca..." oninput="filterItems()">
-                    
+                    <input type="text" id="search" placeholder="Buscar por ID, descrição, marca ou modelo..." oninput="filterItems()">
+
                     <div class="search-bar-filters">
-                        <div class="filter-dropdown-inline">
-                            <select id="filterGrupo" onchange="selecionarGrupo(this.value)">
-                                <option value="">Todos os Grupos</option>
-                                <!-- Preenchido via JS -->
-                            </select>
-                            <svg class="dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </div>
                         <div class="filter-dropdown-inline">
                             <select id="filterMarca" onchange="selecionarMarca(this.value)">
                                 <option value="">Todas as Marcas</option>
-                                <!-- Preenchido via JS -->
                             </select>
-                            <svg class="dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="filter-dropdown-inline">
+                            <select id="filterGrupo" onchange="selecionarGrupo(this.value)">
+                                <option value="">Todos os Grupos</option>
+                            </select>
+                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                     </div>
+
+                    <button class="sync-btn doc-btn" onclick="gerarPDFEstoque()" title="Gerar PDF do estoque">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                    </button>
+                    <button class="sync-btn" onclick="sincronizarDados(this)" title="Sincronizar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-            <!-- Tabela de Itens -->
             <div class="card table-card">
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 15%;">ID (Código)</th>
-                                <th style="width: 30%;">Descrição</th>
-                                <th style="width: 15%;">Grupo</th>
-                                <th style="width: 15%;">Valor Unitário</th>
-                                <th style="width: 10%;">Qtd</th>
-                                <th style="width: 15%; text-align: center;">Ações</th>
+                                <th>ID</th>
+                                <th>Descrição</th>
+                                <th>Grupo</th>
+                                <th>Valor Unitário</th>
+                                <th>Quantidade</th>
+                                <th style="text-align: center;">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="estoqueTableBody">
-                            <tr>
-                                <td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">
-                                    Carregando dados...
-                                </td>
-                            </tr>
-                        </tbody>
+                        <tbody id="estoqueTableBody"></tbody>
                     </table>
                 </div>
+                <div class="estoque-totals" id="totalsBar">
+                    <div class="totals-item">
+                        <span>QUANTIDADE TOTAL</span>
+                        <strong id="totalQtd">0</strong>
+                    </div>
+                    <div class="totals-item">
+                        <span>VALOR TOTAL</span>
+                        <strong id="totalValor">R$ 0,00</strong>
+                    </div>
+                </div>
             </div>
-
         </div>
     </div>
 
-    <!-- Script do Módulo -->
-    <script src="script.js"></script>
+    <script src="/shared/ir-common.js"></script>
+    <script src="/estoque/script.js"></script>
+    <div id="unsupportedDevice" role="alert">Este dispositivo não é compatível com este sistema.</div>
 </body>
 </html>
