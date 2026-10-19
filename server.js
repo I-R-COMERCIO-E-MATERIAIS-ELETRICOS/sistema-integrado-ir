@@ -211,7 +211,7 @@ app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { do
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra',
     'transportadoras', 'cotacoes', 'faturamento', 'frete', 'receber',
-    'pagar', 'lucro', 'licitacoes', 'estoque', 'tutorial'
+    'pagar', 'lucro', 'licitacoes', 'estoque'
 ];
 
 function isBackendFile(filePath) {
@@ -226,36 +226,13 @@ APPS.forEach(appName => {
         return;
     }
 
-    // Assets específicos (se existirem)
     app.use(`/${appName}/assets`, express.static(appPath, {
         setHeaders: (res, filePath) => { if (isBackendFile(filePath)) res.status(404).end(); }
     }));
 
-    // ─── REGRA ESPECIAL PARA O TUTORIAL (SUBPÁGINAS) ───
-    if (appName === 'tutorial') {
-        // /tutorial/usuarios, /tutorial/estoque, etc.
-        app.get('/tutorial/:modulo', (req, res, next) => {
-            const subPath = path.join(appPath, req.params.modulo, 'index.html');
-            if (fs.existsSync(subPath)) {
-                return res.sendFile(subPath);
-            }
-            next();
-        });
-        // /tutorial/usuarios/, /tutorial/estoque/, etc. (com barra no final)
-        app.get('/tutorial/:modulo/', (req, res, next) => {
-            const subPath = path.join(appPath, req.params.modulo, 'index.html');
-            if (fs.existsSync(subPath)) {
-                return res.sendFile(subPath);
-            }
-            next();
-        });
-    }
-
-    // Rota raiz do App (ex: /usuarios ou /tutorial)
     app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
     app.get(`/${appName}/`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
 
-    // Demais arquivos estáticos (js, css, imagens) do módulo e subpastas
     app.use(`/${appName}`, express.static(appPath, {
         index: false,
         dotfiles: 'deny',
@@ -403,6 +380,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  CRUD /api/receber          → Contas a Receber');
     console.log('  CRUD /api/lucro-real       → Lucro Real');
     console.log('  POST /api/custo-fixo       → Custo Fixo Mensal');
-    console.log('  CRUD /api/contas           → Contas a Pagar');
-    console.log('  (Tutorial é 100% frontend — sem rotas de API)\n');
+    console.log('  CRUD /api/contas           → Contas a Pagar\n');
 });
