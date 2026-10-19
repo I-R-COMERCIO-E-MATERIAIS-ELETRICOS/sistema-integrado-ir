@@ -270,7 +270,7 @@ button.cancel-close{background:#dc2626;color:#fff}
 .items-table textarea{
   width:100%;min-width:0;padding:4px 2px;font-size:11px;border:none;border-radius:0;
   background:transparent !important;box-shadow:none !important;box-sizing:border-box;
-  font-family:inherit;color:#111;font-weight:700;text-transform:none;outline:none;appearance:none;
+  font-family:inherit;color:#111;font-weight:700;text-transform:uppercase;outline:none;appearance:none;
 }
 .items-table input:hover,.items-table textarea:hover,
 .items-table input:focus,.items-table textarea:focus{
