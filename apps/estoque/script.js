@@ -1,20 +1,12 @@
 /* ============================================================================
  * apps/estoque/script.js — FRONTEND
- * ----------------------------------------------------------------------------
- * Responsável por toda a interação da página de Estoque:
- *   • Listagem e filtros
- *   • Cadastro / edição / exclusão de itens e grupos
- *   • Entrada / saída de estoque
- *   • Sincronização e geração de PDF
  * ========================================================================== */
 
-// ─── Configuração ───────────────────────────────────────────────────────────
 const API_BASE = '/api/estoque';
 const SESSION_KEY = 'irUserSession';
 const MODULE_SESSION_KEY = 'estoqueSession';
 const PORTAL_URL = window.location.origin;
 
-// ─── Estado ─────────────────────────────────────────────────────────────────
 let allItems = [];
 let grupos = [];
 let editingId = null;
@@ -103,13 +95,20 @@ function formatCurrency(v) {
     });
 }
 
-function notificar(msg, tipo) {
-    if (typeof window.mostrarToast === 'function') {
-        try { window.mostrarToast(msg, tipo || 'info'); return; } catch {}
-    }
-    if (tipo === 'error') console.error(msg);
-    else console.log(msg);
-    alert(msg);
+// MENSAGENS FLUTUANTES PADRONIZADAS
+function notificar(message, type = 'success') {
+    document.querySelectorAll('.floating-message').forEach(msg => msg.remove());
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => { 
+        messageDiv.style.animation = 'slideOutBottom 0.3s ease forwards'; 
+        setTimeout(() => messageDiv.remove(), 300); 
+    }, 3000);
 }
 
 // ─── Ciclo de vida dos modais ───────────────────────────────────────────────
@@ -151,12 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById('estoqueTableBody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
-            // Bloqueia o clique se for em um botão ou na coluna de ID
             if (e.target.closest('button') || e.target.closest('.id-cell')) return;
             
             const tr = e.target.closest('tr[data-id]');
             if (tr) {
-                openViewModal(tr.dataset.id); // Abre a Visualização
+                openViewModal(tr.dataset.id);
             }
         });
     }
@@ -346,7 +344,6 @@ async function openViewModal(id) {
 
     const overlay = criarModal(html);
 
-    // Fetch Movimentações do Servidor
     try {
         const movs = await api(`${API_BASE}/${item.id}/movimentacoes`);
         const container = overlay.querySelector('#movsContainer');
@@ -414,14 +411,15 @@ function openFormModal(id) {
                     <button type="button" class="tab-btn" onclick="switchFormTab('tab-valores', this)">Valores</button>
                 </div>
 
+                <!-- ABA PRODUTO -->
                 <div class="tab-content active" id="tab-produto">
-                    <div class="form-grid">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                         ${item ? `
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label>ID (Código)</label>
                             <input type="text" value="${escapeHtml(item.codigo)}" readonly style="background:#eef1f5;cursor:not-allowed;">
                         </div>` : ''}
-                        <div class="form-group ${item ? '' : 'full-width'}">
+                        <div class="form-group">
                             <label>Descrição *</label>
                             <input type="text" id="fDescricao" required maxlength="255" value="${item ? escapeHtml(item.descricao) : ''}">
                         </div>
@@ -447,11 +445,16 @@ function openFormModal(id) {
                             </div>
                             `}
                         </div>
+                        <div class="form-group full-width">
+                            <label>NCM</label>
+                            <input type="text" id="fNcm" maxlength="20" value="${item ? escapeHtml(item.ncm || '') : ''}">
+                        </div>
                     </div>
                 </div>
 
+                <!-- ABA FORNECEDOR -->
                 <div class="tab-content" id="tab-fornecedor">
-                    <div class="form-grid">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
                             <label>Marca</label>
                             <input type="text" id="fMarca" maxlength="100" value="${item ? escapeHtml(item.marca || '') : ''}">
@@ -460,15 +463,12 @@ function openFormModal(id) {
                             <label>Modelo</label>
                             <input type="text" id="fModelo" maxlength="100" value="${item ? escapeHtml(item.modelo || '') : ''}">
                         </div>
-                        <div class="form-group full-width">
-                            <label>NCM</label>
-                            <input type="text" id="fNcm" maxlength="20" value="${item ? escapeHtml(item.ncm || '') : ''}">
-                        </div>
                     </div>
                 </div>
 
+                <!-- ABA VALORES -->
                 <div class="tab-content" id="tab-valores">
-                    <div class="form-grid">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
                             <label>Valor Unitário (R$)</label>
                             <input type="number" step="0.01" min="0" id="fValor" value="${item ? Number(item.valor_unitario) || 0 : '0.00'}">
@@ -532,7 +532,7 @@ async function salvarItem(e, overlay) {
         }
 
         fecharModal(overlay);
-        notificar(editingId ? 'Item atualizado!' : 'Item criado!', 'success');
+        notificar(editingId ? 'Item atualizado com sucesso!' : 'Item criado com sucesso!', 'success');
         await carregarEstoque();
     } catch (err) {
         notificar(err.message, 'error');
@@ -553,12 +553,17 @@ function excluirItem(id) {
         </div>
     `;
     const overlay = criarModal(html);
-    overlay.querySelector('#btnCancelarExc').onclick = () => fecharModal(overlay);
+    
+    overlay.querySelector('#btnCancelarExc').onclick = () => {
+        fecharModal(overlay);
+        notificar('Exclusão cancelada', 'error');
+    };
+    
     overlay.querySelector('#btnConfirmarExc').onclick = async () => {
         try {
             await api(`${API_BASE}/${id}`, { method: 'DELETE' });
             fecharTodosModais();
-            notificar('Item excluído', 'success');
+            notificar('Item excluído com sucesso!', 'success');
             await carregarEstoque();
         } catch (err) {
             notificar(err.message, 'error');
@@ -598,7 +603,11 @@ function openMovModal(id, tipo) {
     const input = overlay.querySelector('#fMovQtd');
     setTimeout(() => input.focus(), 100);
 
-    overlay.querySelector('#btnCancelarMov').onclick = () => fecharModal(overlay);
+    overlay.querySelector('#btnCancelarMov').onclick = () => {
+        fecharModal(overlay);
+        notificar('Operação cancelada', 'error');
+    };
+    
     overlay.querySelector('#btnConfirmarMov').onclick = async () => {
         const qtd = parseInt(input.value, 10);
         if (!qtd || qtd <= 0) return notificar('Informe uma quantidade válida', 'error');
@@ -610,7 +619,7 @@ function openMovModal(id, tipo) {
             });
 
             fecharModal(overlay);
-            notificar(`${tipoLabel} registrada!`, 'success');
+            notificar(`${tipoLabel} registrada com sucesso!`, 'success');
             await carregarEstoque();
         } catch (err) {
             notificar(err.message, 'error');
@@ -665,7 +674,6 @@ function abrirModalNovoGrupo() {
             fecharModal(overlay);
             await carregarGrupos();
 
-            // Atualiza o <select> do formulário principal (se aberto)
             const sel = document.getElementById('fGrupo');
             if (sel) {
                 sel.innerHTML = '<option value="">Selecione...</option>' +
@@ -676,7 +684,7 @@ function abrirModalNovoGrupo() {
                         </option>`).join('');
             }
 
-            notificar('Grupo criado!', 'success');
+            notificar('Grupo criado com sucesso!', 'success');
         } catch (err) {
             notificar(err.message, 'error');
         }
@@ -686,18 +694,16 @@ function abrirModalNovoGrupo() {
 // ─── Sincronização ──────────────────────────────────────────────────────────
 async function sincronizarDados(btn) {
     if (btn) {
-        // CORRIGIDO: A classe no CSS é 'spin' e não 'spinning'
         btn.classList.add('spin');
         setTimeout(() => btn.classList.remove('spin'), 1000);
     }
     await Promise.all([carregarGrupos(), carregarEstoque()]);
-    notificar('Dados sincronizados', 'success');
+    notificar('Dados sincronizados com sucesso!', 'success');
 }
 
 // ─── PDF ────────────────────────────────────────────────────────────────────
 function gerarPDFEstoque() {
     try {
-        // Tenta obter o jsPDF global
         const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
         
         if (!jsPDFConstructor) {
@@ -706,9 +712,8 @@ function gerarPDFEstoque() {
 
         const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-        // CORREÇÃO: Verifica se o plugin autoTable está atrelado ao prototype
         if (typeof doc.autoTable !== 'function') {
-            throw new Error('O plugin autoTable não está carregado. Verifique os scripts do jsPDF e jsPDF-AutoTable no index.html.');
+            throw new Error('O plugin autoTable não está carregado. Adicione as tags <script> recomendadas no index.html.');
         }
 
         const items = getFilteredItems();
@@ -761,7 +766,7 @@ function gerarPDFEstoque() {
 
         const dataStr = new Date().toISOString().slice(0, 10);
         doc.save(`estoque-${dataStr}.pdf`);
-        notificar('PDF gerado!', 'success');
+        notificar('PDF gerado com sucesso!', 'success');
     } catch (err) {
         console.error(err);
         notificar('Erro ao gerar PDF: ' + err.message, 'error');
