@@ -12,68 +12,17 @@
 </head>
 <body>
 
-<div class="tutorial-root" id="tutorialRoot">
-
-    <!-- ═══════════ DASHBOARD DE MÓDULOS ═══════════ -->
-    <div class="tutorial-view" id="tutorialDashboard">
-        <div class="dash-header">
-            <div class="dash-header-left">
-                <h1>Tutorial</h1>
-                <p class="dash-subtitle">Aprenda a usar cada módulo do sistema I.R. Comércio</p>
-            </div>
-        </div>
-        <div class="dash-grid" id="dashGrid"></div>
-    </div>
-
-    <!-- ═══════════ TUTORIAL INTERATIVO ═══════════ -->
-    <div class="tutorial-view hidden" id="tutorialStageView">
-        <div class="stage-topbar">
-            <button type="button" class="topbar-btn" id="btnVoltarDashboard">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                Voltar aos módulos
-            </button>
-            <div class="topbar-title" id="tutorialTitle"></div>
-            <div class="topbar-progress" id="tutorialProgress"></div>
-        </div>
-
-        <div class="stage-wrapper" id="stageWrapper">
-            <div class="stage" id="stage"></div>
-        </div>
-
-        <!-- Overlay de destaque (spotlight) -->
-        <div class="spotlight" id="spotlight" aria-hidden="true"></div>
-
-        <!-- Caixa de narração fixa no rodapé -->
-        <div class="narration" id="narration">
-            <div class="narration-inner">
-                <div class="narration-header">
-                    <span class="narration-step" id="narrationStep">Passo 1</span>
-                </div>
-                <div class="narration-text" id="narrationText"></div>
-                <div class="narration-actions">
-                    <button type="button" class="nav-btn prev" id="btnPrev">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                        Anterior
-                    </button>
-                    <button type="button" class="nav-btn next" id="btnNext">
-                        Próximo
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+<div class="tutorial-dashboard">
+    <div class="dash-header">
+        <div class="dash-header-left">
+            <h1>Tutorial</h1>
+            <p class="dash-subtitle">Aprenda a usar cada módulo do sistema I.R. Comércio</p>
         </div>
     </div>
-
+    <div class="dash-grid" id="dashGrid"></div>
 </div>
 
 <script src="/shared/ir-common.js"></script>
-<script src="/tutorial/script.js"></script>
+<script src="/tutorial/dashboard.js"></script>
 </body>
 </html>
