@@ -1,348 +1,592 @@
-// apps/estoque/routes.js
-const express = require('express');
+/* ============================================================================
+ * apps/estoque/script.js — FRONTEND
+ * ----------------------------------------------------------------------------
+ * Responsável por toda a interação da página de Estoque:
+ *   • Listagem e filtros
+ *   • Cadastro / edição / exclusão de itens e grupos
+ *   • Entrada / saída de estoque
+ *   • Sincronização e geração de PDF
+ * ========================================================================== */
 
-module.exports = function (supabase) {
-    const router = express.Router();
+// ─── Configuração ───────────────────────────────────────────────────────────
+const API_BASE = '/api/estoque';
 
-    // ─── HELPERS ────────────────────────────────────────────────────────
-    const norm = s => String(s == null ? '' : s).trim();
-    const up   = s => norm(s).toUpperCase();
+// ─── Estado ─────────────────────────────────────────────────────────────────
+let allItems = [];
+let grupos = [];
+let editingId = null;
+let filtros = { search: '', marca: '', grupo: '' };
 
-    function obterUsuario(req) {
-        const u = req.user || {};
-        const nome = u.name || u.username || '';
-        const primeiro = String(nome).trim().split(/\s+/)[0];
-        return up(primeiro) || null;
+// ─── Utilidades ─────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatCurrency(v) {
+    return Number(v || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+}
+
+async function parseJsonSafe(res) {
+    try { return await res.json(); } catch { return {}; }
+}
+
+function notificar(msg, tipo) {
+    // Se o projeto tiver um helper global (ir-common), usa; senão usa alert.
+    if (typeof window.mostrarToast === 'function') {
+        try { window.mostrarToast(msg, tipo || 'info'); return; } catch {}
+    }
+    // Fallback simples e silencioso
+    if (tipo === 'error') console.error(msg);
+    else console.log(msg);
+    alert(msg);
+}
+
+// ─── Ciclo de vida dos modais ───────────────────────────────────────────────
+function criarModal(htmlInterno) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = htmlInterno;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('show'));
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) fecharModal(overlay);
+    });
+    return overlay;
+}
+
+function fecharModal(overlay) {
+    if (!overlay || !overlay.parentNode) return;
+    overlay.style.animation = 'fadeOut 0.2s ease forwards';
+    setTimeout(() => overlay.remove(), 200);
+}
+
+function fecharTodosModais() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('estoqueTableBody');
+    if (tbody) {
+        tbody.addEventListener('click', (e) => {
+            const tr = e.target.closest('tr[data-id]');
+            if (tr && !e.target.closest('button')) {
+                openFormModal(tr.dataset.id);
+            }
+        });
+    }
+    carregarGrupos();
+    carregarEstoque();
+});
+
+// ─── Carregamento ───────────────────────────────────────────────────────────
+async function carregarGrupos() {
+    try {
+        const res = await fetch(`${API_BASE}/grupos`);
+        if (!res.ok) throw new Error('Erro ao carregar grupos');
+        grupos = await res.json();
+        preencherFiltroGrupos();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function carregarEstoque() {
+    try {
+        const res = await fetch(API_BASE);
+        if (!res.ok) throw new Error('Erro ao carregar estoque');
+        allItems = await res.json();
+        preencherFiltroMarcas();
+        renderTable();
+    } catch (e) {
+        console.error(e);
+        notificar('Erro ao carregar estoque', 'error');
+    }
+}
+
+function preencherFiltroGrupos() {
+    const sel = document.getElementById('filterGrupo');
+    if (!sel) return;
+    const valorAtual = sel.value;
+    sel.innerHTML = '<option value="">Todos os Grupos</option>';
+    grupos.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.abreviacao;
+        opt.textContent = `${g.nome} (${g.abreviacao})`;
+        sel.appendChild(opt);
+    });
+    sel.value = valorAtual;
+}
+
+function preencherFiltroMarcas() {
+    const sel = document.getElementById('filterMarca');
+    if (!sel) return;
+    const valorAtual = sel.value;
+    const marcas = [...new Set(allItems.map(i => i.marca).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="">Todas as Marcas</option>';
+    marcas.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+    });
+    sel.value = valorAtual;
+}
+
+// ─── Filtros e render ───────────────────────────────────────────────────────
+function filterItems() {
+    const el = document.getElementById('search');
+    filtros.search = el ? el.value.toLowerCase().trim() : '';
+    renderTable();
+}
+
+function selecionarMarca(value) {
+    filtros.marca = value || '';
+    renderTable();
+}
+
+function selecionarGrupo(value) {
+    filtros.grupo = value || '';
+    renderTable();
+}
+
+function getFilteredItems() {
+    return allItems.filter(item => {
+        if (filtros.marca && (item.marca || '') !== filtros.marca) return false;
+        if (filtros.grupo && (item.grupo || '') !== filtros.grupo) return false;
+        if (filtros.search) {
+            const hay = [
+                item.codigo, item.descricao, item.marca, item.modelo, item.grupo
+            ].join(' ').toLowerCase();
+            if (!hay.includes(filtros.search)) return false;
+        }
+        return true;
+    });
+}
+
+function renderTable() {
+    const tbody = document.getElementById('estoqueTableBody');
+    if (!tbody) return;
+
+    const items = getFilteredItems();
+
+    if (!items.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">
+                    Nenhum item encontrado.
+                </td>
+            </tr>`;
+    } else {
+        tbody.innerHTML = items.map(item => `
+            <tr data-id="${escapeHtml(item.id)}">
+                <td class="id-cell"><strong>${escapeHtml(item.codigo)}</strong></td>
+                <td>${escapeHtml(item.descricao || '')}</td>
+                <td>${escapeHtml(item.grupo || '')}</td>
+                <td>${formatCurrency(item.valor_unitario)}</td>
+                <td>${Number(item.quantidade) || 0}</td>
+                <td class="actions-cell" style="text-align:center;">
+                    <button type="button" class="action-btn entry" onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'entrada')">Entrada</button>
+                    <button type="button" class="action-btn exit"  onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'saida')">Saída</button>
+                    <button type="button" class="action-btn edit"  onclick="event.stopPropagation(); openFormModal('${escapeHtml(item.id)}')">Editar</button>
+                </td>
+            </tr>
+        `).join('');
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // GRUPOS
-    // ═══════════════════════════════════════════════════════════════════
-    router.get('/estoque/grupos', async (req, res) => {
-        try {
-            const { data, error } = await supabase
-                .from('estoque_grupos')
-                .select('*')
-                .order('nome', { ascending: true });
-            if (error) throw error;
-            res.json(data || []);
-        } catch (e) {
-            console.error('Erro listar grupos:', e.message);
-            res.status(500).json({ error: 'Erro ao listar grupos' });
-        }
-    });
+    updateTotals(items);
+}
 
-    router.post('/estoque/grupos', async (req, res) => {
-        try {
-            const nome = up(req.body?.nome);
-            const abreviacao = up(req.body?.abreviacao);
-            if (!nome) return res.status(400).json({ error: 'Informe o nome do grupo' });
-            if (!/^[A-Z]{4}$/.test(abreviacao)) {
-                return res.status(400).json({ error: 'A abreviação deve ter exatamente 4 letras' });
-            }
-            const { data: existing } = await supabase
-                .from('estoque_grupos')
-                .select('id')
-                .eq('abreviacao', abreviacao)
-                .maybeSingle();
-            if (existing) {
-                return res.status(409).json({ error: `A abreviação ${abreviacao} já existe` });
-            }
+function updateTotals(items) {
+    const totalQtd = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+    const totalValor = items.reduce(
+        (s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)),
+        0
+    );
+    const qEl = document.getElementById('totalQtd');
+    const vEl = document.getElementById('totalValor');
+    if (qEl) qEl.textContent = totalQtd;
+    if (vEl) vEl.textContent = formatCurrency(totalValor);
+}
 
-            const { data, error } = await supabase
-                .from('estoque_grupos')
-                .insert([{ nome, abreviacao, ultimo_sequencial: 0 }])
-                .select('*')
-                .single();
-            if (error) throw error;
-            res.status(201).json(data);
-        } catch (e) {
-            console.error('Erro criar grupo:', e.message);
-            res.status(500).json({ error: 'Erro ao criar grupo' });
-        }
-    });
+// ─── Formulário de Item (novo / editar) ─────────────────────────────────────
+function openFormModal(id) {
+    editingId = id || null;
+    const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
 
-    // ═══════════════════════════════════════════════════════════════════
-    // MOVIMENTAÇÕES
-    // ═══════════════════════════════════════════════════════════════════
-    router.get('/estoque/:id/movimentacoes', async (req, res) => {
-        try {
-            const { data, error } = await supabase
-                .from('estoque_movimentacoes')
-                .select('*')
-                .eq('estoque_id', req.params.id)
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            res.json(data || []);
-        } catch (e) {
-            console.error('Erro listar movimentações:', e.message);
-            res.status(500).json({ error: 'Erro ao listar movimentações' });
-        }
-    });
+    const campos = item ? `
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label>Descrição *</label>
+                <input type="text" id="fDescricao" required maxlength="255" value="${escapeHtml(item.descricao)}">
+            </div>
+            <div class="form-group">
+                <label>Grupo *</label>
+                <select id="fGrupo" required>
+                    ${grupos.map(g => `
+                        <option value="${escapeHtml(g.abreviacao)}" ${item.grupo === g.abreviacao ? 'selected' : ''}>
+                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
+                        </option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Valor Unitário (R$)</label>
+                <input type="number" step="0.01" min="0" id="fValor" value="${Number(item.valor_unitario) || 0}">
+            </div>
+        </div>
+        <div class="info-section" style="margin-top:0.5rem;">
+            <h4>Informações</h4>
+            <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${escapeHtml(item.codigo)}</span></div>
+            <div class="info-row"><span class="info-label">Quantidade:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
+            <div class="info-row"><span class="info-label">Marca:</span><span class="info-value">${escapeHtml(item.marca || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
+            <div class="info-row"><span class="info-label">NCM:</span><span class="info-value">${escapeHtml(item.ncm || '-')}</span></div>
+        </div>
+    ` : `
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label>Descrição *</label>
+                <input type="text" id="fDescricao" required maxlength="255">
+            </div>
+            <div class="form-group">
+                <label>Grupo *</label>
+                <div class="input-with-btn">
+                    <select id="fGrupo" required>
+                        <option value="">Selecione...</option>
+                        ${grupos.map(g => `
+                            <option value="${escapeHtml(g.abreviacao)}">
+                                ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
+                            </option>`).join('')}
+                    </select>
+                    <button type="button" class="btn-plus" onclick="abrirModalNovoGrupo()" title="Novo grupo">+</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Valor Unitário (R$)</label>
+                <input type="number" step="0.01" min="0" id="fValor" value="0.00">
+            </div>
+            <div class="form-group">
+                <label>Quantidade Inicial</label>
+                <input type="number" min="0" id="fQtd" value="0">
+            </div>
+            <div class="form-group">
+                <label>Marca</label>
+                <input type="text" id="fMarca" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label>Modelo</label>
+                <input type="text" id="fModelo" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label>NCM</label>
+                <input type="text" id="fNcm" maxlength="20">
+            </div>
+        </div>
+    `;
 
-    // Movimentação manual (Entrada / Saída pelo próprio módulo)
-    router.post('/estoque/:id/movimentacao', async (req, res) => {
-        try {
-            const tipo = String(req.body?.tipo || '').toLowerCase();
-            const quantidade = parseInt(req.body?.quantidade, 10);
-            if (tipo !== 'entrada' && tipo !== 'saida') {
-                return res.status(400).json({ error: 'Tipo deve ser "entrada" ou "saida"' });
-            }
-            if (!Number.isInteger(quantidade) || quantidade <= 0) {
-                return res.status(400).json({ error: 'Quantidade deve ser um inteiro maior que zero' });
-            }
+    const html = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">${item ? 'Editar Item' : 'Novo Item'}</h2>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <form id="formItem">
+                ${campos}
+                <div class="modal-actions">
+                    ${item ? `<button type="button" class="cancel-close" style="background:#EF4444;" onclick="excluirItem('${escapeHtml(item.id)}')">Excluir</button>` : ''}
+                    <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+                    <button type="submit" class="save">${item ? 'Salvar' : 'Criar Item'}</button>
+                </div>
+            </form>
+        </div>
+    `;
 
-            const { data: item, error: e1 } = await supabase
-                .from('estoque').select('*').eq('id', req.params.id).maybeSingle();
-            if (e1) throw e1;
-            if (!item) return res.status(404).json({ error: 'Item não encontrado' });
+    const overlay = criarModal(html);
+    overlay.querySelector('#formItem').addEventListener('submit', (e) => salvarItem(e, overlay));
+}
 
-            const delta = tipo === 'entrada' ? quantidade : -quantidade;
-            const novaQtd = Number(item.quantidade || 0) + delta;
-            if (novaQtd < 0) {
-                return res.status(400).json({ error: 'Quantidade em estoque insuficiente' });
-            }
+async function salvarItem(e, overlay) {
+    e.preventDefault();
+    const descricao = document.getElementById('fDescricao').value.trim();
+    const grupo = document.getElementById('fGrupo').value.trim();
+    const valor = parseFloat(document.getElementById('fValor').value) || 0;
 
-            const usuario = obterUsuario(req);
-            const now = new Date().toISOString();
+    if (!descricao) return notificar('Informe a descrição', 'error');
+    if (!grupo) return notificar('Selecione o grupo', 'error');
 
-            const { error: e2 } = await supabase
-                .from('estoque')
-                .update({ quantidade: novaQtd, atualizado_por: usuario, ultima_atualizacao: now })
-                .eq('id', item.id);
-            if (e2) throw e2;
+    try {
+        let res;
+        if (editingId) {
+            res = await fetch(`${API_BASE}/${editingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ descricao, grupo, valor_unitario: valor })
+            });
+        } else {
+            const qtd    = parseInt(document.getElementById('fQtd').value, 10) || 0;
+            const marca  = document.getElementById('fMarca').value.trim();
+            const modelo = document.getElementById('fModelo').value.trim();
+            const ncm    = document.getElementById('fNcm').value.trim();
 
-            const { data: mov, error: e3 } = await supabase
-                .from('estoque_movimentacoes')
-                .insert([{
-                    estoque_id: item.id,
-                    codigo_estoque: item.codigo,
-                    numero_pedido: null,
-                    tipo,
-                    quantidade,
-                    atualizado_por: usuario,
-                    ultima_atualizacao: now
-                }])
-                .select('*')
-                .single();
-            if (e3) throw e3;
-
-            res.status(201).json({ item: { ...item, quantidade: novaQtd }, movimentacao: mov });
-        } catch (e) {
-            console.error('Erro movimentação:', e.message);
-            res.status(500).json({ error: 'Erro ao registrar movimentação' });
-        }
-    });
-
-    // ═══════════════════════════════════════════════════════════════════
-    // PATCH por CÓDIGO — compatibilidade com Faturamento
-    // Aceita opcionalmente: numero_pedido, tipo, atualizado_por
-    // ═══════════════════════════════════════════════════════════════════
-    router.patch('/estoque/:codigo', async (req, res) => {
-        try {
-            const codigo = String(req.params.codigo || '').trim();
-            const body = req.body || {};
-
-            const { data: item, error: e1 } = await supabase
-                .from('estoque').select('*').eq('codigo', codigo).maybeSingle();
-            if (e1) throw e1;
-            if (!item) return res.status(404).json({ error: 'Item não encontrado' });
-
-            const novaQtd = body.quantidade !== undefined
-                ? parseInt(body.quantidade, 10)
-                : Number(item.quantidade || 0);
-            if (!Number.isInteger(novaQtd)) {
-                return res.status(400).json({ error: 'Quantidade inválida' });
-            }
-
-            const usuario = body.atualizado_por
-                ? up(String(body.atualizado_por).trim().split(/\s+/)[0])
-                : obterUsuario(req);
-            const now = new Date().toISOString();
-
-            const { data: updated, error: e2 } = await supabase
-                .from('estoque')
-                .update({ quantidade: novaQtd, atualizado_por: usuario, ultima_atualizacao: now })
-                .eq('id', item.id)
-                .select('*')
-                .single();
-            if (e2) throw e2;
-
-            const delta = novaQtd - Number(item.quantidade || 0);
-            if (delta !== 0) {
-                const tipo = delta > 0 ? 'entrada' : 'saida';
-                const qtdMov = Math.abs(delta);
-                const numeroPedido = body.numero_pedido != null
-                    ? parseInt(body.numero_pedido, 10)
-                    : null;
-                await supabase
-                    .from('estoque_movimentacoes')
-                    .insert([{
-                        estoque_id: item.id,
-                        codigo_estoque: item.codigo,
-                        numero_pedido: Number.isInteger(numeroPedido) ? numeroPedido : null,
-                        tipo,
-                        quantidade: qtdMov,
-                        atualizado_por: usuario,
-                        ultima_atualizacao: now
-                    }]);
-            }
-
-            res.json(updated);
-        } catch (e) {
-            console.error('Erro PATCH estoque:', e.message);
-            res.status(500).json({ error: 'Erro ao atualizar estoque' });
-        }
-    });
-
-    // ═══════════════════════════════════════════════════════════════════
-    // CRUD PRINCIPAL
-    // ═══════════════════════════════════════════════════════════════════
-    router.get('/estoque', async (req, res) => {
-        try {
-            const { data, error } = await supabase
-                .from('estoque')
-                .select('*')
-                .order('codigo', { ascending: true });
-            if (error) throw error;
-            res.json(data || []);
-        } catch (e) {
-            console.error('Erro listar estoque:', e.message);
-            res.status(500).json({ error: 'Erro ao listar estoque' });
-        }
-    });
-
-    router.get('/estoque/:id', async (req, res) => {
-        try {
-            const { data, error } = await supabase
-                .from('estoque').select('*').eq('id', req.params.id).maybeSingle();
-            if (error) throw error;
-            if (!data) return res.status(404).json({ error: 'Item não encontrado' });
-            res.json(data);
-        } catch (e) {
-            console.error('Erro buscar item:', e.message);
-            res.status(500).json({ error: 'Erro ao buscar item' });
-        }
-    });
-
-    router.post('/estoque', async (req, res) => {
-        try {
-            const b = req.body || {};
-            const descricao = up(b.descricao);
-            const grupo = up(b.grupo);
-            const valorUnitario = parseFloat(b.valor_unitario) || 0;
-            const quantidadeInicial = parseInt(b.quantidade, 10) || 0;
-            const marca = up(b.marca);
-            const modelo = up(b.modelo);
-            const ncm = norm(b.ncm);
-
-            if (!descricao) return res.status(400).json({ error: 'Descrição é obrigatória' });
-            if (!/^[A-Z]{4}$/.test(grupo)) return res.status(400).json({ error: 'Grupo inválido' });
-            if (valorUnitario < 0) return res.status(400).json({ error: 'Valor unitário inválido' });
-            if (quantidadeInicial < 0) return res.status(400).json({ error: 'Quantidade inválida' });
-
-            const { data: g } = await supabase
-                .from('estoque_grupos').select('*').eq('abreviacao', grupo).maybeSingle();
-            if (!g) return res.status(400).json({ error: 'Grupo não cadastrado' });
-
-            if (modelo) {
-                const { data: dup } = await supabase
-                    .from('estoque')
-                    .select('id, modelo')
-                    .ilike('modelo', modelo)
-                    .maybeSingle();
-                if (dup) {
-                    return res.status(409).json({ error: `O modelo ${modelo} já possui cadastro` });
-                }
-            }
-
-            const seq = (g.ultimo_sequencial || 0) + 1;
-            const codigo = grupo + String(seq).padStart(4, '0');
-
-            const { error: eUpd } = await supabase
-                .from('estoque_grupos')
-                .update({ ultimo_sequencial: seq })
-                .eq('id', g.id);
-            if (eUpd) throw eUpd;
-
-            const usuario = obterUsuario(req);
-            const now = new Date().toISOString();
-
-            const { data, error } = await supabase
-                .from('estoque')
-                .insert([{
-                    codigo,
-                    descricao,
-                    grupo,
-                    valor_unitario: valorUnitario,
-                    quantidade: quantidadeInicial,
-                    marca: marca || null,
-                    modelo: modelo || null,
-                    ncm: ncm || null,
-                    atualizado_por: usuario,
-                    ultima_atualizacao: now
-                }])
-                .select('*')
-                .single();
-            if (error) throw error;
-            res.status(201).json(data);
-        } catch (e) {
-            console.error('Erro criar item:', e.message);
-            res.status(500).json({ error: 'Erro ao criar item' });
-        }
-    });
-
-    // Atualização — somente campos editáveis (Descrição, Grupo, Valor Unitário)
-    router.put('/estoque/:id', async (req, res) => {
-        try {
-            const b = req.body || {};
-            const descricao = up(b.descricao);
-            const grupo = up(b.grupo);
-            const valorUnitario = parseFloat(b.valor_unitario) || 0;
-
-            if (!descricao) return res.status(400).json({ error: 'Descrição é obrigatória' });
-            if (!/^[A-Z]{4}$/.test(grupo)) return res.status(400).json({ error: 'Grupo inválido' });
-            if (valorUnitario < 0) return res.status(400).json({ error: 'Valor unitário inválido' });
-
-            const { data: g } = await supabase
-                .from('estoque_grupos').select('id').eq('abreviacao', grupo).maybeSingle();
-            if (!g) return res.status(400).json({ error: 'Grupo não cadastrado' });
-
-            const usuario = obterUsuario(req);
-            const now = new Date().toISOString();
-
-            const { data, error } = await supabase
-                .from('estoque')
-                .update({
-                    descricao,
-                    grupo,
-                    valor_unitario: valorUnitario,
-                    atualizado_por: usuario,
-                    ultima_atualizacao: now
+            res = await fetch(API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    descricao, grupo, valor_unitario: valor,
+                    quantidade: qtd, marca, modelo, ncm
                 })
-                .eq('id', req.params.id)
-                .select('*')
-                .maybeSingle();
-            if (error) throw error;
-            if (!data) return res.status(404).json({ error: 'Item não encontrado' });
-            res.json(data);
-        } catch (e) {
-            console.error('Erro atualizar item:', e.message);
-            res.status(500).json({ error: 'Erro ao atualizar item' });
+            });
         }
-    });
 
-    router.delete('/estoque/:id', async (req, res) => {
+        const data = await parseJsonSafe(res);
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar item');
+
+        fecharModal(overlay);
+        notificar(editingId ? 'Item atualizado!' : 'Item criado!', 'success');
+        await carregarEstoque();
+    } catch (err) {
+        notificar(err.message, 'error');
+    }
+}
+
+// ─── Exclusão ───────────────────────────────────────────────────────────────
+function excluirItem(id) {
+    const html = `
+        <div class="modal-content ir-modal-confirm">
+            <button type="button" class="ir-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <h2 class="modal-title" style="margin-bottom:1rem;">Excluir Item</h2>
+            <p class="ir-confirm-msg">Deseja realmente excluir este item? Esta ação não pode ser desfeita.</p>
+            <div class="ir-confirm-actions">
+                <button type="button" class="ir-btn-red" id="btnCancelarExc">Cancelar</button>
+                <button type="button" class="ir-btn-green" id="btnConfirmarExc">Excluir</button>
+            </div>
+        </div>
+    `;
+    const overlay = criarModal(html);
+    overlay.querySelector('#btnCancelarExc').onclick = () => fecharModal(overlay);
+    overlay.querySelector('#btnConfirmarExc').onclick = async () => {
         try {
-            const { error } = await supabase
-                .from('estoque').delete().eq('id', req.params.id);
-            if (error) throw error;
-            res.status(204).end();
-        } catch (e) {
-            console.error('Erro excluir item:', e.message);
-            res.status(500).json({ error: 'Erro ao excluir item' });
+            const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+            if (!res.ok && res.status !== 204) {
+                const data = await parseJsonSafe(res);
+                throw new Error(data.error || 'Erro ao excluir item');
+            }
+            fecharTodosModais();
+            notificar('Item excluído', 'success');
+            await carregarEstoque();
+        } catch (err) {
+            notificar(err.message, 'error');
+        }
+    };
+}
+
+// ─── Modal de Entrada / Saída ──────────────────────────────────────────────
+function openMovModal(id, tipo) {
+    const item = allItems.find(i => String(i.id) === String(id));
+    if (!item) return notificar('Item não encontrado', 'error');
+
+    const tipoLabel = tipo === 'entrada' ? 'Entrada' : 'Saída';
+
+    const html = `
+        <div class="modal-content ir-modal-confirm" style="text-align:left;">
+            <button type="button" class="ir-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <h2 class="modal-title" style="margin-bottom:0.75rem; text-align:center;">${tipoLabel} de Estoque</h2>
+            <p style="text-align:center; color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem;">
+                ${escapeHtml(item.codigo)} — ${escapeHtml(item.descricao)}
+            </p>
+            <div class="form-group">
+                <label>Quantidade *</label>
+                <input type="number" min="1" id="fMovQtd" value="1" style="text-align:center; font-size:1.2rem;">
+                <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.85rem; text-align:center;">
+                    Estoque atual: <strong>${Number(item.quantidade) || 0}</strong>
+                </p>
+            </div>
+            <div class="ir-confirm-actions">
+                <button type="button" class="ir-btn-red" id="btnCancelarMov">Cancelar</button>
+                <button type="button" class="ir-btn-green" id="btnConfirmarMov">Confirmar ${tipoLabel}</button>
+            </div>
+        </div>
+    `;
+
+    const overlay = criarModal(html);
+    const input = overlay.querySelector('#fMovQtd');
+    setTimeout(() => input.focus(), 100);
+
+    overlay.querySelector('#btnCancelarMov').onclick = () => fecharModal(overlay);
+    overlay.querySelector('#btnConfirmarMov').onclick = async () => {
+        const qtd = parseInt(input.value, 10);
+        if (!qtd || qtd <= 0) return notificar('Informe uma quantidade válida', 'error');
+
+        try {
+            const res = await fetch(`${API_BASE}/${item.id}/movimentacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo, quantidade: qtd })
+            });
+            const data = await parseJsonSafe(res);
+            if (!res.ok) throw new Error(data.error || 'Erro ao registrar movimentação');
+
+            fecharModal(overlay);
+            notificar(`${tipoLabel} registrada!`, 'success');
+            await carregarEstoque();
+        } catch (err) {
+            notificar(err.message, 'error');
+        }
+    };
+}
+
+// ─── Modal de novo grupo (chamado pelo botão +) ─────────────────────────────
+function abrirModalNovoGrupo() {
+    const html = `
+        <div class="modal-content" style="max-width:460px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Novo Grupo</h2>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <form id="formGrupo">
+                <div class="form-group">
+                    <label>Nome do Grupo *</label>
+                    <input type="text" id="gNome" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>Abreviação (4 letras) *</label>
+                    <input type="text" id="gAbrev" required maxlength="4"
+                           style="text-transform:uppercase;"
+                           oninput="this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '')">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="cancel-close" style="background:#6B7280;"
+                            onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+                    <button type="submit" class="save">Criar Grupo</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    const overlay = criarModal(html);
+    overlay.querySelector('#formGrupo').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nome      = document.getElementById('gNome').value.trim();
+        const abreviacao = document.getElementById('gAbrev').value.trim().toUpperCase();
+
+        if (abreviacao.length !== 4) {
+            return notificar('A abreviação deve ter 4 letras', 'error');
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/grupos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, abreviacao })
+            });
+            const data = await parseJsonSafe(res);
+            if (!res.ok) throw new Error(data.error || 'Erro ao criar grupo');
+
+            fecharModal(overlay);
+            await carregarGrupos();
+
+            // Atualiza o <select> do formulário principal (se aberto)
+            const sel = document.getElementById('fGrupo');
+            if (sel) {
+                sel.innerHTML = '<option value="">Selecione...</option>' +
+                    grupos.map(g => `
+                        <option value="${escapeHtml(g.abreviacao)}"
+                                ${g.abreviacao === data.abreviacao ? 'selected' : ''}>
+                            ${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})
+                        </option>`).join('');
+            }
+
+            notificar('Grupo criado!', 'success');
+        } catch (err) {
+            notificar(err.message, 'error');
         }
     });
+}
 
-    return router;
-};
+// ─── Sincronização ──────────────────────────────────────────────────────────
+async function sincronizarDados(btn) {
+    if (btn) {
+        btn.classList.add('spinning');
+        setTimeout(() => btn.classList.remove('spinning'), 600);
+    }
+    await Promise.all([carregarGrupos(), carregarEstoque()]);
+    notificar('Dados sincronizados', 'success');
+}
+
+// ─── PDF ────────────────────────────────────────────────────────────────────
+function gerarPDFEstoque() {
+    try {
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) throw new Error('jsPDF não carregado');
+        if (typeof jsPDF.API.autoTable !== 'function') {
+            throw new Error('Plugin autoTable não carregado. Inclua o script do autoTable.');
+        }
+
+        const items = getFilteredItems();
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        doc.setFontSize(16);
+        doc.setTextColor(255, 82, 29);
+        doc.text('Relatório de Estoque', 14, 16);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+        doc.text(`Total de itens: ${items.length}`, 14, 27);
+
+        const body = items.map(i => [
+            i.codigo || '',
+            i.descricao || '',
+            i.grupo || '',
+            i.marca || '',
+            i.modelo || '',
+            formatCurrency(i.valor_unitario),
+            String(Number(i.quantidade) || 0),
+            formatCurrency((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0))
+        ]);
+
+        const totalQtd   = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+        const totalValor = items.reduce(
+            (s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0
+        );
+
+        doc.autoTable({
+            startY: 32,
+            head: [['Código', 'Descrição', 'Grupo', 'Marca', 'Modelo', 'Valor Unit.', 'Qtd', 'Total']],
+            body,
+            foot: [['', '', '', '', '', 'TOTAIS', String(totalQtd), formatCurrency(totalValor)]],
+            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+            headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
+            footStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            columnStyles: {
+                0: { cellWidth: 22 },
+                1: { cellWidth: 70 },
+                2: { cellWidth: 18 },
+                3: { cellWidth: 28 },
+                4: { cellWidth: 30 },
+                5: { cellWidth: 26, halign: 'right' },
+                6: { cellWidth: 16, halign: 'right' },
+                7: { cellWidth: 28, halign: 'right' }
+            }
+        });
+
+        const dataStr = new Date().toISOString().slice(0, 10);
+        doc.save(`estoque-${dataStr}.pdf`);
+        notificar('PDF gerado!', 'success');
+    } catch (err) {
+        console.error(err);
+        notificar('Erro ao gerar PDF: ' + err.message, 'error');
+    }
+}
