@@ -538,14 +538,3 @@ table:not(.items-table) thead th { background-color: #000 !important; color: #ff
 .login-company-logo { width: min(100%, 270px); max-height: 125px; margin: -0.6rem auto 0.8rem; }
 .login-identify { margin: 0 auto 1.25rem; text-align: center; font-size: .78rem; font-weight: 700; letter-spacing: .09em; color: var(--text-secondary, #64748b); }
 @media(max-width:600px){ .login-company-logo { width:min(82%,220px); max-height:100px; margin-top:-.25rem; } .login-identify{font-size:.72rem;margin-bottom:1rem;} }
-
-
-/* Dispositivo móvel não compatível */
-#unsupportedDevice {
-    display: none; position: fixed; inset: 0; z-index: 2147483647;
-    align-items: center; justify-content: center; padding: 28px;
-    background: #fff; color: #111827; text-align: center;
-    font: 600 18px/1.5 system-ui, -apple-system, sans-serif;
-}
-body.mobile-blocked > *:not(#unsupportedDevice) { display: none !important; }
-body.mobile-blocked #unsupportedDevice { display: flex !important; }
