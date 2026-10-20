@@ -21,62 +21,42 @@
 
 [hidden] { display: none !important; }
 
-html, body {
-    height: 100%;
+/* Rolagem livre: o documento inteiro é scrollável; nada fica fixo no topo */
+html {
+    min-height: 100%;
+    background: var(--bg-secondary);
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg-secondary);
     color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
-    overscroll-behavior-y: contain;
-}
+    overflow-x: hidden;
+    display: block;
 
-body {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
+    /* Espaço inferior reservado para o FAB não cobrir o último card */
     padding:
         max(10px, env(safe-area-inset-top))
         max(10px, env(safe-area-inset-right))
-        max(10px, env(safe-area-inset-bottom))
+        calc(96px + env(safe-area-inset-bottom, 0px))
         max(10px, env(safe-area-inset-left));
+
+    /* Empilhamento vertical dos controles e da lista */
+    display: flex;
+    flex-direction: column;
     gap: 8px;
 }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
 /* ═══════════════════════════════════════════════════════════
-   1. BOTÃO DE REGISTRO
-   ═══════════════════════════════════════════════════════════ */
-.btn-register {
-    flex-shrink: 0;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 20px;
-    border-radius: 10px;
-    background: var(--btn-register);
-    color: #fff;
-    font-size: 0.95rem;
-    font-weight: 600;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-    transition: background 0.15s ease, transform 0.1s ease;
-    width: 100%;
-}
-.btn-register:active {
-    background: var(--btn-register-hover);
-    transform: scale(0.98);
-}
-
-/* ═══════════════════════════════════════════════════════════
-   2. BARRA DE PESQUISA
+   1. BARRA DE PESQUISA
    ═══════════════════════════════════════════════════════════ */
 .search-bar {
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -85,6 +65,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 10px;
+    flex-shrink: 0;
 }
 .search-icon {
     width: 18px;
@@ -106,12 +87,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .search-bar input::placeholder { color: var(--text-secondary); }
 
 /* ═══════════════════════════════════════════════════════════
-   3. FILTROS
+   2. FILTROS
    ═══════════════════════════════════════════════════════════ */
 .filters {
-    flex-shrink: 0;
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
 }
 .filter-select {
     flex: 1;
@@ -130,14 +111,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .filter-select:focus { border-color: var(--primary); }
 
 /* ═══════════════════════════════════════════════════════════
-   4. ÍCONES
+   3. ÍCONES
    ═══════════════════════════════════════════════════════════ */
 .icons-row {
-    flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 .icon-btn {
     width: 42px;
@@ -168,19 +149,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @keyframes spinIcon { to { transform: rotate(360deg); } }
 
 /* ═══════════════════════════════════════════════════════════
-   5. LISTA — blocos empilhados verticalmente (um acima do outro)
-   Cada bloco contém TODAS as colunas do desktop:
-   Cód. · Nome · Usuário · Setor · Status · Criado em · Ações
+   4. LISTA — blocos empilhados verticalmente (rolagem natural)
    ═══════════════════════════════════════════════════════════ */
 .list {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-bottom: 4px;
+    width: 100%;
 }
 
 .user-card {
@@ -310,12 +285,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* ─── Empty state ─── */
 .empty-state {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 24px;
+    padding: 60px 24px;
     text-align: center;
     color: var(--text-secondary);
 }
@@ -324,7 +298,38 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .empty-desc { font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAIS — centralizados
+   5. FAB — botão "+" fixo no canto inferior direito
+   Posicionado acima da barra inferior do portal.
+   ═══════════════════════════════════════════════════════════ */
+.fab-register {
+    position: fixed;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--btn-register);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+    z-index: 50;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.fab-register:active {
+    background: var(--btn-register-hover);
+    transform: scale(0.94);
+    box-shadow: 0 3px 12px rgba(59, 130, 246, 0.35);
+}
+.fab-register svg {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAIS — centralizados na tela
    ═══════════════════════════════════════════════════════════ */
 .modal {
     position: fixed;
