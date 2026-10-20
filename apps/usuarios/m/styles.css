@@ -12,6 +12,7 @@
     --btn-register: #3B82F6;
     --btn-register-hover: #2563EB;
     --btn-delete: #EF4444;
+    --btn-edit: #6B7280;
     --btn-save: #22C55E;
     --btn-cancel: #dc2626;
     color-scheme: light only;
@@ -19,9 +20,7 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* Correção definitiva: o atributo `hidden` precisa vencer as regras
-   de display dos componentes (era o que fazia a empty state aparecer
-   sempre e "esconder" os registros). */
+/* `hidden` vence qualquer regra de display */
 [hidden] { display: none !important; }
 
 html, body {
@@ -51,7 +50,7 @@ body {
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
 /* ═══════════════════════════════════════════════════════════
-   1. BOTÃO DE REGISTRO — mesma cor do "Novo Usuário" do desktop
+   1. BOTÃO DE REGISTRO
    ═══════════════════════════════════════════════════════════ */
 .btn-register {
     flex-shrink: 0;
@@ -133,45 +132,45 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .filter-select:focus { border-color: var(--primary); }
 
 /* ═══════════════════════════════════════════════════════════
-   4. ÍCONES
+   4. ÍCONES — apenas ícone, centralizados
    ═══════════════════════════════════════════════════════════ */
 .icons-row {
     flex-shrink: 0;
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 .icon-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 38px;
-    padding: 0 14px;
-    border-radius: 8px;
+    justify-content: center;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
+    border-radius: 10px;
     color: var(--text-secondary);
-    font-size: 0.82rem;
-    font-weight: 500;
     transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 .icon-btn:active {
     background: var(--input-bg);
     color: var(--text-primary);
-    transform: scale(0.97);
+    transform: scale(0.96);
 }
 .icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .icon-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
-    transition: transform 0.5s ease;
 }
 .icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
 @keyframes spinIcon { to { transform: rotate(360deg); } }
 
 /* ═══════════════════════════════════════════════════════════
-   5. LISTA DE REGISTROS (blocos)
+   5. LISTA — blocos com TODAS as informações do desktop
+   Colunas desktop: Cód · Nome · Usuário · Setor · Status · Criado · Ações
    ═══════════════════════════════════════════════════════════ */
 .list {
     flex: 1;
@@ -180,26 +179,30 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     padding-bottom: 4px;
 }
 
 .user-card {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
+    flex-direction: column;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: transform 0.12s ease, background 0.12s ease;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    min-height: 68px;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease;
 }
-.user-card:active { transform: scale(0.98); background: #FAFAFA; }
+
+.user-card-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+.user-card-main:active { background: #FAFAFA; }
 
 .user-avatar {
     width: 44px;
@@ -215,7 +218,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     font-size: 1.05rem;
 }
 
-.user-info { flex: 1; min-width: 0; }
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
 .user-name {
     font-size: 0.92rem;
     font-weight: 600;
@@ -232,10 +238,21 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
+}
+.user-meta-sub {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
 }
 
 .user-badge {
     flex-shrink: 0;
+    align-self: flex-start;
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 0.7rem;
@@ -246,6 +263,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .user-badge.active   { background: rgba(34, 197, 94, 0.12); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.3); }
 .user-badge.inactive { background: rgba(239, 68, 68, 0.12); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.3); }
 
+/* Ações por card (Editar / Excluir) */
+.user-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-color);
+    background: #FAFAFA;
+}
+.user-actions .action-btn {
+    flex: 1;
+    height: 36px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.user-actions .action-btn:active { opacity: 0.9; transform: scale(0.98); }
+.user-actions .action-btn.edit   { background: var(--btn-edit); }
+.user-actions .action-btn.delete { background: var(--btn-delete); }
+
+/* ─── Empty state ─── */
 .empty-state {
     flex: 1;
     display: flex;
@@ -261,7 +300,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .empty-desc { font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAL (bottom-sheet celular / centrado tablet)
+   MODAL — CENTRALIZADO (igual ao desktop)
    ═══════════════════════════════════════════════════════════ */
 .modal {
     position: fixed;
@@ -270,38 +309,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     display: none;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
     z-index: 10000;
-    padding: 0;
+    padding: 16px;
 }
 .modal.show { display: flex; animation: modalFade 0.2s ease; }
 @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-sheet {
     width: 100%;
-    max-height: 92vh;
-    max-height: 92dvh;
+    max-width: 640px;
+    max-height: calc(100dvh - 32px);
     background: var(--bg-card);
-    border-radius: 16px 16px 0 0;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-    padding-bottom: env(safe-area-inset-bottom);
+    animation: scaleIn 0.2s ease;
     overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
 }
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-@media (min-width: 640px) {
-    .modal { align-items: center; padding: 20px; }
-    .modal-sheet {
-        max-width: 640px;
-        border-radius: 16px;
-        max-height: 88vh;
-        animation: scaleIn 0.2s ease;
-    }
-    @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-}
+@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 .modal-head {
     flex-shrink: 0;
@@ -452,7 +481,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     pointer-events: none;
 }
 
-/* ── Toggle Status (Credenciais) — cores do desktop ── */
+/* ── Toggle Status (Credenciais) ── */
 .status-toggle-wrap {
     display: flex;
     justify-content: center;
