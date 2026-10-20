@@ -226,12 +226,37 @@ APPS.forEach(appName => {
         return;
     }
 
+    const mobileIndexPath = path.join(appPath, 'm', 'index.html');
+    const hasMobile = () => fs.existsSync(mobileIndexPath);
+
     app.use(`/${appName}/assets`, express.static(appPath, {
         setHeaders: (res, filePath) => { if (isBackendFile(filePath)) res.status(404).end(); }
     }));
 
-    app.get(`/${appName}`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
-    app.get(`/${appName}/`, (req, res) => res.sendFile(path.join(appPath, 'index.html')));
+    // ─── Desktop (redirect mobile → /m quando existir) ───────────────
+    const serveDesktopIndex = (req, res) => {
+        const ua = String(req.headers['user-agent'] || '').toLowerCase();
+        const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+        const forceDesktop = req.query && (req.query.force === 'desktop' || req.query.v === 'desktop');
+
+        if (!forceDesktop && isMobileUA && hasMobile()) {
+            const originalUrl = req.originalUrl || req.url || '';
+            const qi = originalUrl.indexOf('?');
+            const qs = qi >= 0 ? originalUrl.substring(qi) : '';
+            return res.redirect(302, `/${appName}/m${qs}`);
+        }
+        res.sendFile(path.join(appPath, 'index.html'));
+    };
+    app.get(`/${appName}`,  serveDesktopIndex);
+    app.get(`/${appName}/`, serveDesktopIndex);
+
+    // ─── Mobile (só se a pasta m/ existir) ───────────────────────────
+    const serveMobileIndex = (req, res) => {
+        if (!hasMobile()) return res.redirect(302, `/${appName}`);
+        res.sendFile(mobileIndexPath);
+    };
+    app.get(`/${appName}/m`,  serveMobileIndex);
+    app.get(`/${appName}/m/`, serveMobileIndex);
 
     app.use(`/${appName}`, express.static(appPath, {
         index: false,
@@ -239,7 +264,7 @@ APPS.forEach(appName => {
         setHeaders: (res, filePath) => { if (isBackendFile(filePath)) res.status(404).end(); }
     }));
 
-    console.log(`✅ Servindo /${appName}`);
+    console.log(`✅ Servindo /${appName}${hasMobile() ? `  (mobile: /${appName}/m)` : ''}`);
 });
 
 // ─── FALLBACK DE ASSETS ──────────────────────────────────────────────────────
@@ -359,10 +384,14 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Autenticação: Ativa (via Supabase)\n`);
     APPS.forEach(appName => {
         const appPath = path.join(__dirname, 'apps', appName);
+        const mobilePath = path.join(appPath, 'm', 'index.html');
         const status = fs.existsSync(appPath) ? '✅' : '⚠️ ';
-        console.log(`  ${status} /${appName}`);
+        const mobileTag = fs.existsSync(mobilePath) ? ' [mobile ✓]' : '';
+        console.log(`  ${status} /${appName}${mobileTag}`);
     });
-    console.log(`\n📝 Logs salvos em: acessos.log\n`);
+    console.log(`\n📝 Logs salvos em: acessos.log`);
+    console.log('\n📱 Módulos com versão mobile (pasta m/) são servidos automaticamente');
+    console.log('   para usuários mobile em /<modulo>/m. Force desktop com ?force=desktop.\n');
     console.log('📡 Rotas de API registradas:');
     console.log('  GET  /health               → Health check');
     console.log('  GET  /api/health           → Health check (redireciona)');
