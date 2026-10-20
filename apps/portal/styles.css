@@ -21,7 +21,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* LAYOUT COM FADE-IN MAIS SUAVE */
 .dashboard {
     display: flex;
-    height: 100vh;
+    height: 100vh;      /* fallback universal */
+    height: 100dvh;     /* iOS Safari: viewport dinâmico (URL bar) */
     overflow: hidden;
     opacity: 0;
     transition: opacity 1.1s cubic-bezier(0.4, 0, 0.2, 1);
@@ -268,7 +269,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
     /* Botão hambúrguer e backdrop visíveis */
-    .mobile-menu-btn { display: flex; }
+    .mobile-menu-btn {
+        display: flex;
+        /* Respeita notch/status bar do iPhone (viewport-fit=cover já ativo) */
+        top: max(12px, env(safe-area-inset-top));
+        left: max(12px, env(safe-area-inset-left));
+    }
     .sidebar-backdrop { display: block; }
 
     /* Sidebar: drawer fixo fora da tela por padrão */
@@ -283,6 +289,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
         z-index: 1000;
         box-shadow: 6px 0 32px rgba(0,0,0,0.4);
         border-right: none;
+        /* Padding interno compensa a safe area no topo da gaveta */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
     }
     .sidebar.mobile-open {
         transform: translateX(0);
@@ -322,9 +331,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     /* Saudação */
     .greeting-text { font-size: 1.25rem; }
 
-    /* Aviso do expediente em largura total */
+    /* Aviso do expediente em largura total e acima da home bar */
     .aviso-expediente {
-        left: 12px; right: 12px; bottom: 12px;
+        left: max(12px, env(safe-area-inset-left));
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
         max-width: none;
         font-size: 13px;
         padding: 12px 14px;
@@ -334,7 +345,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @media (max-width: 480px) {
     .mobile-menu-btn {
         width: 38px; height: 38px;
-        top: 10px; left: 10px;
+        top: max(10px, env(safe-area-inset-top));
+        left: max(10px, env(safe-area-inset-left));
         border-radius: 8px;
     }
     .sidebar { width: 86vw; max-width: 320px; }
