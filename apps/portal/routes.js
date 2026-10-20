@@ -1,5 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { normalizarApps } = require('../../lib/helpers');
 
 function verifyToken(token, secret) {
@@ -47,6 +49,12 @@ module.exports = function (supabase, supabaseAdmin) {
         { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
     ];
 
+    const APPS_ROOT = path.join(__dirname, '..');
+    function temMobile(modId) {
+        try { return fs.existsSync(path.join(APPS_ROOT, modId, 'm', 'index.html')); }
+        catch { return false; }
+    }
+
     async function requireAuth(req, res, next) {
         try {
             const auth = req.headers.authorization || '';
@@ -82,7 +90,8 @@ module.exports = function (supabase, supabaseAdmin) {
             },
             modules: MODULES.filter(m => m.available).map(m => ({
                 id: m.id, name: m.name, url: m.url,
-                allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id)
+                allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id),
+                mobile: temMobile(m.id)
             }))
         });
     });
