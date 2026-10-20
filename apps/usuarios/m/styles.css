@@ -1,27 +1,34 @@
 :root {
+    /* Paleta idêntica ao desktop (apps/usuarios/styles.css) */
     --primary: #FF521D;
-    --primary-hover: #E8451A;
-    --bg: #F4F5F7;
-    --card: #FFFFFF;
-    --text: #111111;
-    --text-2: #5B6470;
-    --text-3: #9CA3AF;
-    --border: #E1E4E8;
-    --danger: #dc2626;
-    --danger-hover: #b91c1c;
-    --green: #22C55E;
-    --green-hover: #16a34a;
-    --app-bar: #0A0A0A;
+    --bg-secondary: #F4F5F7;
+    --bg-card: #FFFFFF;
+    --text-primary: #111111;
+    --text-secondary: #5B6470;
+    --border-color: #E1E4E8;
+    --input-bg: #F7F8FA;
+    --success-color: #22C55E;
+    --danger-color: #EF4444;
+    --btn-register: #3B82F6;
+    --btn-register-hover: #2563EB;
+    --btn-delete: #EF4444;
+    --btn-save: #22C55E;
+    --btn-cancel: #dc2626;
     color-scheme: light only;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Correção definitiva: o atributo `hidden` precisa vencer as regras
+   de display dos componentes (era o que fazia a empty state aparecer
+   sempre e "esconder" os registros). */
+[hidden] { display: none !important; }
+
 html, body {
     height: 100%;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: contain;
@@ -30,87 +37,151 @@ html, body {
 body {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    padding:
+        max(12px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+    gap: 10px;
 }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 
 /* ═══════════════════════════════════════════════════════════
-   APP BAR
+   1. BOTÃO DE REGISTRO — mesma cor do "Novo Usuário" do desktop
    ═══════════════════════════════════════════════════════════ */
-.app-bar {
+.btn-register {
     flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    display: flex;
+    height: 46px;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    height: 56px;
-    padding: 0 12px;
-    padding-top: env(safe-area-inset-top);
-    background: var(--app-bar);
-    color: #fff;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-}
-.app-bar-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin: 0;
-}
-.app-bar-actions { display: flex; align-items: center; gap: 6px; }
-
-.icon-btn {
-    width: 40px; height: 40px;
-    display: flex; align-items: center; justify-content: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 20px;
     border-radius: 10px;
-    color: inherit;
+    background: var(--btn-register);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
     transition: background 0.15s ease, transform 0.1s ease;
+    width: 100%;
 }
-.icon-btn:active { transform: scale(0.94); background: rgba(255, 255, 255, 0.1); }
-.icon-btn.primary { background: var(--primary); color: #fff; }
-.icon-btn.primary:active { background: var(--primary-hover); }
-.icon-btn svg { width: 20px; height: 20px; }
-.icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
-@keyframes spinIcon { to { transform: rotate(360deg); } }
+.btn-register:active {
+    background: var(--btn-register-hover);
+    transform: scale(0.98);
+}
 
 /* ═══════════════════════════════════════════════════════════
-   BUSCA
+   2. BARRA DE PESQUISA
    ═══════════════════════════════════════════════════════════ */
 .search-bar {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 12px 12px 8px;
-    padding: 0 14px;
     height: 44px;
-    background: var(--card);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 0 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
 }
-.search-bar svg { width: 18px; height: 18px; color: var(--text-3); flex-shrink: 0; }
+.search-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
 .search-bar input {
-    flex: 1; height: 100%; border: none; outline: none;
-    font-family: inherit; font-size: 0.92rem; color: var(--text);
-    background: transparent; min-width: 0;
+    flex: 1;
+    height: 100%;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    background: transparent;
+    min-width: 0;
 }
-.search-bar input::placeholder { color: var(--text-3); }
+.search-bar input::placeholder { color: var(--text-secondary); }
 
 /* ═══════════════════════════════════════════════════════════
-   LISTA
+   3. FILTROS
+   ═══════════════════════════════════════════════════════════ */
+.filters {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+}
+.filter-select {
+    flex: 1;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    min-width: 0;
+    cursor: pointer;
+}
+.filter-select:focus { border-color: var(--primary); }
+
+/* ═══════════════════════════════════════════════════════════
+   4. ÍCONES
+   ═══════════════════════════════════════════════════════════ */
+.icons-row {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.icon-btn:active {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transform: scale(0.97);
+}
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.icon-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: transform 0.5s ease;
+}
+.icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
+@keyframes spinIcon { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════
+   5. LISTA DE REGISTROS (blocos)
    ═══════════════════════════════════════════════════════════ */
 .list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 4px 12px calc(96px + env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     gap: 8px;
+    padding-bottom: 4px;
 }
 
 .user-card {
@@ -118,22 +189,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     align-items: center;
     gap: 12px;
     padding: 14px;
-    background: var(--card);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: transform 0.12s ease, background 0.12s ease;
     cursor: pointer;
-    min-height: 68px;
     text-align: left;
     width: 100%;
+    min-height: 68px;
 }
-.user-card:active { transform: scale(0.98); background: #fafafa; }
+.user-card:active { transform: scale(0.98); background: #FAFAFA; }
 
 .user-avatar {
-    width: 44px; height: 44px;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: var(--primary);
+    background: #6B7280;
     color: #fff;
     display: flex;
     align-items: center;
@@ -144,9 +217,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .user-info { flex: 1; min-width: 0; }
 .user-name {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 600;
-    color: var(--text);
+    color: var(--text-primary);
+    text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -154,7 +228,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .user-meta {
     font-size: 0.78rem;
-    color: var(--text-2);
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -163,14 +237,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .user-badge {
     flex-shrink: 0;
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: 6px;
     font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.user-badge.active { background: rgba(34, 197, 94, 0.15); color: #15803d; }
-.user-badge.inactive { background: rgba(220, 38, 38, 0.12); color: #b91c1c; }
+.user-badge.active   { background: rgba(34, 197, 94, 0.12); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.3); }
+.user-badge.inactive { background: rgba(239, 68, 68, 0.12); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .empty-state {
     flex: 1;
@@ -180,46 +254,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     justify-content: center;
     padding: 40px 24px;
     text-align: center;
-    color: var(--text-2);
+    color: var(--text-secondary);
 }
 .empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
-.empty-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.empty-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
 .empty-desc { font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════
-   FAB
-   ═══════════════════════════════════════════════════════════ */
-.fab {
-    position: fixed;
-    right: 20px;
-    bottom: calc(20px + env(safe-area-inset-bottom));
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: #fff;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 20px rgba(255, 82, 29, 0.4);
-    z-index: 30;
-}
-.fab svg { width: 24px; height: 24px; }
-.fab:active { transform: scale(0.94); }
-@media (min-width: 768px) { .fab { display: flex; } }
-
-/* ═══════════════════════════════════════════════════════════
-   MODAL (bottom-sheet em celular, centrado em tablet)
+   MODAL (bottom-sheet celular / centrado tablet)
    ═══════════════════════════════════════════════════════════ */
 .modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: none;
     align-items: flex-end;
     justify-content: center;
-    z-index: 100;
+    z-index: 10000;
+    padding: 0;
 }
 .modal.show { display: flex; animation: modalFade 0.2s ease; }
 @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
@@ -228,8 +282,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     width: 100%;
     max-height: 92vh;
     max-height: 92dvh;
-    background: #fff;
-    border-radius: 20px 20px 0 0;
+    background: var(--bg-card);
+    border-radius: 16px 16px 0 0;
     display: flex;
     flex-direction: column;
     animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -241,7 +295,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @media (min-width: 640px) {
     .modal { align-items: center; padding: 20px; }
     .modal-sheet {
-        max-width: 560px;
+        max-width: 640px;
         border-radius: 16px;
         max-height: 88vh;
         animation: scaleIn 0.2s ease;
@@ -255,16 +309,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     align-items: center;
     gap: 8px;
     padding: 10px 8px 10px 12px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-color);
 }
-.modal-head .icon-btn { color: var(--danger); }
+.modal-head .icon-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    padding: 0;
+    color: var(--btn-cancel);
+}
 .modal-head .icon-btn:active { background: rgba(220, 38, 38, 0.08); }
 .modal-head-title {
     flex: 1;
     text-align: center;
     font-weight: 700;
     font-size: 1rem;
-    color: var(--text);
+    color: var(--text-primary);
     margin: 0;
 }
 .modal-head-spacer { width: 40px; flex-shrink: 0; }
@@ -273,29 +339,27 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .modal-tabs {
     flex-shrink: 0;
     display: flex;
-    gap: 4px;
-    padding: 10px 12px 0;
-    border-bottom: 1px solid var(--border);
+    gap: 0;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-color);
     overflow-x: auto;
     scrollbar-width: none;
-    -ms-overflow-style: none;
 }
 .modal-tabs::-webkit-scrollbar { display: none; }
 
 .modal-tab {
-    padding: 10px 16px;
-    border-radius: 10px 10px 0 0;
-    font-size: 0.85rem;
+    padding: 12px 16px;
+    font-size: 0.88rem;
     font-weight: 600;
-    color: var(--text-2);
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease;
+    color: var(--text-secondary);
     border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    background: transparent;
 }
 .modal-tab.active {
     color: var(--primary);
     border-bottom-color: var(--primary);
-    background: rgba(255, 82, 29, 0.06);
 }
 
 /* ── Corpo ── */
@@ -309,7 +373,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .tab-pane { display: none; flex-direction: column; gap: 14px; }
 .tab-pane.active { display: flex; }
 
-/* Grade 2×2 na aba Informações a partir de 540px */
 @media (min-width: 540px) {
     .tab-pane[data-pane="info"] {
         display: none;
@@ -321,38 +384,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #374151;
-    letter-spacing: 0.01em;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 .field input,
 .field select {
     width: 100%;
     height: 46px;
     padding: 0 14px;
-    border: 1px solid #d1d5db;
-    border-radius: 10px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: 8px;
     font-family: inherit;
     font-size: 0.95rem;
-    color: var(--text);
-    background: #fff;
+    color: var(--text-primary);
+    background: var(--input-bg);
     outline: none;
     box-sizing: border-box;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease;
 }
 .field input:focus,
-.field select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(255, 82, 29, 0.15);
-}
+.field select:focus { border-color: var(--primary); }
 .field input:disabled { background: #E5E7EB; color: #6B7280; }
 
 /* ── Módulos ── */
-.pane-hint { font-size: 0.85rem; color: var(--text-2); margin-bottom: 4px; }
+.pane-hint { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 4px; }
 .pane-note {
-    font-size: 0.78rem;
-    color: var(--text-2);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
     font-style: italic;
     margin-top: 10px;
     opacity: 0.85;
@@ -366,16 +425,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .module-card {
     padding: 12px 10px;
-    border-radius: 10px;
-    border: 1.5px solid var(--border);
-    background: #f9fafb;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-color);
+    background: var(--input-bg);
     font-size: 0.82rem;
     font-weight: 600;
     text-align: center;
-    color: var(--text);
+    color: var(--text-primary);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    user-select: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
     min-height: 52px;
     display: flex;
     align-items: center;
@@ -394,21 +452,21 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     pointer-events: none;
 }
 
-/* ── Toggle Ativar/Desativar (Credenciais) ── */
+/* ── Toggle Status (Credenciais) — cores do desktop ── */
 .status-toggle-wrap {
     display: flex;
     justify-content: center;
     align-items: center;
     margin-top: 1.25rem;
     padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
 }
 .status-card {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 160px;
-    max-width: 240px;
+    min-width: 220px;
+    max-width: 300px;
     min-height: 40px;
     padding: 8px 20px;
     border-radius: 8px;
@@ -420,18 +478,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transition: background 0.15s ease, border-color 0.15s ease;
     user-select: none;
 }
-.status-card.active { background: rgba(34,197,94,0.12); color: #16A34A; border-color: rgba(34,197,94,0.4); }
-.status-card.inactive { background: rgba(239,68,68,0.12); color: #DC2626; border-color: rgba(239,68,68,0.4); }
+.status-card.active {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16A34A;
+    border-color: rgba(34, 197, 94, 0.4);
+}
+.status-card.inactive {
+    background: rgba(239, 68, 68, 0.12);
+    color: #DC2626;
+    border-color: rgba(239, 68, 68, 0.4);
+}
 .status-card.disabled { opacity: 0.55; pointer-events: none; }
 
-/* ── Footer do modal ── */
+/* ── Footer ── */
 .modal-foot {
     flex-shrink: 0;
     display: flex;
     gap: 10px;
     padding: 12px 16px;
-    border-top: 1px solid var(--border);
-    background: #fafafa;
+    border-top: 1px solid var(--border-color);
+    background: #FAFAFA;
 }
 .modal-foot .btn { flex: 1; height: 46px; font-size: 0.95rem; }
 
@@ -440,15 +506,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border-radius: 10px;
+    border-radius: 8px;
     font-weight: 600;
     color: #fff;
-    transition: background 0.15s ease, transform 0.1s ease;
+    transition: opacity 0.15s ease, transform 0.1s ease;
     min-width: 100px;
     padding: 0 18px;
 }
-.btn:active { transform: scale(0.97); }
-.btn-green { background: var(--green); }
-.btn-green:active { background: var(--green-hover); }
-.btn-red { background: var(--danger); }
-.btn-red:active { background: var(--danger-hover); }
+.btn:active { opacity: 0.9; transform: translateY(1px); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-green { background: var(--btn-save); }
+.btn-red   { background: var(--btn-cancel); }
