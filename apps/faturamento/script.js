@@ -52,7 +52,8 @@ function userCanToggleEmissao() {
 function toUpperCase(value) { return value ? String(value).toUpperCase() : ''; }
 
 function formatarCNPJ(cnpj) {
-    cnpj = cnpj.replace(/\D/g, '');
+    if (!cnpj) return '';
+    cnpj = String(cnpj).replace(/\D/g, '');
     if (cnpj.length <= 14) {
         return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
     }
@@ -1025,7 +1026,7 @@ function abrirModalEmissaoNF(id) {
     if (!pedido) return;
     const existing = document.getElementById('emissaoNFModal');
     if (existing) existing.remove();
-    const nfExistente = pedido.numero_nf ? pedido.numero_nf.replace(/"/g, '&quot;') : '';
+    const nfExistente = pedido.numero_nf ? String(pedido.numero_nf).replace(/"/g, '&quot;') : '';
     const modalHTML = `
         <div class="modal-overlay" id="emissaoNFModal" style="display:flex;">
             <div class="modal-content ir-modal-confirm" style="max-width:460px;">
@@ -1188,7 +1189,7 @@ function abrirModalDefinirNF(id) {
             <div class="modal-content ir-modal-confirm" style="max-width:460px;">
                 <button class="close-modal ir-close" onclick="fecharModalDefinirNF()">✕</button>
                 <p style="font-size:1.05rem;margin-bottom:1rem;font-weight:600;">Qual é o número da NF para este pedido?</p>
-                <input type="text" id="definirNFInput" placeholder="Número da NF" value="${pedido.numero_nf ? pedido.numero_nf.replace(/"/g, '&quot;') : ''}" style="text-align:center;font-size:1.1rem;font-weight:600;letter-spacing:1px;margin:0 auto;max-width:220px;" onkeydown="if(event.key==='Enter') confirmarDefinirNF('${id}')">
+                <input type="text" id="definirNFInput" placeholder="Número da NF" value="${pedido.numero_nf ? String(pedido.numero_nf).replace(/"/g, '&quot;') : ''}" style="text-align:center;font-size:1.1rem;font-weight:600;letter-spacing:1px;margin:0 auto;max-width:220px;" onkeydown="if(event.key==='Enter') confirmarDefinirNF('${id}')">
                 <div class="ir-confirm-actions" style="margin-top:1.5rem;">
                     <button type="button" onclick="confirmarDefinirNF('${id}')" class="ir-btn-green">Salvar</button>
                     <button type="button" onclick="fecharModalDefinirNF()" class="ir-btn-red">Cancelar</button>
@@ -1237,7 +1238,10 @@ function showNFModal(pedidoId) {
     const existing = document.getElementById('nfModal');
     if (existing) existing.remove();
     const pedidoRef = pedidos.find(p => p.id === pedidoId);
-    const nfExistente = pedidoRef?.numero_nf ? pedidoRef.numero_nf.replace(/"/g, '&quot;') : '';
+    
+    // CORREÇÃO APLICADA AQUI (String para evitar erro se for número)
+    const nfExistente = pedidoRef?.numero_nf ? String(pedidoRef.numero_nf).replace(/"/g, '&quot;') : '';
+    
     const modalHTML = `
         <div class="modal-overlay" id="nfModal" style="display:flex;">
             <div class="modal-content ir-modal-confirm" style="max-width:460px;">
@@ -1281,7 +1285,7 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
         labelsContent += `<div class='label-container'><div class='logo-container'><img src='/apps/imagens/ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'><div><div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div><div class='cnpj'>CNPJ: 33.149.502/0001-38</div></div></div><div class='nf-volume-container'><div class='nf-volume'>NF: ${nf}</div><div class='volume'>VOLUME: ${i}/${totalVolumes}</div></div><hr><div class='section-title'>DESTINATÁRIO:</div><div class='section'>${destinatario}</div><div class='section'>${endereco}</div>${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}</div>`;
     }
 
-    // Cria a div e o estilo de impressão (Técnica de Print Nativo)
+    // Técnica de Print Nativo (criação de iframe invisível para não ser bloqueado como pop-up)
     const printSection = document.createElement('div');
     printSection.id = 'printSection';
     printSection.innerHTML = labelsContent;
@@ -1312,11 +1316,8 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
     document.head.appendChild(style);
     document.body.appendChild(printSection);
 
-    // Aciona a impressão da própria página (mais confiável e livre de bloqueios)
     setTimeout(() => {
         window.print();
-        
-        // Remove os elementos após fechar a janela de impressão
         window.onafterprint = function() {
             const p = document.getElementById('printSection');
             const s = document.getElementById('printStyle');
@@ -1325,7 +1326,7 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
             window.onafterprint = null;
         };
         showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
-    }, 500); // Pequeno delay para carregar a imagem
+    }, 500); 
 }
 
 // ─── EXCLUIR ─────────────────────────────────────────────────────────────────
