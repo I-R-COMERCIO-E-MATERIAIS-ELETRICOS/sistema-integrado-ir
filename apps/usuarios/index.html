@@ -93,10 +93,10 @@
             <button class="tab-btn" data-tab="credentials" onclick="mostrarTab('credentials')">Credenciais</button>
         </div>
 
-        <!-- Aba Informações -->
+        <!-- Aba Informações: 2×2 — Nome+Setor em cima, E-mail+Telefone embaixo -->
         <div class="tab-content active" data-pane="info">
-            <div class="form-grid">
-                <div class="form-group full">
+            <div class="form-grid info-grid">
+                <div class="form-group">
                     <label for="modalName">Nome do funcionário *</label>
                     <input type="text" id="modalName" required>
                 </div>
@@ -113,7 +113,7 @@
                     <label for="modalContactEmail">E-mail</label>
                     <input type="email" id="modalContactEmail">
                 </div>
-                <div class="form-group full">
+                <div class="form-group">
                     <label for="modalContactPhone">Telefone</label>
                     <input type="tel" id="modalContactPhone">
                 </div>
@@ -139,8 +139,9 @@
                     <input type="password" id="modalPassword" autocomplete="new-password">
                 </div>
             </div>
-            <div class="form-group full" style="margin-top: 1.25rem;">
-                <label>Status do usuário</label>
+
+            <!-- Toggle Ativar/Desativar: sem título, menor, centralizado na base -->
+            <div class="status-toggle-wrap">
                 <div class="dashboard-card status-card active" id="statusCard" onclick="toggleStatusUsuario()">
                     <span id="statusCardText">Selecione para desativar</span>
                 </div>
