@@ -1,14 +1,12 @@
 // ============================================================
 // Usuários · Mobile
 // - Ícones (mesmo tamanho do FAB 56x56) enfileirados acima do "+"
-// - Modal com X à direita, botões Anterior/Próximo/Salvar/Cancelar
-// - Sem botão Excluir dentro do modal
+// - Modal com X à direita; navegação por clique direto nas abas
+// - Footer com Salvar / Cancelar apenas
 // - Toasts no topo
 // ============================================================
 
 const API = '/api/usuarios';
-const TABS = ['info', 'modules', 'credentials'];
-let currentTab = 0;
 
 let accessToken = null;
 let state = {
@@ -77,9 +75,6 @@ function wireUI() {
     document.getElementById('syncBtn').addEventListener('click', sincronizar);
     document.getElementById('saveBtn').addEventListener('click', salvar);
     document.getElementById('statusCard').addEventListener('click', toggleStatus);
-
-    document.getElementById('btnTabPrev').addEventListener('click', () => navegarTab(-1));
-    document.getElementById('btnTabNext').addEventListener('click', () => navegarTab(1));
 
     document.getElementById('searchInput').addEventListener('input', (e) => {
         state.search = e.target.value.trim().toLowerCase();
@@ -261,28 +256,12 @@ function fecharForm(cancelado) {
 }
 
 function ativarAba(tab) {
-    currentTab = TABS.indexOf(tab);
-    if (currentTab < 0) currentTab = 0;
-
     document.querySelectorAll('.modal-tab').forEach(t => {
         t.classList.toggle('active', t.dataset.tab === tab);
     });
     document.querySelectorAll('.tab-pane').forEach(p => {
         p.classList.toggle('active', p.dataset.pane === tab);
     });
-    atualizarNavegacaoAbas();
-}
-
-function navegarTab(dir) {
-    const next = Math.max(0, Math.min(TABS.length - 1, currentTab + dir));
-    if (next !== currentTab) ativarAba(TABS[next]);
-}
-
-function atualizarNavegacaoAbas() {
-    const prev = document.getElementById('btnTabPrev');
-    const next = document.getElementById('btnTabNext');
-    if (prev) prev.style.display = currentTab === 0 ? 'none' : '';
-    if (next) next.style.display = currentTab === TABS.length - 1 ? 'none' : '';
 }
 
 /* ─── MÓDULOS ──────────────────────────────────────────────── */
