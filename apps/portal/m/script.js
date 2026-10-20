@@ -1,6 +1,8 @@
 // ============================================================
 // Portal Mobile · I.R. Comércio
-// Carrossel inferior + drawer (menu) lateral.
+// Carrossel inferior + drawer lateral esquerdo (sem X, sem
+// info do usuário). Fecha ao clicar em qualquer lugar (backdrop)
+// ou ao selecionar um módulo.
 // ============================================================
 
 const MODULE_ICONS = {
@@ -18,20 +20,11 @@ const MODULE_ICONS = {
     lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
 };
 
-// Rótulos curtos usados apenas no carrossel (o drawer usa o nome completo).
 const SHORT_NAMES = {
-    usuarios: 'Usuários',
-    licitacoes: 'Licitações',
-    precos: 'Preços',
-    compra: 'Compras',
-    transportadoras: 'Transp.',
-    cotacoes: 'Cotações',
-    faturamento: 'Faturam.',
-    frete: 'Frete',
-    estoque: 'Estoque',
-    receber: 'Receber',
-    pagar: 'Pagar',
-    lucro: 'Lucro',
+    usuarios: 'Usuários', licitacoes: 'Licitações', precos: 'Preços',
+    compra: 'Compras', transportadoras: 'Transp.', cotacoes: 'Cotações',
+    faturamento: 'Faturam.', frete: 'Frete', estoque: 'Estoque',
+    receber: 'Receber', pagar: 'Pagar', lucro: 'Lucro',
 };
 
 let accessToken = null;
@@ -40,32 +33,24 @@ let modules = [];
 let activeModuleId = null;
 const loaderTimeouts = {};
 
-// ─── BOOT ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { location.replace('/'); return; }
     try { IR.setToken(accessToken); } catch (_) {}
 
-    // Eventos do drawer podem ser conectados já (elementos são estáticos)
     wireDrawer();
 
     try {
         const res = await fetch('/api/portal/modules', {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-
-        if (res.status === 401 || res.status === 403) {
-            limparSessao();
-            location.replace('/');
-            return;
-        }
+        if (res.status === 401 || res.status === 403) { limparSessao(); location.replace('/'); return; }
         if (!res.ok) throw new Error('HTTP ' + res.status);
 
         const data = await res.json();
         userInfo = data.user;
         modules = data.modules || [];
 
-        renderUser();
         renderCarousel();
         renderDrawer();
         showGreeting();
@@ -90,33 +75,19 @@ function resolveToken() {
     }
     return sessionStorage.getItem('irToken');
 }
-
 function limparSessao() {
-    try {
-        sessionStorage.removeItem('irToken');
-        sessionStorage.removeItem('irUser');
-    } catch (_) {}
+    try { sessionStorage.removeItem('irToken'); sessionStorage.removeItem('irUser'); } catch (_) {}
 }
 
-// ─── USUÁRIO ─────────────────────────────────────────────────────────
-function renderUser() {
-    const name = userInfo.name || userInfo.username || 'Usuário';
-    document.getElementById('userInitial').textContent = name.charAt(0).toUpperCase();
-    document.getElementById('userName').textContent = name;
-    document.getElementById('userSector').textContent = userInfo.sector || 'Usuário';
-}
-
-// ─── CARROSSEL ───────────────────────────────────────────────────────
+/* ─── CARROSSEL ─────────────────────────────────────────────── */
 function renderCarousel() {
     const carousel = document.getElementById('carousel');
     carousel.innerHTML = '';
-
     const visiveis = modules.filter(m => m.allowed || !m.adminOnly);
     if (!visiveis.length) {
         carousel.innerHTML = '<div class="empty-carousel">Nenhum módulo disponível</div>';
         return;
     }
-
     visiveis.forEach(m => {
         if (m.adminOnly && !userInfo.is_admin) return;
         const btn = document.createElement('button');
@@ -128,19 +99,17 @@ function renderCarousel() {
         const shortLabel = SHORT_NAMES[m.id] || m.name;
         btn.innerHTML = `
             <span class="carousel-icon">${MODULE_ICONS[m.id] || ''}</span>
-            <span class="carousel-label">${shortLabel}</span>
-        `;
+            <span class="carousel-label">${shortLabel}</span>`;
         if (m.allowed) btn.addEventListener('click', () => openModule(m));
         else btn.disabled = true;
         carousel.appendChild(btn);
     });
 }
 
-// ─── DRAWER ──────────────────────────────────────────────────────────
+/* ─── DRAWER (esquerda, sem X, fecha em backdrop) ───────────── */
 function renderDrawer() {
     const nav = document.getElementById('drawerNav');
     nav.innerHTML = '';
-
     modules.forEach(m => {
         if (m.adminOnly && !userInfo.is_admin) return;
         const btn = document.createElement('button');
@@ -149,12 +118,8 @@ function renderDrawer() {
         btn.dataset.moduleId = m.id;
         btn.innerHTML = `
             <span class="drawer-item-icon">${MODULE_ICONS[m.id] || ''}</span>
-            <span class="drawer-item-label">${m.name}</span>
-        `;
-        if (m.allowed) btn.addEventListener('click', () => {
-            openModule(m);
-            closeDrawer();
-        });
+            <span class="drawer-item-label">${m.name}</span>`;
+        if (m.allowed) btn.addEventListener('click', () => { openModule(m); closeDrawer(); });
         else btn.disabled = true;
         nav.appendChild(btn);
     });
@@ -162,43 +127,32 @@ function renderDrawer() {
 
 function wireDrawer() {
     document.getElementById('menuBtn').addEventListener('click', openDrawer);
-    document.getElementById('drawerClose').addEventListener('click', closeDrawer);
     document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
     document.getElementById('drawerLogout').addEventListener('click', confirmarLogout);
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeDrawer();
-    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 }
 
 function openDrawer() {
-    const d = document.getElementById('drawer');
-    d.classList.add('open');
-    d.setAttribute('aria-hidden', 'false');
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawer').setAttribute('aria-hidden', 'false');
     document.getElementById('drawerBackdrop').classList.add('show');
     document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
 }
 
 function closeDrawer() {
-    const d = document.getElementById('drawer');
-    d.classList.remove('open');
-    d.setAttribute('aria-hidden', 'true');
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawer').setAttribute('aria-hidden', 'true');
     document.getElementById('drawerBackdrop').classList.remove('show');
     document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
 }
 
-// ─── MÓDULO (iframe) ─────────────────────────────────────────────────
+/* ─── MÓDULO (iframe) ──────────────────────────────────────── */
 function openModule(mod) {
     activeModuleId = mod.id;
-
     document.querySelectorAll('.carousel-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
-
-    const cItem = document.querySelector(`.carousel-item[data-module-id="${mod.id}"]`);
-    if (cItem) cItem.classList.add('active');
-
-    const dItem = document.querySelector(`.drawer-item[data-module-id="${mod.id}"]`);
-    if (dItem) dItem.classList.add('active');
+    document.querySelector(`.carousel-item[data-module-id="${mod.id}"]`)?.classList.add('active');
+    document.querySelector(`.drawer-item[data-module-id="${mod.id}"]`)?.classList.add('active');
 
     let container = document.getElementById(`iframe-${mod.id}`);
     if (!container) {
@@ -220,14 +174,12 @@ function openModule(mod) {
             loaderTimeouts[mod.id] = setTimeout(() => esconderLoader(mod.id), 1200);
         });
         container.appendChild(iframe);
-
         document.getElementById('iframesContainer').appendChild(container);
     }
 
     document.querySelectorAll('.iframe-container').forEach(c => c.classList.remove('active'));
     requestAnimationFrame(() => container.classList.add('active'));
 
-    // Centraliza o item ativo no carrossel
     setTimeout(() => {
         const c = document.querySelector(`.carousel-item[data-module-id="${mod.id}"]`);
         if (c) c.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -242,85 +194,64 @@ function esconderLoader(id) {
     }
 }
 
-// ─── MENSAGENS DO IFRAME ─────────────────────────────────────────────
 window.addEventListener('message', (event) => {
     const data = event.data || {};
     if (data.type === 'ir-session-expired' ||
         data.type === 'ir-access-denied' ||
         data.type === 'ir-module-denied') {
-        limparSessao();
-        location.replace('/');
-        return;
+        limparSessao(); location.replace('/'); return;
     }
     if (data.type === 'ir-module-ready') {
         const id = data.module || activeModuleId;
-        if (id) {
-            clearTimeout(loaderTimeouts[id]);
-            esconderLoader(id);
-        }
+        if (id) { clearTimeout(loaderTimeouts[id]); esconderLoader(id); }
     }
 });
 
-// ─── LOGOUT ──────────────────────────────────────────────────────────
+/* ─── LOGOUT ───────────────────────────────────────────────── */
 async function confirmarLogout() {
-    let ok = false;
+    let ok;
     if (window.IR && typeof IR.confirm === 'function') {
-        ok = await IR.confirm('Deseja realmente sair?', {
-            confirmText: 'Sim',
-            cancelText: 'Não'
-        });
+        ok = await IR.confirm('Deseja realmente sair?', { confirmText: 'Sim', cancelText: 'Não' });
     } else {
         ok = window.confirm('Deseja realmente sair?');
     }
     if (!ok) return;
-    limparSessao();
-    location.replace('/');
+    limparSessao(); location.replace('/');
 }
 
-// ─── SAUDAÇÃO ────────────────────────────────────────────────────────
+/* ─── SAUDAÇÃO ─────────────────────────────────────────────── */
 function showGreeting() {
     const text = document.getElementById('greetingText');
     const overlay = document.getElementById('greeting');
     if (!text || !overlay) return;
-
     const name = userInfo.name || userInfo.username || 'Usuário';
     const firstName = name.split(' ')[0];
-
     const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const h = agora.getHours();
     const greeting = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-
     text.textContent = `${greeting}, ${firstName}!`;
     setTimeout(() => overlay.classList.add('hide'), 1600);
     setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 2600);
 }
 
-// ─── AVISO DE EXPEDIENTE ─────────────────────────────────────────────
+/* ─── EXPEDIENTE ───────────────────────────────────────────── */
 function agendarAvisoExpediente() {
     const tick = () => {
-        const now = new Date();
-        const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const br = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
         const dow = br.getDay();
         if (dow === 0 || dow === 6) { limparSessao(); location.replace('/'); return; }
-
         const mins = br.getHours() * 60 + br.getMinutes();
         const limite = (dow === 5) ? 16 * 60 + 45 : 17 * 60 + 15;
         const fim    = (dow === 5) ? 17 * 60      : 17 * 60 + 30;
-
         if (mins >= limite && mins < fim && !document.getElementById('avisoExpediente')) {
             const el = document.createElement('div');
             el.id = 'avisoExpediente';
             el.style.cssText = [
-                'position: fixed',
-                'left: 12px',
-                'right: 12px',
+                'position: fixed', 'left: 12px', 'right: 12px',
                 'bottom: calc(env(safe-area-inset-bottom) + 76px)',
-                'z-index: 500',
-                'padding: 12px 14px',
-                'border: 1px solid #eab308',
-                'border-radius: 10px',
-                'background: #fef08a',
-                'color: #713f12',
+                'z-index: 500', 'padding: 12px 14px',
+                'border: 1px solid #eab308', 'border-radius: 10px',
+                'background: #fef08a', 'color: #713f12',
                 'font: 600 13px/1.4 Inter, system-ui, sans-serif',
                 'box-shadow: 0 8px 24px rgba(0,0,0,.18)'
             ].join(';');
