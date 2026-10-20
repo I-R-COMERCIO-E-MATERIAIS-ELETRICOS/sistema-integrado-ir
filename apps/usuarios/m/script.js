@@ -1,6 +1,6 @@
 // ============================================================
 // Usuários · Mobile
-// - Ícones enfileirados acima do FAB "+"
+// - Ícones (mesmo tamanho do FAB 56x56) enfileirados acima do "+"
 // - Modal com X à direita, botões Anterior/Próximo/Salvar/Cancelar
 // - Sem botão Excluir dentro do modal
 // - Toasts no topo
