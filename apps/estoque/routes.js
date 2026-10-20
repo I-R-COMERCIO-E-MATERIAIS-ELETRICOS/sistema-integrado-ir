@@ -40,6 +40,17 @@ module.exports = function (supabase) {
     });
 
     // MOVIMENTAÇÕES
+    router.get('/estoque/movimentacoes/todas', async (req, res) => {
+        try {
+            const { data, error } = await supabase
+                .from('estoque_movimentacoes')
+                .select('*, estoque(codigo, descricao)')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            res.json(data || []);
+        } catch (e) { res.status(500).json({ error: 'Erro ao listar movimentações gerais' }); }
+    });
+
     router.get('/estoque/:id/movimentacoes', async (req, res) => {
         try {
             const { data, error } = await supabase.from('estoque_movimentacoes').select('*').eq('estoque_id', req.params.id).order('created_at', { ascending: false });
@@ -155,7 +166,6 @@ module.exports = function (supabase) {
         } catch (e) { res.status(500).json({ error: 'Erro ao criar item' }); }
     });
 
-    // ATUALIZAÇÃO (CORRIGIDA: agora aceita marca, modelo e ncm)
     router.put('/estoque/:id', async (req, res) => {
         try {
             const b = req.body || {};
