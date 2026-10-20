@@ -14,6 +14,7 @@
     --btn-edit: #6B7280;
     --btn-save: #22C55E;
     --btn-cancel: #dc2626;
+    --btn-gray: #6B7280;
     color-scheme: light only;
 }
 
@@ -21,7 +22,6 @@
 
 [hidden] { display: none !important; }
 
-/* Rolagem livre: o documento inteiro é scrollável; nada fica fixo no topo */
 html {
     min-height: 100%;
     background: var(--bg-secondary);
@@ -36,22 +36,43 @@ body {
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    display: block;
-
-    /* Espaço inferior reservado para o FAB não cobrir o último card */
-    padding:
-        max(10px, env(safe-area-inset-top))
-        max(10px, env(safe-area-inset-right))
-        calc(96px + env(safe-area-inset-bottom, 0px))
-        max(10px, env(safe-area-inset-left));
-
-    /* Empilhamento vertical dos controles e da lista */
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    /* Espaço para o grupo flutuante (ícones + FAB) não cobrir o último card */
+    padding:
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        calc(150px + env(safe-area-inset-bottom, 0px))
+        max(10px, env(safe-area-inset-left));
 }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ═══════════════════════════════════════════════════════════
+   MENSAGENS (TOASTS) — CANTO SUPERIOR
+   Reaproveita o componente global, mas fixa no topo.
+   ═══════════════════════════════════════════════════════════ */
+.ir-toast {
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    transform: translateY(-120%) !important;
+}
+.ir-toast.show {
+    transform: translateY(0) !important;
+}
+
+/* Confirmação sempre centralizada, mesmo com override mobile do shared */
+.ir-modal-overlay {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+}
 
 /* ═══════════════════════════════════════════════════════════
    1. BARRA DE PESQUISA
@@ -111,45 +132,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .filter-select:focus { border-color: var(--primary); }
 
 /* ═══════════════════════════════════════════════════════════
-   3. ÍCONES
-   ═══════════════════════════════════════════════════════════ */
-.icons-row {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-}
-.icon-btn {
-    width: 42px;
-    height: 42px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 50%;
-    color: var(--text-secondary);
-    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-.icon-btn:active {
-    background: var(--input-bg);
-    color: var(--text-primary);
-    transform: scale(0.94);
-}
-.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.icon-btn svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    margin: 0 auto;
-}
-.icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
-@keyframes spinIcon { to { transform: rotate(360deg); } }
-
-/* ═══════════════════════════════════════════════════════════
-   4. LISTA — blocos empilhados verticalmente (rolagem natural)
+   3. LISTA — blocos empilhados (rolagem livre)
    ═══════════════════════════════════════════════════════════ */
 .list {
     display: flex;
@@ -171,7 +154,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     min-width: 0;
 }
 
-/* Linha superior: código + badge de status */
 .card-top {
     display: flex;
     align-items: center;
@@ -213,7 +195,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-/* Nome em destaque */
 .card-name {
     font-size: 0.95rem;
     font-weight: 700;
@@ -224,7 +205,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     word-break: break-word;
 }
 
-/* Grade 3 colunas para os demais campos */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -260,7 +240,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     min-width: 0;
 }
 
-/* Ações do card */
 .card-actions {
     display: flex;
     gap: 8px;
@@ -298,13 +277,55 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .empty-desc { font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════
-   5. FAB — botão "+" fixo no canto inferior direito
-   Posicionado acima da barra inferior do portal.
+   4. GRUPO FLUTUANTE — ícones enfileirados acima do FAB
    ═══════════════════════════════════════════════════════════ */
-.fab-register {
+.fab-group {
     position: fixed;
     right: calc(16px + env(safe-area-inset-right, 0px));
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 50;
+}
+
+.icons-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.icon-btn:active {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transform: scale(0.94);
+}
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
+@keyframes spinIcon { to { transform: rotate(360deg); } }
+
+.fab-register {
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -314,7 +335,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     align-items: center;
     justify-content: center;
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
-    z-index: 50;
     transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 .fab-register:active {
@@ -329,7 +349,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAIS — centralizados na tela
+   5. MODAL — centralizado, X à direita, botões do desktop
    ═══════════════════════════════════════════════════════════ */
 .modal {
     position: fixed;
@@ -372,6 +392,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     padding: 10px 8px 10px 12px;
     border-bottom: 1px solid var(--border-color);
 }
+.modal-head-spacer { width: 40px; flex-shrink: 0; }
+.modal-head-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin: 0;
+}
 .modal-close {
     width: 40px;
     height: 40px;
@@ -384,17 +413,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     font-size: 1.2rem;
     color: var(--btn-cancel);
     padding: 0;
+    flex-shrink: 0;
 }
 .modal-close:active { background: rgba(220, 38, 38, 0.08); }
-.modal-head-title {
-    flex: 1;
-    text-align: center;
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--text-primary);
-    margin: 0;
-}
-.modal-head-spacer { width: 40px; flex-shrink: 0; }
 
 .modal-tabs {
     flex-shrink: 0;
@@ -547,15 +568,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .status-card.disabled { opacity: 0.55; pointer-events: none; }
 
+/* ─── Footer do modal — botões do desktop (Anterior/Próximo/Salvar/Cancelar) ─── */
 .modal-foot {
     flex-shrink: 0;
-    display: flex;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
     padding: 12px 16px;
     border-top: 1px solid var(--border-color);
     background: #FAFAFA;
 }
-.modal-foot .btn { flex: 1; height: 46px; font-size: 0.95rem; }
+.modal-foot .btn {
+    height: 44px;
+    font-size: 0.9rem;
+    min-width: 0;
+    padding: 0 12px;
+}
 
 .btn {
     display: inline-flex;
@@ -573,3 +601,4 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-green { background: var(--btn-save); }
 .btn-red   { background: var(--btn-cancel); }
+.btn-gray  { background: var(--btn-gray); }
