@@ -1,8 +1,8 @@
 // ============================================================
 // Usuários · Mobile
 // Blocos empilhados verticalmente — cada registro traz todas
-// as colunas do desktop (Cód, Nome, Usuário, Setor, Status,
-// Criado em) + botões Editar/Excluir dentro do próprio bloco.
+// as colunas do desktop + botões Editar/Excluir.
+// FAB "+" fixo no canto inferior direito; rolagem livre.
 // ============================================================
 
 const API = '/api/usuarios';
