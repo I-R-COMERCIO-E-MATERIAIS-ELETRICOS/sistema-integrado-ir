@@ -1,5 +1,6 @@
 // ============================================================
 // Usuários · Mobile (padrão para os demais módulos em m/)
+// Cores, mensagens e efeitos idênticos ao desktop.
 // ============================================================
 
 const API = '/api/usuarios';
@@ -9,14 +10,16 @@ let state = {
     users: [],
     filtered: [],
     search: '',
+    sector: 'TODOS',
+    employeeId: 'TODOS',
     modulesCatalog: [],
+    employeesCatalog: [],
     editingId: null,
     selectedModules: [],
     userActive: true,
     adminMode: false,
 };
 
-/* ─── BOOT ─────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
     accessToken = resolveToken();
     if (!accessToken) { location.replace('/'); return; }
@@ -26,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         await carregarModulos();
+        await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
         console.error('[usuarios/m]', err);
@@ -43,16 +47,19 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
-/* ─── FETCH WRAPPER (Bearer + tratamento 401/403) ──────────── */
+/* ─── FETCH WRAPPER ─────────────────────────────────────────── */
 async function api(path, opts = {}) {
     const r = await IR.fetchJSON(API + path, {
         ...opts,
         headers: {
-            ...(opts.headers || {}),
-            'Authorization': `Bearer ${accessToken}`
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            ...(opts.headers || {})
         }
     });
-    if (!r) return null; // já tratado como sessão/forbidden por IR.fetchJSON
+
+    if (!r) return null;
+
     if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         throw new Error(body.error || `Erro ${r.status}`);
@@ -61,54 +68,96 @@ async function api(path, opts = {}) {
     return r.json().catch(() => ({}));
 }
 
-/* ─── UI WIRING ────────────────────────────────────────────── */
+/* ─── WIRE UI ──────────────────────────────────────────────── */
 function wireUI() {
+    document.getElementById('addBtn').addEventListener('click', () => abrirForm(null));
+    document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
+    document.getElementById('syncBtn').addEventListener('click', sincronizar);
+    document.getElementById('saveBtn').addEventListener('click', salvar);
+    document.getElementById('deleteBtn').addEventListener('click', excluirUsuario);
+    document.getElementById('statusCard').addEventListener('click', toggleStatus);
+
     document.getElementById('searchInput').addEventListener('input', (e) => {
         state.search = e.target.value.trim().toLowerCase();
         aplicarFiltros();
     });
-    document.getElementById('addBtn').addEventListener('click', () => abrirForm(null));
-    document.getElementById('fabAdd').addEventListener('click', () => abrirForm(null));
-    document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
-    document.getElementById('syncBtn').addEventListener('click', sincronizar);
+    document.getElementById('sectorFilter').addEventListener('change', (e) => {
+        state.sector = e.target.value;
+        aplicarFiltros();
+    });
+    document.getElementById('employeeFilter').addEventListener('change', (e) => {
+        state.employeeId = e.target.value;
+        aplicarFiltros();
+    });
 
     document.querySelectorAll('.modal-tab').forEach(t => {
         t.addEventListener('click', () => ativarAba(t.dataset.tab));
     });
 
-    document.getElementById('saveBtn').addEventListener('click', salvar);
-    document.getElementById('deleteBtn').addEventListener('click', excluirUsuario);
-    document.getElementById('statusCard').addEventListener('click', toggleStatus);
+    document.getElementById('mSector').addEventListener('change', () => {
+        state.adminMode = document.getElementById('mSector').value === 'Administrador';
+        atualizarModoAdmin();
+    });
 }
 
-/* ─── CARREGAR MÓDULOS ─────────────────────────────────────── */
+/* ─── CARREGAR ─────────────────────────────────────────────── */
 async function carregarModulos() {
     try {
         const data = await api('/meta/modules');
         state.modulesCatalog = Array.isArray(data) ? data : [];
     } catch (err) {
-        console.error('[modulos]', err);
+        console.error('[usuarios/m] módulos:', err.message);
     }
 }
 
-/* ─── CARREGAR USUÁRIOS ────────────────────────────────────── */
+async function carregarEmployees() {
+    try {
+        const data = await api('/employees');
+        state.employeesCatalog = Array.isArray(data) ? data : [];
+        popularEmployees();
+    } catch (err) {
+        console.error('[usuarios/m] employees:', err.message);
+    }
+}
+
 async function carregarUsuarios() {
     try {
         const data = await api('');
+        if (data === null) return;
         state.users = Array.isArray(data) ? data : [];
         aplicarFiltros();
     } catch (err) {
+        console.error('[usuarios/m] usuários:', err.message);
         IR.toast('Erro ao carregar usuários', 'error');
     }
 }
 
+function popularEmployees() {
+    const sel = document.getElementById('employeeFilter');
+    if (!sel) return;
+    const atual = sel.value || 'TODOS';
+    sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
+    state.employeesCatalog.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.name;
+        sel.appendChild(opt);
+    });
+    sel.value = atual;
+}
+
+/* ─── FILTROS E LISTA ──────────────────────────────────────── */
 function aplicarFiltros() {
     const t = state.search;
-    state.filtered = !t ? state.users.slice() : state.users.filter(u =>
-        String(u.name || '').toLowerCase().includes(t) ||
-        String(u.username || '').toLowerCase().includes(t) ||
-        String(u.sector || '').toLowerCase().includes(t)
-    );
+    state.filtered = state.users.filter(u => {
+        if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
+        if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
+        if (t) {
+            const hay = `${u.code || ''} ${u.name || ''} ${u.username || ''}`.toLowerCase();
+            if (!hay.includes(t)) return false;
+        }
+        return true;
+    });
     renderList();
 }
 
@@ -207,11 +256,6 @@ function toggleModulo(id) {
     renderModulos();
 }
 
-document.getElementById('mSector').addEventListener('change', () => {
-    state.adminMode = document.getElementById('mSector').value === 'Administrador';
-    atualizarModoAdmin();
-});
-
 function atualizarModoAdmin() {
     const note = document.getElementById('modulesNote');
     const grid = document.getElementById('modulesGrid');
@@ -288,13 +332,10 @@ async function salvar() {
 
         IR.toast(state.editingId ? 'Usuário atualizado' : 'Usuário criado', 'success');
         fecharForm();
+        await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
-        if (err.message === 'Usuário já existe') {
-            IR.toast('Usuário já existe', 'error');
-        } else {
-            IR.toast(err.message || 'Erro ao salvar', 'error');
-        }
+        IR.toast(err.message || 'Erro ao salvar', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = 'Salvar';
@@ -318,6 +359,7 @@ async function excluirUsuario() {
         await api(`/${state.editingId}`, { method: 'DELETE' });
         IR.toast('Usuário excluído', 'success');
         fecharForm();
+        await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
         IR.toast(err.message || 'Erro ao excluir', 'error');
@@ -334,6 +376,7 @@ async function sincronizar() {
     btn.disabled = true;
     try {
         await carregarModulos();
+        await carregarEmployees();
         await carregarUsuarios();
         IR.toast('Dados sincronizados.', 'success');
     } catch {
