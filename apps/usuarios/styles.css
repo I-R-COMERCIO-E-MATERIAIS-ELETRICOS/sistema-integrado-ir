@@ -238,6 +238,44 @@ input, select {
 input:focus, select:focus { border-color: var(--primary); }
 input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
 
+/* ─── Aba Informações: grade 2×2 ────────────────────────────── */
+/* Nome+Setor em cima, E-mail+Telefone embaixo. Largura e altura
+   idênticas para os 4 campos (o grid 1fr 1fr garante a largura;
+   a altura já vem do padding/font do input base). */
+.info-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+}
+.info-grid .form-group { margin-bottom: 0; }
+.info-grid .form-group input,
+.info-grid .form-group select {
+    width: 100%;
+    height: 46px;
+    box-sizing: border-box;
+}
+
+/* ─── Toggle Ativar/Desativar (Credenciais) ─────────────────── */
+.status-toggle-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    width: 100%;
+}
+.status-toggle-wrap .status-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 180px;
+    max-width: 240px;
+    min-height: 40px;
+    padding: 8px 20px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+}
+
 .dashboard-card {
     padding: 14px 18px;
     border-radius: 10px;
@@ -319,6 +357,7 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
     .modal-content { padding: 1.5rem; max-width: 96%; }
     .form-grid { grid-template-columns: 1fr; }
     .form-grid.credentials-grid { grid-template-columns: 1fr; }
+    .info-grid { grid-template-columns: 1fr; }
     .modules-dashboard { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 
@@ -367,9 +406,13 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
 
     .form-grid { grid-template-columns: 1fr; gap: 0.9rem; }
     .form-grid.credentials-grid { grid-template-columns: 1fr; }
+    .info-grid { grid-template-columns: 1fr; }
 
     .modules-dashboard { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     .dashboard-card { padding: 12px 14px; font-size: 0.85rem; }
+
+    .status-toggle-wrap { margin-top: 1.25rem; padding-top: 1rem; }
+    .status-toggle-wrap .status-card { min-width: 160px; max-width: 220px; }
 
     .modal-actions { flex-direction: column-reverse; gap: 0.5rem; }
     .modal-actions button { width: 100%; min-width: 0; margin: 0; }
