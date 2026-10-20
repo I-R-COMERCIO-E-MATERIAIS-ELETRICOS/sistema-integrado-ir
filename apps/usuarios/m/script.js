@@ -1,8 +1,6 @@
 // ============================================================
 // Usuários · Mobile (padrão para os demais módulos em m/)
-// Cores, mensagens e efeitos idênticos ao desktop.
-// Todas as informações das colunas do desktop estão presentes
-// em cada bloco da lista mobile.
+// Todas as colunas do desktop aparecem com rótulo em cada card.
 // ============================================================
 
 const API = '/api/usuarios';
@@ -163,7 +161,7 @@ function aplicarFiltros() {
     renderList();
 }
 
-/* ─── LISTA (blocos com todas as colunas) ──────────────────── */
+/* ─── LISTA — cada campo do desktop com rótulo explícito ──── */
 function renderList() {
     const list = document.getElementById('userList');
     const empty = document.getElementById('emptyState');
@@ -178,21 +176,37 @@ function renderList() {
     state.filtered.forEach(u => {
         const card = document.createElement('div');
         card.className = 'user-card';
-        const inicial = (u.name || u.username || '?').charAt(0).toUpperCase();
 
         card.innerHTML = `
-            <div class="user-card-main">
-                <div class="user-avatar" aria-hidden="true">${esc(inicial)}</div>
-                <div class="user-info">
-                    <div class="user-field"><span class="user-field-label">Nome</span><div class="user-name">${esc(u.name || '—')}</div></div>
-                    <div class="user-details-grid">
-                        <div class="user-field"><span class="user-field-label">Código</span><div class="user-detail-value">${u.code != null ? esc(u.code) : '—'}</div></div>
-                        <div class="user-field"><span class="user-field-label">Usuário</span><div class="user-detail-value">${esc(u.username || '—')}</div></div>
-                        <div class="user-field"><span class="user-field-label">Setor</span><div class="user-detail-value">${esc(u.sector || '—')}</div></div>
-                        <div class="user-field"><span class="user-field-label">Criado em</span><div class="user-detail-value">${esc(formatDate(u.created_at))}</div></div>
-                    </div>
+            <div class="user-fields">
+                <div class="user-field">
+                    <span class="user-field-label">Cód.</span>
+                    <span class="user-field-value">${u.code != null ? u.code : '—'}</span>
                 </div>
-                <div class="user-status-wrap"><span class="user-field-label">Status</span><div class="user-badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Ativo' : 'Inativo'}</div></div>
+                <div class="user-field">
+                    <span class="user-field-label">Nome</span>
+                    <span class="user-field-value uppercase">${esc(u.name || '—')}</span>
+                </div>
+                <div class="user-field">
+                    <span class="user-field-label">Usuário</span>
+                    <span class="user-field-value">${esc(u.username || '—')}</span>
+                </div>
+                <div class="user-field">
+                    <span class="user-field-label">Setor</span>
+                    <span class="user-field-value">${esc(u.sector || '—')}</span>
+                </div>
+                <div class="user-field">
+                    <span class="user-field-label">Status</span>
+                    <span class="user-field-value">
+                        <span class="badge ${u.is_active ? 'ativo' : 'inativo'}">
+                            ${u.is_active ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </span>
+                </div>
+                <div class="user-field">
+                    <span class="user-field-label">Criado em</span>
+                    <span class="user-field-value">${formatDate(u.created_at)}</span>
+                </div>
             </div>
             <div class="user-actions">
                 <button class="action-btn edit" type="button">Editar</button>
@@ -200,15 +214,8 @@ function renderList() {
             </div>
         `;
 
-        card.querySelector('.user-card-main').addEventListener('click', () => abrirForm(u));
-        card.querySelector('.action-btn.edit').addEventListener('click', (e) => {
-            e.stopPropagation();
-            abrirForm(u);
-        });
-        card.querySelector('.action-btn.delete').addEventListener('click', (e) => {
-            e.stopPropagation();
-            confirmarExclusao(u);
-        });
+        card.querySelector('.action-btn.edit').addEventListener('click', () => abrirForm(u));
+        card.querySelector('.action-btn.delete').addEventListener('click', () => confirmarExclusao(u));
 
         list.appendChild(card);
     });
@@ -365,7 +372,7 @@ async function salvar() {
     }
 }
 
-/* ─── EXCLUIR (confirm centralizado via IR.confirm) ────────── */
+/* ─── EXCLUIR ──────────────────────────────────────────────── */
 async function confirmarExclusao(user) {
     const id = user ? user.id : state.editingId;
     if (!id) return;
