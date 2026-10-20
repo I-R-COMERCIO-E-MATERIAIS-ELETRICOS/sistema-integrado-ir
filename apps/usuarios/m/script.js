@@ -1,6 +1,8 @@
 // ============================================================
 // Usuários · Mobile (padrão para os demais módulos em m/)
 // Cores, mensagens e efeitos idênticos ao desktop.
+// Todas as informações das colunas do desktop estão presentes
+// em cada bloco da lista mobile.
 // ============================================================
 
 const API = '/api/usuarios';
@@ -74,7 +76,7 @@ function wireUI() {
     document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
     document.getElementById('syncBtn').addEventListener('click', sincronizar);
     document.getElementById('saveBtn').addEventListener('click', salvar);
-    document.getElementById('deleteBtn').addEventListener('click', excluirUsuario);
+    document.getElementById('deleteBtn').addEventListener('click', () => confirmarExclusao(null));
     document.getElementById('statusCard').addEventListener('click', toggleStatus);
 
     document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -146,7 +148,7 @@ function popularEmployees() {
     sel.value = atual;
 }
 
-/* ─── FILTROS E LISTA ──────────────────────────────────────── */
+/* ─── FILTROS ──────────────────────────────────────────────── */
 function aplicarFiltros() {
     const t = state.search;
     state.filtered = state.users.filter(u => {
@@ -161,6 +163,7 @@ function aplicarFiltros() {
     renderList();
 }
 
+/* ─── LISTA (blocos com todas as colunas) ──────────────────── */
 function renderList() {
     const list = document.getElementById('userList');
     const empty = document.getElementById('emptyState');
@@ -173,20 +176,38 @@ function renderList() {
     empty.hidden = true;
 
     state.filtered.forEach(u => {
-        const card = document.createElement('button');
-        card.type = 'button';
+        const card = document.createElement('div');
         card.className = 'user-card';
         const inicial = (u.name || u.username || '?').charAt(0).toUpperCase();
+
         card.innerHTML = `
-            <div class="user-avatar">${inicial}</div>
-            <div class="user-info">
-                <div class="user-name">${esc(u.name || u.username || '—')}</div>
-                <div class="user-meta">${esc(u.username || '')}${u.sector ? ' · ' + esc(u.sector) : ''}</div>
+            <div class="user-card-main">
+                <div class="user-avatar">${inicial}</div>
+                <div class="user-info">
+                    <div class="user-name">${esc(u.name || '—')}</div>
+                    <div class="user-meta">@${esc(u.username || '—')} · ${esc(u.sector || '—')}</div>
+                    <div class="user-meta-sub">Cód. ${u.code != null ? u.code : '—'} · Criado ${formatDate(u.created_at)}</div>
+                </div>
+                <div class="user-badge ${u.is_active ? 'active' : 'inactive'}">
+                    ${u.is_active ? 'Ativo' : 'Inativo'}
+                </div>
             </div>
-            <div class="user-badge ${u.is_active ? 'active' : 'inactive'}">
-                ${u.is_active ? 'Ativo' : 'Inativo'}
-            </div>`;
-        card.addEventListener('click', () => abrirForm(u));
+            <div class="user-actions">
+                <button class="action-btn edit" type="button">Editar</button>
+                <button class="action-btn delete" type="button">Excluir</button>
+            </div>
+        `;
+
+        card.querySelector('.user-card-main').addEventListener('click', () => abrirForm(u));
+        card.querySelector('.action-btn.edit').addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirForm(u);
+        });
+        card.querySelector('.action-btn.delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirmarExclusao(u);
+        });
+
         list.appendChild(card);
     });
 }
@@ -342,30 +363,25 @@ async function salvar() {
     }
 }
 
-/* ─── EXCLUIR ──────────────────────────────────────────────── */
-async function excluirUsuario() {
-    if (!state.editingId) return;
+/* ─── EXCLUIR (confirm centralizado via IR.confirm) ────────── */
+async function confirmarExclusao(user) {
+    const id = user ? user.id : state.editingId;
+    if (!id) return;
+
     const ok = await IR.confirm('Tem certeza que deseja excluir este usuário?', {
         confirmText: 'Sim',
         cancelText: 'Não'
     });
     if (!ok) return;
 
-    const btn = document.getElementById('deleteBtn');
-    btn.disabled = true;
-    btn.textContent = 'Excluindo...';
-
     try {
-        await api(`/${state.editingId}`, { method: 'DELETE' });
+        await api(`/${id}`, { method: 'DELETE' });
         IR.toast('Usuário excluído', 'success');
-        fecharForm();
+        if (!user) fecharForm();
         await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
         IR.toast(err.message || 'Erro ao excluir', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Excluir';
     }
 }
 
@@ -397,4 +413,10 @@ function esc(s) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('pt-BR'); }
+    catch { return '—'; }
 }
