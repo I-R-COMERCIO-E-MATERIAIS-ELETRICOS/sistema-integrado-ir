@@ -85,6 +85,12 @@ function notificar(message, type = 'success') {
     }, 3000);
 }
 
+function getMesAnoAtual() {
+    const d = new Date();
+    const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    return `${meses[d.getMonth()]}-${d.getFullYear()}`;
+}
+
 // ─── Ciclo de vida dos modais ───────────────────────────────────────────────
 function criarModal(htmlInterno) {
     const overlay = document.createElement('div');
@@ -126,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     carregarGrupos();
     carregarEstoque();
 
-    // Atualização automática rápida para refletir baixas do faturamento (a cada 5s)
+    // Atualização automática a cada 5s
     setInterval(() => {
         carregarEstoque(true); 
     }, 5000);
@@ -144,7 +150,6 @@ async function carregarEstoque(silent = false) {
     try {
         const novaLista = await api(API_BASE);
         
-        // Só renderiza se houver mudança nos dados para evitar perda de foco ou cintilação
         if (JSON.stringify(novaLista) !== JSON.stringify(allItems)) {
             allItems = novaLista;
             preencherFiltroMarcas();
@@ -299,11 +304,7 @@ async function openViewModal(id) {
                     <div class="info-row"><span class="info-label">Quantidade em Estoque:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
                     <div class="info-row"><span class="info-label">Valor Total em Estoque:</span><span class="info-value">${formatCurrency((item.valor_unitario || 0) * (item.quantidade || 0))}</span></div>
                 </div>
-                <div class="info-section" style="margin-top:1.5rem;">
-                    <h4>Auditoria</h4>
-                    <div class="info-row"><span class="info-label">Atualizado Por:</span><span class="info-value">${escapeHtml(item.atualizado_por || '-')}</span></div>
-                    <div class="info-row"><span class="info-label">Última Atualização:</span><span class="info-value">${item.ultima_atualizacao ? new Date(item.ultima_atualizacao).toLocaleString('pt-BR') : '-'}</span></div>
-                </div>
+                <!-- Auditoria removida -->
             </div>
 
             <div class="modal-actions" style="justify-content: space-between;">
@@ -311,7 +312,9 @@ async function openViewModal(id) {
                     <button type="button" id="btnViewPrev" onclick="prevViewTab()" class="secondary" style="display:none; margin-right: 0.5rem;">Anterior</button>
                     <button type="button" id="btnViewNext" onclick="nextViewTab()" class="secondary">Próximo</button>
                 </div>
-                <button type="button" class="cancel-close" style="background:#6B7280; margin:0;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+                <div>
+                    <button type="button" class="cancel-close" style="background:#6B7280; margin:0;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+                </div>
             </div>
         </div>
     `;
@@ -428,8 +431,8 @@ function openFormModal(id) {
                         <button type="button" id="btnFormNext" onclick="nextFormTab()" class="secondary">Próximo</button>
                     </div>
                     <div>
-                        <button type="button" class="cancel-close" style="background:#6B7280; margin-right: 0.5rem;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-                        <button type="submit" class="save" style="margin:0;">${item ? 'Atualizar' : 'Salvar'}</button>
+                        <button type="submit" class="save" style="margin-right: 0.5rem;">${item ? 'Atualizar' : 'Salvar'}</button>
+                        <button type="button" class="cancel-close" style="background:#6B7280; margin:0;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
                     </div>
                 </div>
             </form>
@@ -606,7 +609,7 @@ async function sincronizarDados(btn) {
     notificar('Dados sincronizados com sucesso!', 'success');
 }
 
-// ─── PDF DE ESTOQUE (SEPARADO POR GRUPO E P&B) ─────────────────────────────
+// ─── PDF DE ESTOQUE ────────────────────────────────────────────────────────
 function gerarPDFEstoque() {
     try {
         const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
@@ -618,6 +621,17 @@ function gerarPDFEstoque() {
         const items = getFilteredItems();
         if (items.length === 0) return notificar('Nenhum item para gerar PDF', 'error');
 
+        // Título e Subtítulo
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Relatório de Estoque', 14, 16);
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+
         // Agrupar itens
         const grouped = {};
         items.forEach(i => {
@@ -626,7 +640,7 @@ function gerarPDFEstoque() {
             grouped[g].push(i);
         });
 
-        let currentY = 20;
+        let currentY = 32;
         let isFirstPage = true;
 
         for (const [grupo, lista] of Object.entries(grouped)) {
@@ -635,11 +649,11 @@ function gerarPDFEstoque() {
                 currentY = 20;
             }
 
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(0, 0, 0);
             doc.text(`GRUPO: ${grupo}`, 14, currentY);
-            currentY += 8;
+            currentY += 6;
 
             const body = lista.map(i => [
                 i.codigo || '', i.descricao || '', i.marca || '', i.modelo || '',
@@ -654,22 +668,22 @@ function gerarPDFEstoque() {
                 head: [['Código', 'Descrição', 'Marca', 'Modelo', 'Valor Unit.', 'Qtd', 'Total']],
                 body: body,
                 theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: [255, 255, 255] },
-                headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
+                styles: { fontSize: 9, cellPadding: 2, textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1, fillColor: [255, 255, 255] },
+                headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
                 alternateRowStyles: { fillColor: [255, 255, 255] }
             });
 
             currentY = doc.lastAutoTable.finalY + 8;
             
-            // Valor total solto e em negrito
             doc.setFont(undefined, 'bold');
-            doc.setFontSize(11);
+            doc.setFontSize(10);
             doc.text(`VALOR TOTAL DO GRUPO: ${formatCurrency(totalGrupo)}`, 14, currentY);
             currentY += 15;
             isFirstPage = false;
         }
 
-        doc.save(`estoque-${new Date().toISOString().slice(0, 10)}.pdf`);
+        const nomeMesAno = getMesAnoAtual();
+        doc.save(`${nomeMesAno}-ESTOQUE.pdf`);
         notificar('PDF gerado com sucesso!', 'success');
     } catch (err) {
         console.error(err);
@@ -677,7 +691,7 @@ function gerarPDFEstoque() {
     }
 }
 
-// ─── PDF DE MOVIMENTAÇÕES (HISTÓRICO SEPARADO POR MÊS/ANO) ──────────────────
+// ─── PDF DE MOVIMENTAÇÕES ──────────────────────────────────────────────────
 async function gerarPDFMovimentacoes() {
     try {
         notificar('Gerando relatório de movimentações...', 'info');
@@ -689,16 +703,30 @@ async function gerarPDFMovimentacoes() {
         if (!jsPDFConstructor) throw new Error('Biblioteca jsPDF não encontrada.');
         const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
+        // Título e Subtítulo
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Relatório de Movimentações', 14, 16);
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+
+        // Nomes dos meses para agrupamento
+        const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+
         // Agrupar por Mês/Ano
         const grouped = {};
         movs.forEach(m => {
             const date = new Date(m.created_at || m.ultima_atualizacao);
-            const key = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+            const key = `${meses[date.getMonth()]} ${date.getFullYear()}`;
             if (!grouped[key]) grouped[key] = [];
             grouped[key].push(m);
         });
 
-        let currentY = 20;
+        let currentY = 32;
         let isFirstPage = true;
 
         for (const [mesAno, lista] of Object.entries(grouped)) {
@@ -707,11 +735,11 @@ async function gerarPDFMovimentacoes() {
                 currentY = 20;
             }
 
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(0, 0, 0);
-            doc.text(`MOVIMENTAÇÕES: ${mesAno}`, 14, currentY);
-            currentY += 8;
+            doc.text(mesAno, 14, currentY);
+            currentY += 6;
 
             const body = lista.map(m => [
                 m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : '-',
@@ -728,8 +756,8 @@ async function gerarPDFMovimentacoes() {
                 head: [['Data/Hora', 'Tipo', 'Cód. Estoque', 'Descrição', 'Qtd', 'Responsável', 'Nº Pedido']],
                 body: body,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: [255, 255, 255] },
-                headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
+                styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1, fillColor: [255, 255, 255] },
+                headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
                 alternateRowStyles: { fillColor: [255, 255, 255] }
             });
 
@@ -737,7 +765,8 @@ async function gerarPDFMovimentacoes() {
             isFirstPage = false;
         }
 
-        doc.save(`movimentacoes-${new Date().toISOString().slice(0, 10)}.pdf`);
+        const nomeMesAno = getMesAnoAtual();
+        doc.save(`${nomeMesAno}-MOVIMENTAÇÕES.pdf`);
         notificar('Relatório de movimentações gerado!', 'success');
     } catch (err) {
         console.error(err);
