@@ -11,6 +11,10 @@ let allItems = [];
 let grupos = [];
 let editingId = null;
 let filtros = { search: '', marca: '', grupo: '' };
+let currentFormTabIndex = 0;
+let currentViewTabIndex = 0;
+const formTabs = ['tab-produto', 'tab-fornecedor', 'tab-valores'];
+const viewTabs = ['tab-v-produto', 'tab-v-fornecedor', 'tab-v-valores'];
 
 // ─── Autenticação e API ─────────────────────────────────────────────────────
 function getSessionToken() {
@@ -69,7 +73,6 @@ function formatCurrency(v) {
     return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// MENSAGENS FLUTUANTES CORRIGIDAS (Padrão do sistema)
 function notificar(message, type = 'success') {
     document.querySelectorAll('.floating-message').forEach(msg => msg.remove());
     const messageDiv = document.createElement('div');
@@ -115,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById('estoqueTableBody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
-            // Trava para não abrir o modal ao clicar na coluna ID ou em botões
             if (e.target.closest('button') || e.target.closest('.id-cell')) return;
             const tr = e.target.closest('tr[data-id]');
             if (tr) openViewModal(tr.dataset.id);
@@ -123,6 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     carregarGrupos();
     carregarEstoque();
+
+    // Atualização automática rápida para refletir baixas do faturamento (a cada 5s)
+    setInterval(() => {
+        carregarEstoque(true); 
+    }, 5000);
 });
 
 // ─── Carregamento ───────────────────────────────────────────────────────────
@@ -133,14 +140,22 @@ async function carregarGrupos() {
     } catch (e) { console.error('Erro ao carregar grupos', e); }
 }
 
-async function carregarEstoque() {
+async function carregarEstoque(silent = false) {
     try {
-        allItems = await api(API_BASE);
-        preencherFiltroMarcas();
-        renderTable();
+        const novaLista = await api(API_BASE);
+        
+        // Só renderiza se houver mudança nos dados para evitar perda de foco ou cintilação
+        if (JSON.stringify(novaLista) !== JSON.stringify(allItems)) {
+            allItems = novaLista;
+            preencherFiltroMarcas();
+            renderTable();
+            if (!silent) console.log('Estoque atualizado em tempo real.');
+        }
     } catch (e) {
-        console.error('Erro ao carregar estoque', e);
-        notificar('Erro ao carregar estoque', 'error');
+        if (!silent) {
+            console.error('Erro ao carregar estoque', e);
+            notificar('Erro ao carregar estoque', 'error');
+        }
     }
 }
 
@@ -219,7 +234,6 @@ function renderTable() {
                 <td>${formatCurrency(item.valor_unitario)}</td>
                 <td>${Number(item.quantidade) || 0}</td>
                 <td class="actions-cell" style="text-align:center;">
-                    <!-- CORREÇÃO: Botão Editar primeiro -->
                     <button type="button" class="action-btn edit"  onclick="event.stopPropagation(); openFormModal('${escapeHtml(item.id)}')">Editar</button>
                     <button type="button" class="action-btn entry" onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'entrada')">Entrada</button>
                     <button type="button" class="action-btn exit"  onclick="event.stopPropagation(); openMovModal('${escapeHtml(item.id)}', 'saida')">Saída</button>
@@ -240,119 +254,106 @@ function updateTotals(items) {
     if (vEl) vEl.textContent = formatCurrency(totalValor);
 }
 
-// ─── Modal de Visualização (Abas) ───────────────────────────────────────────
+// ─── Modal de Visualização (Abas e Navegação) ───────────────────────────────
 async function openViewModal(id) {
     const item = allItems.find(i => String(i.id) === String(id));
     if (!item) return;
+
+    currentViewTabIndex = 0;
 
     const html = `
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h2 class="modal-title">Visualizar Item</h2>
-                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             </div>
             
             <div class="tabs-nav">
-                <button class="tab-btn active" id="btn-tab-dados" onclick="switchViewTab('tab-dados', 'btn-tab-dados')">Dados do Item</button>
-                <button class="tab-btn" id="btn-tab-movs" onclick="switchViewTab('tab-movs', 'btn-tab-movs')">Movimentações</button>
+                <button class="tab-btn active" onclick="switchViewTab(0)">Produto</button>
+                <button class="tab-btn" onclick="switchViewTab(1)">Fornecedor</button>
+                <button class="tab-btn" onclick="switchViewTab(2)">Valores</button>
             </div>
 
-            <div class="tab-content active" id="tab-dados">
+            <div class="tab-content active" id="tab-v-produto">
                 <div class="info-section">
-                    <h4>Informações Gerais</h4>
-                    <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${escapeHtml(item.codigo)}</span></div>
+                    <h4>Dados do Produto</h4>
+                    <div class="info-row"><span class="info-label">ID (Código):</span><span class="info-value">${escapeHtml(item.codigo)}</span></div>
                     <div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(item.descricao)}</span></div>
                     <div class="info-row"><span class="info-label">Grupo:</span><span class="info-value">${escapeHtml(item.grupo)}</span></div>
-                    <div class="info-row"><span class="info-label">Marca:</span><span class="info-value">${escapeHtml(item.marca || '-')}</span></div>
-                    <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
                     <div class="info-row"><span class="info-label">NCM:</span><span class="info-value">${escapeHtml(item.ncm || '-')}</span></div>
                 </div>
+            </div>
+
+            <div class="tab-content" id="tab-v-fornecedor">
+                <div class="info-section">
+                    <h4>Dados do Fornecedor</h4>
+                    <div class="info-row"><span class="info-label">Marca:</span><span class="info-value">${escapeHtml(item.marca || '-')}</span></div>
+                    <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-v-valores">
                 <div class="info-section">
                     <h4>Estoque e Valores</h4>
                     <div class="info-row"><span class="info-label">Valor Unitário:</span><span class="info-value">${formatCurrency(item.valor_unitario)}</span></div>
                     <div class="info-row"><span class="info-label">Quantidade em Estoque:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
                     <div class="info-row"><span class="info-label">Valor Total em Estoque:</span><span class="info-value">${formatCurrency((item.valor_unitario || 0) * (item.quantidade || 0))}</span></div>
                 </div>
-                <div class="info-section">
+                <div class="info-section" style="margin-top:1.5rem;">
                     <h4>Auditoria</h4>
                     <div class="info-row"><span class="info-label">Atualizado Por:</span><span class="info-value">${escapeHtml(item.atualizado_por || '-')}</span></div>
                     <div class="info-row"><span class="info-label">Última Atualização:</span><span class="info-value">${item.ultima_atualizacao ? new Date(item.ultima_atualizacao).toLocaleString('pt-BR') : '-'}</span></div>
                 </div>
             </div>
 
-            <div class="tab-content" id="tab-movs">
-                <div id="movsContainer" style="text-align:center; padding: 2rem; color:var(--text-secondary);">Carregando movimentações...</div>
-            </div>
-
-            <div class="modal-actions">
-                <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+            <div class="modal-actions" style="justify-content: space-between;">
+                <div>
+                    <button type="button" id="btnViewPrev" onclick="prevViewTab()" class="secondary" style="display:none; margin-right: 0.5rem;">Anterior</button>
+                    <button type="button" id="btnViewNext" onclick="nextViewTab()" class="secondary">Próximo</button>
+                </div>
+                <button type="button" class="cancel-close" style="background:#6B7280; margin:0;" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
             </div>
         </div>
     `;
 
-    const overlay = criarModal(html);
-
-    try {
-        const movs = await api(`${API_BASE}/${item.id}/movimentacoes`);
-        const container = overlay.querySelector('#movsContainer');
-        if (!movs || movs.length === 0) {
-            container.innerHTML = '<p>Nenhuma movimentação registrada.</p>';
-        } else {
-            const rows = movs.map(m => `
-                <tr>
-                    <td>${m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : '-'}</td>
-                    <td class="${m.tipo === 'entrada' ? 'mov-entrada' : 'mov-saida'}">${m.tipo.toUpperCase()}</td>
-                    <td>${m.quantidade}</td>
-                    <td>${escapeHtml(m.atualizado_por || '-')}</td>
-                    <td>${m.numero_pedido || '-'}</td>
-                </tr>
-            `).join('');
-
-            container.innerHTML = `
-                <div style="overflow-x: auto;">
-                    <table class="mov-table">
-                        <thead>
-                            <tr>
-                                <th>Data/Hora</th>
-                                <th>Tipo</th>
-                                <th>Qtd</th>
-                                <th>Responsável</th>
-                                <th>Nº Pedido</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                </div>
-            `;
-        }
-    } catch (err) {
-        overlay.querySelector('#movsContainer').innerHTML = `<p style="color:#DC2626;">Erro ao carregar movimentações: ${err.message}</p>`;
-    }
+    criarModal(html);
+    updateViewNavButtons();
 }
 
-function switchViewTab(tabId, btnId) {
-    document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(btnId).classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
+function switchViewTab(index) {
+    currentViewTabIndex = index;
+    document.querySelectorAll('.tabs-nav .tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+    viewTabs.forEach((id, i) => document.getElementById(id).classList.toggle('active', i === index));
+    updateViewNavButtons();
 }
 
-// ─── Formulário de Item (Abas e Layout) ─────────────────────────────────────
+function nextViewTab() { if (currentViewTabIndex < viewTabs.length - 1) switchViewTab(currentViewTabIndex + 1); }
+function prevViewTab() { if (currentViewTabIndex > 0) switchViewTab(currentViewTabIndex - 1); }
+
+function updateViewNavButtons() {
+    const prev = document.getElementById('btnViewPrev');
+    const next = document.getElementById('btnViewNext');
+    if(prev) prev.style.display = currentViewTabIndex === 0 ? 'none' : 'inline-block';
+    if(next) next.style.display = currentViewTabIndex === viewTabs.length - 1 ? 'none' : 'inline-block';
+}
+
+// ─── Formulário de Item (Abas e Navegação) ──────────────────────────────────
 function openFormModal(id) {
     editingId = id || null;
     const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
+    currentFormTabIndex = 0;
 
     const html = `
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <h2 class="modal-title">${item ? 'Editar Item' : 'Novo Item'}</h2>
-                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             </div>
             <form id="formItem">
                 <div class="tabs-nav">
-                    <button type="button" class="tab-btn active" onclick="switchFormTab('tab-produto', this)">Produto</button>
-                    <button type="button" class="tab-btn" onclick="switchFormTab('tab-fornecedor', this)">Fornecedor</button>
-                    <button type="button" class="tab-btn" onclick="switchFormTab('tab-valores', this)">Valores</button>
+                    <button type="button" class="tab-btn active" onclick="switchFormTab(0)">Produto</button>
+                    <button type="button" class="tab-btn" onclick="switchFormTab(1)">Fornecedor</button>
+                    <button type="button" class="tab-btn" onclick="switchFormTab(2)">Valores</button>
                 </div>
 
                 <!-- ABA PRODUTO -->
@@ -421,10 +422,15 @@ function openFormModal(id) {
                     </div>
                 </div>
 
-                <div class="modal-actions">
-                    ${item ? `<button type="button" class="cancel-close" style="background:#EF4444;" onclick="excluirItem('${escapeHtml(item.id)}')">Excluir</button>` : ''}
-                    <button type="button" class="cancel-close" style="background:#6B7280;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-                    <button type="submit" class="save">${item ? 'Atualizar' : 'Salvar'}</button>
+                <div class="modal-actions" style="justify-content: space-between;">
+                    <div>
+                        <button type="button" id="btnFormPrev" onclick="prevFormTab()" class="secondary" style="display:none; margin-right: 0.5rem;">Anterior</button>
+                        <button type="button" id="btnFormNext" onclick="nextFormTab()" class="secondary">Próximo</button>
+                    </div>
+                    <div>
+                        <button type="button" class="cancel-close" style="background:#6B7280; margin-right: 0.5rem;" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+                        <button type="submit" class="save" style="margin:0;">${item ? 'Atualizar' : 'Salvar'}</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -432,14 +438,25 @@ function openFormModal(id) {
 
     const overlay = criarModal(html);
     overlay.querySelector('#formItem').addEventListener('submit', (e) => salvarItem(e, overlay));
+    updateFormNavButtons();
 }
 
-function switchFormTab(tabId, btn) {
-    const form = btn.closest('form');
-    form.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    form.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    form.querySelector('#' + tabId).classList.add('active');
+function switchFormTab(index) {
+    currentFormTabIndex = index;
+    const form = document.getElementById('formItem');
+    form.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+    formTabs.forEach((id, i) => document.getElementById(id).classList.toggle('active', i === index));
+    updateFormNavButtons();
+}
+
+function nextFormTab() { if (currentFormTabIndex < formTabs.length - 1) switchFormTab(currentFormTabIndex + 1); }
+function prevFormTab() { if (currentFormTabIndex > 0) switchFormTab(currentFormTabIndex - 1); }
+
+function updateFormNavButtons() {
+    const prev = document.getElementById('btnFormPrev');
+    const next = document.getElementById('btnFormNext');
+    if(prev) prev.style.display = currentFormTabIndex === 0 ? 'none' : 'inline-block';
+    if(next) next.style.display = currentFormTabIndex === formTabs.length - 1 ? 'none' : 'inline-block';
 }
 
 async function salvarItem(e, overlay) {
@@ -476,38 +493,6 @@ async function salvarItem(e, overlay) {
     }
 }
 
-// ─── Exclusão ───────────────────────────────────────────────────────────────
-function excluirItem(id) {
-    const html = `
-        <div class="modal-content ir-modal-confirm">
-            <button type="button" class="ir-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
-            <h2 class="modal-title" style="margin-bottom:1rem;">Excluir Item</h2>
-            <p class="ir-confirm-msg">Deseja realmente excluir este item? Esta ação não pode ser desfeita.</p>
-            <div class="ir-confirm-actions">
-                <button type="button" class="ir-btn-red" id="btnCancelarExc">Cancelar</button>
-                <button type="button" class="ir-btn-green" id="btnConfirmarExc">Excluir</button>
-            </div>
-        </div>
-    `;
-    const overlay = criarModal(html);
-    
-    overlay.querySelector('#btnCancelarExc').onclick = () => {
-        fecharModal(overlay);
-        notificar('Exclusão cancelada', 'error');
-    };
-    
-    overlay.querySelector('#btnConfirmarExc').onclick = async () => {
-        try {
-            await api(`${API_BASE}/${id}`, { method: 'DELETE' });
-            fecharTodosModais();
-            notificar('Item excluído com sucesso!', 'success');
-            await carregarEstoque();
-        } catch (err) {
-            notificar(err.message, 'error');
-        }
-    };
-}
-
 // ─── Modal de Entrada / Saída ──────────────────────────────────────────────
 function openMovModal(id, tipo) {
     const item = allItems.find(i => String(i.id) === String(id));
@@ -517,7 +502,7 @@ function openMovModal(id, tipo) {
 
     const html = `
         <div class="modal-content ir-modal-confirm" style="text-align:left;">
-            <button type="button" class="ir-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             <h2 class="modal-title" style="margin-bottom:0.75rem; text-align:center;">${tipoLabel} de Estoque</h2>
             <p style="text-align:center; color:var(--text-secondary); font-size:0.9rem; margin-bottom:1rem;">
                 ${escapeHtml(item.codigo)} — ${escapeHtml(item.descricao)}
@@ -569,7 +554,7 @@ function abrirModalNovoGrupo() {
         <div class="modal-content" style="max-width:460px;">
             <div class="modal-header">
                 <h2 class="modal-title">Novo Grupo</h2>
-                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             </div>
             <form id="formGrupo">
                 <div class="form-group">
@@ -604,11 +589,6 @@ function abrirModalNovoGrupo() {
 
             fecharModal(overlay);
             await carregarGrupos();
-
-            const sel = document.getElementById('fGrupo');
-            if (sel) {
-                sel.innerHTML = '<option value="">Selecione...</option>' + grupos.map(g => `<option value="${escapeHtml(g.abreviacao)}" ${g.abreviacao === data.abreviacao ? 'selected' : ''}>${escapeHtml(g.nome)} (${escapeHtml(g.abreviacao)})</option>`).join('');
-            }
             notificar('Grupo criado com sucesso!', 'success');
         } catch (err) {
             notificar(err.message, 'error');
@@ -626,7 +606,7 @@ async function sincronizarDados(btn) {
     notificar('Dados sincronizados com sucesso!', 'success');
 }
 
-// ─── PDF ────────────────────────────────────────────────────────────────────
+// ─── PDF DE ESTOQUE (SEPARADO POR GRUPO E P&B) ─────────────────────────────
 function gerarPDFEstoque() {
     try {
         const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
@@ -636,38 +616,131 @@ function gerarPDFEstoque() {
         if (typeof doc.autoTable !== 'function') throw new Error('O plugin autoTable não está carregado.');
 
         const items = getFilteredItems();
-        doc.setFontSize(16);
-        doc.setTextColor(255, 82, 29);
-        doc.text('Relatório de Estoque', 14, 16);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 22);
-        doc.text(`Total de itens: ${items.length}`, 14, 27);
+        if (items.length === 0) return notificar('Nenhum item para gerar PDF', 'error');
 
-        const body = items.map(i => [
-            i.codigo || '', i.descricao || '', i.grupo || '', i.marca || '', i.modelo || '',
-            formatCurrency(i.valor_unitario), String(Number(i.quantidade) || 0),
-            formatCurrency((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0))
-        ]);
-
-        const totalQtd = items.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
-        const totalValor = items.reduce((s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0);
-
-        doc.autoTable({
-            startY: 32,
-            head: [['Código', 'Descrição', 'Grupo', 'Marca', 'Modelo', 'Valor Unit.', 'Qtd', 'Total']],
-            body,
-            foot: [['', '', '', '', '', 'TOTAIS', String(totalQtd), formatCurrency(totalValor)]],
-            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-            headStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
-            footStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [245, 245, 245] }
+        // Agrupar itens
+        const grouped = {};
+        items.forEach(i => {
+            const g = i.grupo || 'SEM GRUPO';
+            if (!grouped[g]) grouped[g] = [];
+            grouped[g].push(i);
         });
+
+        let currentY = 20;
+        let isFirstPage = true;
+
+        for (const [grupo, lista] of Object.entries(grouped)) {
+            if (!isFirstPage && currentY > 160) {
+                doc.addPage();
+                currentY = 20;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`GRUPO: ${grupo}`, 14, currentY);
+            currentY += 8;
+
+            const body = lista.map(i => [
+                i.codigo || '', i.descricao || '', i.marca || '', i.modelo || '',
+                formatCurrency(i.valor_unitario), String(Number(i.quantidade) || 0),
+                formatCurrency((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0))
+            ]);
+
+            const totalGrupo = lista.reduce((s, i) => s + ((Number(i.valor_unitario) || 0) * (Number(i.quantidade) || 0)), 0);
+
+            doc.autoTable({
+                startY: currentY,
+                head: [['Código', 'Descrição', 'Marca', 'Modelo', 'Valor Unit.', 'Qtd', 'Total']],
+                body: body,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: [255, 255, 255] },
+                headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [255, 255, 255] }
+            });
+
+            currentY = doc.lastAutoTable.finalY + 8;
+            
+            // Valor total solto e em negrito
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text(`VALOR TOTAL DO GRUPO: ${formatCurrency(totalGrupo)}`, 14, currentY);
+            currentY += 15;
+            isFirstPage = false;
+        }
 
         doc.save(`estoque-${new Date().toISOString().slice(0, 10)}.pdf`);
         notificar('PDF gerado com sucesso!', 'success');
     } catch (err) {
         console.error(err);
         notificar('Erro ao gerar PDF: ' + err.message, 'error');
+    }
+}
+
+// ─── PDF DE MOVIMENTAÇÕES (HISTÓRICO SEPARADO POR MÊS/ANO) ──────────────────
+async function gerarPDFMovimentacoes() {
+    try {
+        notificar('Gerando relatório de movimentações...', 'info');
+        const movs = await api(`${API_BASE}/movimentacoes/todas`);
+        
+        if (!movs || movs.length === 0) return notificar('Nenhuma movimentação registrada', 'error');
+
+        const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+        if (!jsPDFConstructor) throw new Error('Biblioteca jsPDF não encontrada.');
+        const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        // Agrupar por Mês/Ano
+        const grouped = {};
+        movs.forEach(m => {
+            const date = new Date(m.created_at || m.ultima_atualizacao);
+            const key = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(m);
+        });
+
+        let currentY = 20;
+        let isFirstPage = true;
+
+        for (const [mesAno, lista] of Object.entries(grouped)) {
+            if (!isFirstPage && currentY > 160) {
+                doc.addPage();
+                currentY = 20;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`MOVIMENTAÇÕES: ${mesAno}`, 14, currentY);
+            currentY += 8;
+
+            const body = lista.map(m => [
+                m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : '-',
+                m.tipo.toUpperCase(),
+                m.estoque?.codigo || m.codigo_estoque || '-',
+                m.estoque?.descricao || '-',
+                m.quantidade,
+                m.atualizado_por || '-',
+                m.numero_pedido || '-'
+            ]);
+
+            doc.autoTable({
+                startY: currentY,
+                head: [['Data/Hora', 'Tipo', 'Cód. Estoque', 'Descrição', 'Qtd', 'Responsável', 'Nº Pedido']],
+                body: body,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fillColor: [255, 255, 255] },
+                headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.1, lineColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [255, 255, 255] }
+            });
+
+            currentY = doc.lastAutoTable.finalY + 15;
+            isFirstPage = false;
+        }
+
+        doc.save(`movimentacoes-${new Date().toISOString().slice(0, 10)}.pdf`);
+        notificar('Relatório de movimentações gerado!', 'success');
+    } catch (err) {
+        console.error(err);
+        notificar('Erro ao gerar relatório: ' + err.message, 'error');
     }
 }
