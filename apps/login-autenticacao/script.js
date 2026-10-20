@@ -1,9 +1,3 @@
-(function () {
-    const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-    const smallTouch = window.innerWidth < 900 && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    if (uaMobile || smallTouch) document.body.classList.add('mobile-blocked');
-})();
-
 const loginForm     = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
