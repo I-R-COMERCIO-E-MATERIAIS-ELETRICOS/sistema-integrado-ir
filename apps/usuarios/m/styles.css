@@ -38,11 +38,11 @@ body {
     height: 100dvh;
     overflow: hidden;
     padding:
-        max(12px, env(safe-area-inset-top))
-        max(12px, env(safe-area-inset-right))
-        max(12px, env(safe-area-inset-bottom))
-        max(12px, env(safe-area-inset-left));
-    gap: 10px;
+        max(10px, env(safe-area-inset-top))
+        max(10px, env(safe-area-inset-right))
+        max(10px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+    gap: 8px;
 }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -52,7 +52,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ═══════════════════════════════════════════════════════════ */
 .btn-register {
     flex-shrink: 0;
-    height: 46px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -80,7 +80,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     display: flex;
     align-items: center;
     gap: 10px;
-    height: 44px;
+    height: 42px;
     padding: 0 14px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -98,7 +98,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: none;
     outline: none;
     font-family: inherit;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
     background: transparent;
     min-width: 0;
@@ -115,14 +115,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .filter-select {
     flex: 1;
-    height: 40px;
+    height: 38px;
     padding: 0 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     outline: none;
     min-width: 0;
     cursor: pointer;
@@ -140,8 +140,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     gap: 12px;
 }
 .icon-btn {
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -168,7 +168,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @keyframes spinIcon { to { transform: rotate(360deg); } }
 
 /* ═══════════════════════════════════════════════════════════
-   5. LISTA — cada card mostra TODAS as colunas do desktop
+   5. LISTA — blocos quadrados em grade (2 colunas)
+   Cada card apresenta TODAS as colunas do desktop:
    Cód. · Nome · Usuário · Setor · Status · Criado em · Ações
    ═══════════════════════════════════════════════════════════ */
 .list {
@@ -176,10 +177,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    align-content: start;
     padding-bottom: 4px;
+}
+
+@media (max-width: 340px) {
+    .list { grid-template-columns: 1fr; }
 }
 
 .user-card {
@@ -187,53 +193,83 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid var(--border-color);
     border-radius: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-}
-
-.user-fields {
-    padding: 4px 0;
-}
-
-.user-field {
+    padding: 10px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 9px 14px;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.08);
-    font-size: 0.88rem;
-    line-height: 1.35;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    /* Aparência quadrada: altura mínima igual à largura para virar bloco */
+    aspect-ratio: 1 / 1.15;
 }
-.user-field:last-child { border-bottom: none; }
 
-.user-field-label {
-    font-weight: 500;
+.card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.card-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    line-height: 1.2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    min-height: 1.75em;
+}
+
+.card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+    flex: 1;
+    min-width: 0;
+    align-content: start;
+}
+
+.card-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.card-cell.full { grid-column: 1 / -1; }
+
+.cell-label {
+    font-size: 0.58rem;
+    font-weight: 600;
     color: var(--text-secondary);
-    font-size: 0.8rem;
-    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
 }
 
-.user-field-value {
-    text-align: right;
+.cell-value {
+    font-size: 0.68rem;
     font-weight: 500;
     color: var(--text-primary);
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.25;
 }
 
-.user-field-value.uppercase { text-transform: uppercase; }
-
-/* Badge de status inline */
+/* Badge de status (dentro de uma célula) */
 .badge {
     display: inline-block;
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 0.7rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.55rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
+    line-height: 1.3;
 }
 .badge.ativo {
     background: rgba(34, 197, 94, 0.12);
@@ -246,35 +282,31 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-/* Checkbox de marcação (quando aplicável) */
-.user-field-value input[type="checkbox"],
-.user-checkbox {
-    width: 20px;
-    height: 20px;
-    accent-color: var(--primary);
-    cursor: pointer;
+/* Ações dentro do bloco */
+.card-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px solid rgba(128, 128, 128, 0.12);
 }
 
-/* Ações */
-.user-actions {
-    display: flex;
-    gap: 8px;
-    padding: 10px 14px;
-    border-top: 1px solid var(--border-color);
-    background: #FAFAFA;
-}
-.user-actions .action-btn {
+.card-actions .action-btn {
     flex: 1;
-    height: 36px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-weight: 600;
+    height: 28px;
+    border-radius: 5px;
+    font-size: 0.62rem;
+    font-weight: 700;
     color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     transition: opacity 0.15s ease, transform 0.1s ease;
+    padding: 0;
+    min-width: 0;
 }
-.user-actions .action-btn:active { opacity: 0.9; transform: scale(0.98); }
-.user-actions .action-btn.edit   { background: var(--btn-edit); }
-.user-actions .action-btn.delete { background: var(--btn-delete); }
+.card-actions .action-btn:active { opacity: 0.85; transform: scale(0.96); }
+.card-actions .action-btn.edit   { background: var(--btn-edit); }
+.card-actions .action-btn.delete { background: var(--btn-delete); }
 
 /* ─── Empty state ─── */
 .empty-state {
@@ -359,7 +391,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .modal-head-spacer { width: 40px; flex-shrink: 0; }
 
-/* Tabs */
 .modal-tabs {
     flex-shrink: 0;
     display: flex;
