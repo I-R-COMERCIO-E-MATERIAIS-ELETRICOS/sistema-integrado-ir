@@ -368,7 +368,7 @@ window.sincronizarDados = async function () {
         await carregarModulos();
         await carregarEmployees();
         await carregarUsuarios();
-        showToast('Sincronização concluída', 'success');
+        showToast('Dados sincronizados.', 'success');
     } catch {
         showToast('Erro na sincronização', 'error');
     } finally {
