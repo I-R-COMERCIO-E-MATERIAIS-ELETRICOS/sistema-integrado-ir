@@ -1,11 +1,14 @@
 // ============================================================
 // Usuários · Mobile
-// Blocos empilhados verticalmente — cada registro traz todas
-// as colunas do desktop + botões Editar/Excluir.
-// FAB "+" fixo no canto inferior direito; rolagem livre.
+// - Ícones enfileirados acima do FAB "+"
+// - Modal com X à direita, botões Anterior/Próximo/Salvar/Cancelar
+// - Sem botão Excluir dentro do modal
+// - Toasts no topo
 // ============================================================
 
 const API = '/api/usuarios';
+const TABS = ['info', 'modules', 'credentials'];
+let currentTab = 0;
 
 let accessToken = null;
 let state = {
@@ -58,9 +61,7 @@ async function api(path, opts = {}) {
             ...(opts.headers || {})
         }
     });
-
     if (!r) return null;
-
     if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         throw new Error(body.error || `Erro ${r.status}`);
@@ -71,11 +72,14 @@ async function api(path, opts = {}) {
 
 function wireUI() {
     document.getElementById('addBtn').addEventListener('click', () => abrirForm(null));
-    document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
+    document.getElementById('closeModalBtn').addEventListener('click', () => fecharForm(true));
+    document.getElementById('cancelBtn').addEventListener('click', () => fecharForm(true));
     document.getElementById('syncBtn').addEventListener('click', sincronizar);
     document.getElementById('saveBtn').addEventListener('click', salvar);
-    document.getElementById('deleteBtn').addEventListener('click', () => confirmarExclusao(null));
     document.getElementById('statusCard').addEventListener('click', toggleStatus);
+
+    document.getElementById('btnTabPrev').addEventListener('click', () => navegarTab(-1));
+    document.getElementById('btnTabNext').addEventListener('click', () => navegarTab(1));
 
     document.getElementById('searchInput').addEventListener('input', (e) => {
         state.search = e.target.value.trim().toLowerCase();
@@ -159,7 +163,7 @@ function aplicarFiltros() {
     renderList();
 }
 
-/* ─── LISTA — blocos empilhados (um acima do outro) ────────── */
+/* ─── LISTA — blocos empilhados com todos os campos ───────── */
 function renderList() {
     const list = document.getElementById('userList');
     const empty = document.getElementById('emptyState');
@@ -219,6 +223,7 @@ function renderList() {
     });
 }
 
+/* ─── FORM ─────────────────────────────────────────────────── */
 function abrirForm(u) {
     state.editingId = u ? u.id : null;
     state.adminMode = u?.is_admin === true;
@@ -241,24 +246,46 @@ function abrirForm(u) {
     renderModulos();
     atualizarModoAdmin();
 
-    document.getElementById('deleteBtn').hidden = !u;
-
     ativarAba('info');
     document.getElementById('userModal').classList.add('show');
     document.getElementById('userModal').setAttribute('aria-hidden', 'false');
 }
 
-function fecharForm() {
+function fecharForm(cancelado) {
     document.getElementById('userModal').classList.remove('show');
     document.getElementById('userModal').setAttribute('aria-hidden', 'true');
+    if (cancelado === true) {
+        IR.toast(state.editingId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+    }
     state.editingId = null;
 }
 
 function ativarAba(tab) {
-    document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+    currentTab = TABS.indexOf(tab);
+    if (currentTab < 0) currentTab = 0;
+
+    document.querySelectorAll('.modal-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    document.querySelectorAll('.tab-pane').forEach(p => {
+        p.classList.toggle('active', p.dataset.pane === tab);
+    });
+    atualizarNavegacaoAbas();
 }
 
+function navegarTab(dir) {
+    const next = Math.max(0, Math.min(TABS.length - 1, currentTab + dir));
+    if (next !== currentTab) ativarAba(TABS[next]);
+}
+
+function atualizarNavegacaoAbas() {
+    const prev = document.getElementById('btnTabPrev');
+    const next = document.getElementById('btnTabNext');
+    if (prev) prev.style.display = currentTab === 0 ? 'none' : '';
+    if (next) next.style.display = currentTab === TABS.length - 1 ? 'none' : '';
+}
+
+/* ─── MÓDULOS ──────────────────────────────────────────────── */
 function renderModulos() {
     const grid = document.getElementById('modulesGrid');
     grid.innerHTML = '';
@@ -298,6 +325,7 @@ function atualizarModoAdmin() {
     atualizarStatusCard();
 }
 
+/* ─── STATUS ───────────────────────────────────────────────── */
 function toggleStatus() {
     if (state.adminMode) return;
     state.userActive = !state.userActive;
@@ -319,6 +347,7 @@ function atualizarStatusCard() {
     card.classList.toggle('disabled', state.adminMode);
 }
 
+/* ─── SALVAR ───────────────────────────────────────────────── */
 async function salvar() {
     const name = document.getElementById('mName').value.trim();
     const sector = document.getElementById('mSector').value;
@@ -355,7 +384,7 @@ async function salvar() {
         });
 
         IR.toast(state.editingId ? 'Usuário atualizado' : 'Usuário criado', 'success');
-        fecharForm();
+        fecharForm(false);
         await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
@@ -366,9 +395,9 @@ async function salvar() {
     }
 }
 
+/* ─── EXCLUIR (direto do card, sem botão no modal) ─────────── */
 async function confirmarExclusao(user) {
-    const id = user ? user.id : state.editingId;
-    if (!id) return;
+    if (!user || !user.id) return;
 
     const ok = await IR.confirm('Tem certeza que deseja excluir este usuário?', {
         confirmText: 'Sim',
@@ -377,9 +406,8 @@ async function confirmarExclusao(user) {
     if (!ok) return;
 
     try {
-        await api(`/${id}`, { method: 'DELETE' });
+        await api(`/${user.id}`, { method: 'DELETE' });
         IR.toast('Usuário excluído', 'success');
-        if (!user) fecharForm();
         await carregarEmployees();
         await carregarUsuarios();
     } catch (err) {
@@ -387,6 +415,7 @@ async function confirmarExclusao(user) {
     }
 }
 
+/* ─── SINCRONIZAR ──────────────────────────────────────────── */
 async function sincronizar() {
     const btn = document.getElementById('syncBtn');
     btn.classList.add('spinning');
@@ -406,6 +435,7 @@ async function sincronizar() {
     }
 }
 
+/* ─── UTILS ────────────────────────────────────────────────── */
 function esc(s) {
     return String(s ?? '')
         .replace(/&/g, '&amp;')
