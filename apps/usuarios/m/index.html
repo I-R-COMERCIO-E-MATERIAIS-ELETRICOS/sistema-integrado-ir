@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0A0A0A">
+    <meta name="theme-color" content="#F4F5F7">
     <meta name="color-scheme" content="light only">
     <title>Usuários</title>
     <link rel="icon" type="image/png" href="/apps/imagens/logo-navegador.png">
@@ -15,9 +15,40 @@
 </head>
 <body>
 
-<header class="app-bar">
-    <h1 class="app-bar-title">Usuários</h1>
-    <div class="app-bar-actions">
+    <!-- 1. Botão de registro -->
+    <button class="btn-register" id="addBtn" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Novo Usuário
+    </button>
+
+    <!-- 2. Barra de pesquisa -->
+    <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="search" id="searchInput" placeholder="Buscar por nome ou usuário..." autocomplete="off">
+    </div>
+
+    <!-- 3. Filtros -->
+    <div class="filters">
+        <select id="sectorFilter" class="filter-select">
+            <option value="TODOS">Todos os setores</option>
+            <option value="Administrador">Administrador</option>
+            <option value="Almoxarifado">Almoxarifado</option>
+            <option value="Financeiro">Financeiro</option>
+            <option value="Vendas">Vendas</option>
+        </select>
+        <select id="employeeFilter" class="filter-select">
+            <option value="TODOS">Todos os Funcionários</option>
+        </select>
+    </div>
+
+    <!-- 4. Ícones -->
+    <div class="icons-row">
         <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M23 4v6h-6"/>
@@ -25,38 +56,24 @@
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
                 <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
             </svg>
-        </button>
-        <button class="icon-btn primary" id="addBtn" type="button" aria-label="Novo usuário">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <span>Sincronizar</span>
         </button>
     </div>
-</header>
 
-<div class="search-bar">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-    <input type="search" id="searchInput" placeholder="Buscar por nome, usuário ou setor" autocomplete="off">
-</div>
+    <!-- 5. Registros (blocos) -->
+    <div class="list" id="userList"></div>
+    <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon">👥</div>
+        <div class="empty-title">Nenhum usuário encontrado</div>
+        <div class="empty-desc">Toque em <b>Novo Usuário</b> para cadastrar.</div>
+    </div>
 
-<main class="list" id="userList"></main>
-
-<div class="empty-state" id="emptyState" hidden>
-    <div class="empty-icon">👥</div>
-    <div class="empty-title">Nenhum usuário encontrado</div>
-    <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
-</div>
-
-<!-- ════ Modal cadastro/edição ════ -->
+<!-- ════════ Modal cadastro/edição ════════ -->
 <div class="modal" id="userModal" aria-hidden="true">
     <div class="modal-sheet" role="dialog" aria-modal="true">
 
         <header class="modal-head">
-            <button class="icon-btn" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
+            <button class="icon-btn close" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
             <h2 class="modal-head-title" id="modalTitle">Novo Usuário</h2>
             <div class="modal-head-spacer"></div>
         </header>
@@ -68,7 +85,7 @@
         </div>
 
         <div class="modal-body">
-            <!-- Aba Informações: 2×2 em tablet, 1 coluna no celular -->
+
             <section class="tab-pane active" data-pane="info">
                 <div class="field">
                     <label for="mName">Nome do funcionário *</label>
@@ -93,14 +110,12 @@
                 </div>
             </section>
 
-            <!-- Aba Módulos -->
             <section class="tab-pane" data-pane="modules">
                 <p class="pane-hint">Selecione os módulos que este usuário poderá acessar:</p>
                 <div class="modules-grid" id="modulesGrid"></div>
                 <p class="pane-note hidden" id="modulesNote">O administrador tem acesso a todos os módulos.</p>
             </section>
 
-            <!-- Aba Credenciais: sem título no toggle -->
             <section class="tab-pane" data-pane="credentials">
                 <div class="field">
                     <label for="mUsername">Nome de usuário *</label>
@@ -117,6 +132,7 @@
                     </div>
                 </div>
             </section>
+
         </div>
 
         <footer class="modal-foot">
@@ -125,14 +141,6 @@
         </footer>
     </div>
 </div>
-
-<!-- FAB (tablet / tela maior) -->
-<button class="fab" id="fabAdd" type="button" aria-label="Novo usuário">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-</button>
 
 <script src="/shared/ir-common.js"></script>
 <script src="/usuarios/m/script.js"></script>
