@@ -44,7 +44,7 @@ body {
     padding:
         max(10px, env(safe-area-inset-top))
         max(10px, env(safe-area-inset-right))
-        calc(150px + env(safe-area-inset-bottom, 0px))
+        calc(160px + env(safe-area-inset-bottom, 0px))
         max(10px, env(safe-area-inset-left));
 }
 
@@ -52,7 +52,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* ═══════════════════════════════════════════════════════════
    MENSAGENS (TOASTS) — CANTO SUPERIOR
-   Reaproveita o componente global, mas fixa no topo.
    ═══════════════════════════════════════════════════════════ */
 .ir-toast {
     top: calc(12px + env(safe-area-inset-top, 0px)) !important;
@@ -277,7 +276,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .empty-desc { font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════
-   4. GRUPO FLUTUANTE — ícones enfileirados acima do FAB
+   4. GRUPO FLUTUANTE — ícones e FAB no MESMO tamanho (56px)
    ═══════════════════════════════════════════════════════════ */
 .fab-group {
     position: fixed;
@@ -297,9 +296,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     gap: 8px;
 }
 
+/* Ícones com o MESMO tamanho do botão de registro (56x56) */
 .icon-btn {
-    width: 44px;
-    height: 44px;
+    width: 56px;
+    height: 56px;
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -308,7 +308,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     border: 1px solid var(--border-color);
     border-radius: 50%;
     color: var(--text-secondary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
     transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 .icon-btn:active {
@@ -318,8 +318,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .icon-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
 }
 .icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
@@ -568,7 +568,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .status-card.disabled { opacity: 0.55; pointer-events: none; }
 
-/* ─── Footer do modal — botões do desktop (Anterior/Próximo/Salvar/Cancelar) ─── */
+/* ─── Footer do modal — botões do desktop ─── */
 .modal-foot {
     flex-shrink: 0;
     display: grid;
