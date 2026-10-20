@@ -15,7 +15,6 @@
 </head>
 <body>
 
-    <!-- 1. Botão de registro -->
     <button class="btn-register" id="addBtn" type="button">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -24,7 +23,6 @@
         Novo Usuário
     </button>
 
-    <!-- 2. Barra de pesquisa -->
     <div class="search-bar">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/>
@@ -33,7 +31,6 @@
         <input type="search" id="searchInput" placeholder="Buscar por nome ou usuário..." autocomplete="off">
     </div>
 
-    <!-- 3. Filtros -->
     <div class="filters">
         <select id="sectorFilter" class="filter-select">
             <option value="TODOS">Todos os setores</option>
@@ -47,7 +44,6 @@
         </select>
     </div>
 
-    <!-- 4. Ícones (somente ícone, centralizado) -->
     <div class="icons-row">
         <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,7 +55,6 @@
         </button>
     </div>
 
-    <!-- 5. Registros -->
     <div class="list" id="userList"></div>
 
     <div class="empty-state" id="emptyState" hidden>
@@ -68,7 +63,6 @@
         <div class="empty-desc">Toque em <b>Novo Usuário</b> para cadastrar.</div>
     </div>
 
-<!-- ════════ Modal registro/edição — centralizado ════════ -->
 <div class="modal" id="userModal" aria-hidden="true">
     <div class="modal-box" role="dialog" aria-modal="true">
 
