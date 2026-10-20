@@ -1239,7 +1239,7 @@ function showNFModal(pedidoId) {
     if (existing) existing.remove();
     const pedidoRef = pedidos.find(p => p.id === pedidoId);
     
-    // CORREÇÃO APLICADA AQUI (String para evitar erro se for número)
+    // CORREÇÃO: Converte para String antes de usar o replace
     const nfExistente = pedidoRef?.numero_nf ? String(pedidoRef.numero_nf).replace(/"/g, '&quot;') : '';
     
     const modalHTML = `
@@ -1281,11 +1281,12 @@ function confirmarGerarEtiqueta(pedidoId) {
 
 function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, endereco, infoAdicional) {
     let labelsContent = '';
+    const timestamp = new Date().getTime(); // Força o navegador a buscar a imagem nova (ignora cache quebrado)
+    
     for (let i = 1; i <= totalVolumes; i++) {
-        labelsContent += `<div class='label-container'><div class='logo-container'><img src='/apps/imagens/ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'><div><div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div><div class='cnpj'>CNPJ: 33.149.502/0001-38</div></div></div><div class='nf-volume-container'><div class='nf-volume'>NF: ${nf}</div><div class='volume'>VOLUME: ${i}/${totalVolumes}</div></div><hr><div class='section-title'>DESTINATÁRIO:</div><div class='section'>${destinatario}</div><div class='section'>${endereco}</div>${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}</div>`;
+        labelsContent += `<div class='label-container'><div class='logo-container'><img src='/apps/imagens/ETIQUETA.png?v=${timestamp}' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px; display: block;'><div><div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div><div class='cnpj'>CNPJ: 33.149.502/0001-38</div></div></div><div class='nf-volume-container'><div class='nf-volume'>NF: ${nf}</div><div class='volume'>VOLUME: ${i}/${totalVolumes}</div></div><hr><div class='section-title'>DESTINATÁRIO:</div><div class='section'>${destinatario}</div><div class='section'>${endereco}</div>${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}</div>`;
     }
 
-    // Técnica de Print Nativo (criação de iframe invisível para não ser bloqueado como pop-up)
     const printSection = document.createElement('div');
     printSection.id = 'printSection';
     printSection.innerHTML = labelsContent;
@@ -1297,10 +1298,10 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
             @page { size: 100mm 150mm; margin: 2mm; }
             body * { visibility: hidden !important; background: transparent !important; }
             #printSection, #printSection * { visibility: visible !important; }
-            #printSection { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
-            .label-container { width: 94mm; height: 144mm; padding: 2mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; page-break-after: always; }
+            #printSection { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; display: block !important; }
+            .label-container { width: 96mm; height: 146mm; padding: 2mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; page-break-after: always; }
             .logo-container { display: flex; align-items: center; margin-bottom: 10px; }
-            .logo-container img { max-width: 100px; max-height: 100px; margin-right: 15px; }
+            .logo-container img { max-width: 100px; max-height: 100px; margin-right: 15px; display: block !important; visibility: visible !important; }
             .header, .cnpj, .section-title { font-weight: bold; margin-bottom: 5px; }
             .header { font-size: 14px; line-height: 1.2; }
             .cnpj { font-size: 12px; }
@@ -1316,17 +1317,58 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
     document.head.appendChild(style);
     document.body.appendChild(printSection);
 
-    setTimeout(() => {
+    // Aguarda a imagem carregar para não imprimir em branco
+    const images = printSection.querySelectorAll('img');
+    let loaded = 0;
+    const totalImages = images.length;
+    let printed = false;
+
+    const triggerPrint = () => {
+        if (printed) return;
+        printed = true;
+
         window.print();
+
         window.onafterprint = function() {
-            const p = document.getElementById('printSection');
-            const s = document.getElementById('printStyle');
-            if (p) p.remove();
-            if (s) s.remove();
+            printSection.remove();
+            style.remove();
             window.onafterprint = null;
         };
+        
         showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
-    }, 500); 
+    };
+
+    if (totalImages === 0) {
+        setTimeout(triggerPrint, 100);
+    } else {
+        // Trava de segurança: se demorar mais de 2s, imprime de qualquer jeito
+        const fallbackTimer = setTimeout(triggerPrint, 2000);
+
+        images.forEach(img => {
+            if (img.complete) {
+                loaded++;
+                if (loaded === totalImages) {
+                    clearTimeout(fallbackTimer);
+                    setTimeout(triggerPrint, 100);
+                }
+            } else {
+                img.onload = () => {
+                    loaded++;
+                    if (loaded === totalImages) {
+                        clearTimeout(fallbackTimer);
+                        setTimeout(triggerPrint, 100);
+                    }
+                };
+                img.onerror = () => {
+                    loaded++;
+                    if (loaded === totalImages) {
+                        clearTimeout(fallbackTimer);
+                        setTimeout(triggerPrint, 100);
+                    }
+                };
+            }
+        });
+    }
 }
 
 // ─── EXCLUIR ─────────────────────────────────────────────────────────────────
