@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0A">
+    <meta name="color-scheme" content="light only">
+    <title>Usuários</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/logo-navegador.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/ui-refined.css">
+    <link rel="stylesheet" href="/usuarios/m/styles.css">
+</head>
+<body>
+
+<header class="app-bar">
+    <h1 class="app-bar-title">Usuários</h1>
+    <div class="app-bar-actions">
+        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"/>
+                <path d="M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+            </svg>
+        </button>
+        <button class="icon-btn primary" id="addBtn" type="button" aria-label="Novo usuário">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+    </div>
+</header>
+
+<div class="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="searchInput" placeholder="Buscar por nome, usuário ou setor" autocomplete="off">
+</div>
+
+<main class="list" id="userList"></main>
+
+<div class="empty-state" id="emptyState" hidden>
+    <div class="empty-icon">👥</div>
+    <div class="empty-title">Nenhum usuário encontrado</div>
+    <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
+</div>
+
+<!-- ════ Modal cadastro/edição ════ -->
+<div class="modal" id="userModal" aria-hidden="true">
+    <div class="modal-sheet" role="dialog" aria-modal="true">
+
+        <header class="modal-head">
+            <button class="icon-btn" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
+            <h2 class="modal-head-title" id="modalTitle">Novo Usuário</h2>
+            <div class="modal-head-spacer"></div>
+        </header>
+
+        <div class="modal-tabs" role="tablist">
+            <button class="modal-tab active" data-tab="info" type="button" role="tab">Informações</button>
+            <button class="modal-tab" data-tab="modules" type="button" role="tab">Módulos</button>
+            <button class="modal-tab" data-tab="credentials" type="button" role="tab">Credenciais</button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Aba Informações: 2×2 em tablet, 1 coluna no celular -->
+            <section class="tab-pane active" data-pane="info">
+                <div class="field">
+                    <label for="mName">Nome do funcionário *</label>
+                    <input id="mName" type="text" required autocomplete="name">
+                </div>
+                <div class="field">
+                    <label for="mSector">Setor *</label>
+                    <select id="mSector">
+                        <option value="Administrador">Administrador</option>
+                        <option value="Almoxarifado">Almoxarifado</option>
+                        <option value="Financeiro">Financeiro</option>
+                        <option value="Vendas">Vendas</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="mEmail">E-mail</label>
+                    <input id="mEmail" type="email" autocomplete="email" inputmode="email">
+                </div>
+                <div class="field">
+                    <label for="mPhone">Telefone</label>
+                    <input id="mPhone" type="tel" autocomplete="tel" inputmode="tel">
+                </div>
+            </section>
+
+            <!-- Aba Módulos -->
+            <section class="tab-pane" data-pane="modules">
+                <p class="pane-hint">Selecione os módulos que este usuário poderá acessar:</p>
+                <div class="modules-grid" id="modulesGrid"></div>
+                <p class="pane-note hidden" id="modulesNote">O administrador tem acesso a todos os módulos.</p>
+            </section>
+
+            <!-- Aba Credenciais: sem título no toggle -->
+            <section class="tab-pane" data-pane="credentials">
+                <div class="field">
+                    <label for="mUsername">Nome de usuário *</label>
+                    <input id="mUsername" type="text" required autocomplete="off" autocapitalize="none" spellcheck="false">
+                </div>
+                <div class="field">
+                    <label for="mPassword">Senha <span id="pwdHint"></span></label>
+                    <input id="mPassword" type="password" autocomplete="new-password">
+                </div>
+
+                <div class="status-toggle-wrap">
+                    <div class="status-card active" id="statusCard" onclick="toggleStatus()">
+                        <span id="statusCardText">Selecione para desativar</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="modal-foot">
+            <button class="btn btn-red" id="deleteBtn" type="button" hidden>Excluir</button>
+            <button class="btn btn-green" id="saveBtn" type="button">Salvar</button>
+        </footer>
+    </div>
+</div>
+
+<!-- FAB (tablet / tela maior) -->
+<button class="fab" id="fabAdd" type="button" aria-label="Novo usuário">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+</button>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/usuarios/m/script.js"></script>
+</body>
+</html>
