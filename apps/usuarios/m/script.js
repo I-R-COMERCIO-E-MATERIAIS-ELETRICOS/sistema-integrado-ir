@@ -1,7 +1,8 @@
 // ============================================================
-// Usuários · Mobile (padrão para os demais módulos em m/)
-// Cada registro vira um bloco quadrado com TODAS as colunas
-// da tabela do desktop + botões Editar/Excluir.
+// Usuários · Mobile
+// Blocos empilhados verticalmente — cada registro traz todas
+// as colunas do desktop (Cód, Nome, Usuário, Setor, Status,
+// Criado em) + botões Editar/Excluir dentro do próprio bloco.
 // ============================================================
 
 const API = '/api/usuarios';
@@ -158,7 +159,7 @@ function aplicarFiltros() {
     renderList();
 }
 
-/* ─── LISTA — blocos quadrados com TODAS as colunas ─────────── */
+/* ─── LISTA — blocos empilhados (um acima do outro) ────────── */
 function renderList() {
     const list = document.getElementById('userList');
     const empty = document.getElementById('emptyState');
@@ -175,14 +176,16 @@ function renderList() {
         card.className = 'user-card';
 
         card.innerHTML = `
-            <div class="card-header">
-                <div class="card-name" title="${esc(u.name || '')}">${esc(u.name || '—')}</div>
+            <div class="card-top">
+                <span class="card-code">Cód. <strong>${u.code != null ? u.code : '—'}</strong></span>
+                <span class="badge ${u.is_active ? 'ativo' : 'inativo'}">
+                    ${u.is_active ? 'Ativo' : 'Inativo'}
+                </span>
             </div>
-            <div class="card-body">
-                <div class="card-cell">
-                    <span class="cell-label">Cód.</span>
-                    <span class="cell-value">${u.code != null ? u.code : '—'}</span>
-                </div>
+
+            <div class="card-name">${esc(u.name || '—')}</div>
+
+            <div class="card-grid">
                 <div class="card-cell">
                     <span class="cell-label">Usuário</span>
                     <span class="cell-value" title="${esc(u.username || '')}">${esc(u.username || '—')}</span>
@@ -195,15 +198,8 @@ function renderList() {
                     <span class="cell-label">Criado em</span>
                     <span class="cell-value">${formatDate(u.created_at)}</span>
                 </div>
-                <div class="card-cell full">
-                    <span class="cell-label">Status</span>
-                    <span class="cell-value">
-                        <span class="badge ${u.is_active ? 'ativo' : 'inativo'}">
-                            ${u.is_active ? 'Ativo' : 'Inativo'}
-                        </span>
-                    </span>
-                </div>
             </div>
+
             <div class="card-actions">
                 <button class="action-btn edit" type="button">Editar</button>
                 <button class="action-btn delete" type="button">Excluir</button>
