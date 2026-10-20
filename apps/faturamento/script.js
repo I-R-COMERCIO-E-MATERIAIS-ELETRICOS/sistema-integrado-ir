@@ -1069,8 +1069,6 @@ async function confirmarEmissaoComNF(id) {
 }
 
 // ─── Ajuste de estoque com registro de movimentação ──────────────────────────
-// Envia numero_pedido e atualizado_por (responsável do pedido) para o backend
-// do módulo Estoque registrar a movimentação e vincular ao pedido correto.
 function buildEstoqueMovPayload(pedido, novaQuantidade) {
     return JSON.stringify({
         quantidade: novaQuantidade,
@@ -1232,13 +1230,6 @@ async function confirmarDefinirNF(id) {
 function gerarEtiqueta(id) {
     const pedido = pedidos.find(p => p.id === id);
     if (!pedido) { showMessage('Pedido não encontrado!', 'error'); return; }
-    
-    // Garante que se a quantidade estiver vazia ou zerada, gere 1 etiqueta por padrão
-    let qtd = parseInt(pedido.quantidade);
-    if (!qtd || isNaN(qtd) || qtd <= 0) {
-        showMessage('Aviso: Pedido sem quantidade informada. Gerando 1 volume.', 'warning');
-    }
-    
     showNFModal(id);
 }
 
@@ -1275,10 +1266,7 @@ function confirmarGerarEtiqueta(pedidoId) {
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido) return;
     
-    let totalVolumes = parseInt(pedido.quantidade);
-    if (!totalVolumes || isNaN(totalVolumes) || totalVolumes <= 0) {
-        totalVolumes = 1; // Fallback seguro para não travar
-    }
+    let totalVolumes = parseInt(pedido.quantidade) || 1; // Fallback seguro
 
     let municipio = '';
     const enderecoPartes = (pedido.endereco || '').split(',');
@@ -1292,17 +1280,52 @@ function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, 
     for (let i = 1; i <= totalVolumes; i++) {
         labelsContent += `<div class='label-container'><div class='logo-container'><img src='/apps/imagens/ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'><div><div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div><div class='cnpj'>CNPJ: 33.149.502/0001-38</div></div></div><div class='nf-volume-container'><div class='nf-volume'>NF: ${nf}</div><div class='volume'>VOLUME: ${i}/${totalVolumes}</div></div><hr><div class='section-title'>DESTINATÁRIO:</div><div class='section'>${destinatario}</div><div class='section'>${endereco}</div>${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}</div>`;
     }
-    
-    // Abre a janela de impressão e previne erro de pop-up bloqueado
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        showMessage('Por favor, permita pop-ups neste site para gerar a etiqueta.', 'error');
-        return;
-    }
 
-    printWindow.document.write(`<html><head><title>Etiquetas NF ${nf}</title><style>@page{size:100mm 150mm;margin:2mm;}body{font-family:'Segoe UI',Tahoma,sans-serif;font-size:12px;text-align:left;margin:0;padding:0;}.label-container{width:94mm;height:144mm;padding:2mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;page-break-after:always;}.logo-container{display:flex;align-items:center;margin-bottom:10px;}.logo-container img{max-width:100px;max-height:100px;margin-right:15px;}.header,.cnpj,.section-title{font-weight:bold;margin-bottom:5px;}.header{font-size:14px;line-height:1.2;}.cnpj{font-size:12px;}.nf-volume-container{text-align:center;border:1px solid black;padding:5px;margin:10px 0;}.nf-volume{font-size:30px;font-weight:bold;margin-bottom:2px;}.volume{font-size:20px;font-weight:bold;margin-bottom:5px;}.section{line-height:1.2;word-wrap:break-word;margin-top:2px;}.additional-info{margin-top:10px;}hr{border:none;border-top:1px solid #000;margin:10px 0;}</style></head><body>${labelsContent}<script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close();};},500);};<\/script></body></html>`);
-    printWindow.document.close();
-    showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
+    // Cria a div e o estilo de impressão (Técnica de Print Nativo)
+    const printSection = document.createElement('div');
+    printSection.id = 'printSection';
+    printSection.innerHTML = labelsContent;
+
+    const style = document.createElement('style');
+    style.id = 'printStyle';
+    style.innerHTML = `
+        @media print {
+            @page { size: 100mm 150mm; margin: 2mm; }
+            body * { visibility: hidden !important; background: transparent !important; }
+            #printSection, #printSection * { visibility: visible !important; }
+            #printSection { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+            .label-container { width: 94mm; height: 144mm; padding: 2mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; page-break-after: always; }
+            .logo-container { display: flex; align-items: center; margin-bottom: 10px; }
+            .logo-container img { max-width: 100px; max-height: 100px; margin-right: 15px; }
+            .header, .cnpj, .section-title { font-weight: bold; margin-bottom: 5px; }
+            .header { font-size: 14px; line-height: 1.2; }
+            .cnpj { font-size: 12px; }
+            .nf-volume-container { text-align: center; border: 1px solid black; padding: 5px; margin: 10px 0; }
+            .nf-volume { font-size: 30px; font-weight: bold; margin-bottom: 2px; }
+            .volume { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+            .section { line-height: 1.2; word-wrap: break-word; margin-top: 2px; }
+            .additional-info { margin-top: 10px; }
+            hr { border: none; border-top: 1px solid #000; margin: 10px 0; }
+        }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(printSection);
+
+    // Aciona a impressão da própria página (mais confiável e livre de bloqueios)
+    setTimeout(() => {
+        window.print();
+        
+        // Remove os elementos após fechar a janela de impressão
+        window.onafterprint = function() {
+            const p = document.getElementById('printSection');
+            const s = document.getElementById('printStyle');
+            if (p) p.remove();
+            if (s) s.remove();
+            window.onafterprint = null;
+        };
+        showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
+    }, 500); // Pequeno delay para carregar a imagem
 }
 
 // ─── EXCLUIR ─────────────────────────────────────────────────────────────────
