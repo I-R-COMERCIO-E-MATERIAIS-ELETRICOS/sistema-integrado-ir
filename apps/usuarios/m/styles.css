@@ -40,7 +40,6 @@ body {
     flex-direction: column;
     gap: 8px;
 
-    /* Espaço para o grupo flutuante (ícones + FAB) não cobrir o último card */
     padding:
         max(10px, env(safe-area-inset-top))
         max(10px, env(safe-area-inset-right))
@@ -296,7 +295,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     gap: 8px;
 }
 
-/* Ícones com o MESMO tamanho do botão de registro (56x56) */
 .icon-btn {
     width: 56px;
     height: 56px;
@@ -568,7 +566,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .status-card.disabled { opacity: 0.55; pointer-events: none; }
 
-/* ─── Footer do modal — botões do desktop ─── */
+/* ─── Footer do modal — apenas Salvar / Cancelar ─── */
 .modal-foot {
     flex-shrink: 0;
     display: grid;
