@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#FFFFFF">
+    <meta name="theme-color" content="#0A0A0A">
     <meta name="color-scheme" content="light only">
     <title>Portal</title>
     <link rel="icon" type="image/png" href="/apps/imagens/logo-navegador.png">
@@ -16,7 +16,6 @@
 <body>
 
 <div class="portal-mobile" id="portalMobile">
-
     <main class="content">
         <div id="iframesContainer"></div>
     </main>
@@ -31,20 +30,14 @@
             </svg>
         </button>
     </nav>
-
 </div>
 
+<!-- Backdrop: clicar aqui fecha o drawer -->
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
-<aside class="drawer" id="drawer" aria-hidden="true" aria-label="Menu">
-    <header class="drawer-header">
-        <div class="avatar" id="userInitial">?</div>
-        <div class="drawer-info">
-            <div class="drawer-name" id="userName">—</div>
-            <div class="drawer-sector" id="userSector">—</div>
-        </div>
-        <button class="drawer-close" id="drawerClose" type="button" aria-label="Fechar">✕</button>
-    </header>
+<!-- Drawer: abre pela ESQUERDA, sem X, sem info do usuário -->
+<aside class="drawer" id="drawer" aria-hidden="true" aria-label="Menu de módulos">
+    <div class="drawer-brand">MÓDULOS</div>
 
     <nav class="drawer-nav" id="drawerNav"></nav>
 
