@@ -1,6 +1,7 @@
 // ============================================================
 // Usuários · Mobile (padrão para os demais módulos em m/)
-// Todas as colunas do desktop aparecem com rótulo em cada card.
+// Cada registro vira um bloco quadrado com TODAS as colunas
+// da tabela do desktop + botões Editar/Excluir.
 // ============================================================
 
 const API = '/api/usuarios';
@@ -47,7 +48,6 @@ function resolveToken() {
     return sessionStorage.getItem('irToken');
 }
 
-/* ─── FETCH WRAPPER ─────────────────────────────────────────── */
 async function api(path, opts = {}) {
     const r = await IR.fetchJSON(API + path, {
         ...opts,
@@ -68,7 +68,6 @@ async function api(path, opts = {}) {
     return r.json().catch(() => ({}));
 }
 
-/* ─── WIRE UI ──────────────────────────────────────────────── */
 function wireUI() {
     document.getElementById('addBtn').addEventListener('click', () => abrirForm(null));
     document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
@@ -100,7 +99,6 @@ function wireUI() {
     });
 }
 
-/* ─── CARREGAR ─────────────────────────────────────────────── */
 async function carregarModulos() {
     try {
         const data = await api('/meta/modules');
@@ -146,7 +144,6 @@ function popularEmployees() {
     sel.value = atual;
 }
 
-/* ─── FILTROS ──────────────────────────────────────────────── */
 function aplicarFiltros() {
     const t = state.search;
     state.filtered = state.users.filter(u => {
@@ -161,7 +158,7 @@ function aplicarFiltros() {
     renderList();
 }
 
-/* ─── LISTA — cada campo do desktop com rótulo explícito ──── */
+/* ─── LISTA — blocos quadrados com TODAS as colunas ─────────── */
 function renderList() {
     const list = document.getElementById('userList');
     const empty = document.getElementById('emptyState');
@@ -178,50 +175,54 @@ function renderList() {
         card.className = 'user-card';
 
         card.innerHTML = `
-            <div class="user-fields">
-                <div class="user-field">
-                    <span class="user-field-label">Cód.</span>
-                    <span class="user-field-value">${u.code != null ? u.code : '—'}</span>
+            <div class="card-header">
+                <div class="card-name" title="${esc(u.name || '')}">${esc(u.name || '—')}</div>
+            </div>
+            <div class="card-body">
+                <div class="card-cell">
+                    <span class="cell-label">Cód.</span>
+                    <span class="cell-value">${u.code != null ? u.code : '—'}</span>
                 </div>
-                <div class="user-field">
-                    <span class="user-field-label">Nome</span>
-                    <span class="user-field-value uppercase">${esc(u.name || '—')}</span>
+                <div class="card-cell">
+                    <span class="cell-label">Usuário</span>
+                    <span class="cell-value" title="${esc(u.username || '')}">${esc(u.username || '—')}</span>
                 </div>
-                <div class="user-field">
-                    <span class="user-field-label">Usuário</span>
-                    <span class="user-field-value">${esc(u.username || '—')}</span>
+                <div class="card-cell">
+                    <span class="cell-label">Setor</span>
+                    <span class="cell-value" title="${esc(u.sector || '')}">${esc(u.sector || '—')}</span>
                 </div>
-                <div class="user-field">
-                    <span class="user-field-label">Setor</span>
-                    <span class="user-field-value">${esc(u.sector || '—')}</span>
+                <div class="card-cell">
+                    <span class="cell-label">Criado em</span>
+                    <span class="cell-value">${formatDate(u.created_at)}</span>
                 </div>
-                <div class="user-field">
-                    <span class="user-field-label">Status</span>
-                    <span class="user-field-value">
+                <div class="card-cell full">
+                    <span class="cell-label">Status</span>
+                    <span class="cell-value">
                         <span class="badge ${u.is_active ? 'ativo' : 'inativo'}">
                             ${u.is_active ? 'Ativo' : 'Inativo'}
                         </span>
                     </span>
                 </div>
-                <div class="user-field">
-                    <span class="user-field-label">Criado em</span>
-                    <span class="user-field-value">${formatDate(u.created_at)}</span>
-                </div>
             </div>
-            <div class="user-actions">
+            <div class="card-actions">
                 <button class="action-btn edit" type="button">Editar</button>
                 <button class="action-btn delete" type="button">Excluir</button>
             </div>
         `;
 
-        card.querySelector('.action-btn.edit').addEventListener('click', () => abrirForm(u));
-        card.querySelector('.action-btn.delete').addEventListener('click', () => confirmarExclusao(u));
+        card.querySelector('.action-btn.edit').addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirForm(u);
+        });
+        card.querySelector('.action-btn.delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            confirmarExclusao(u);
+        });
 
         list.appendChild(card);
     });
 }
 
-/* ─── FORM ─────────────────────────────────────────────────── */
 function abrirForm(u) {
     state.editingId = u ? u.id : null;
     state.adminMode = u?.is_admin === true;
@@ -262,7 +263,6 @@ function ativarAba(tab) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
 }
 
-/* ─── MÓDULOS ──────────────────────────────────────────────── */
 function renderModulos() {
     const grid = document.getElementById('modulesGrid');
     grid.innerHTML = '';
@@ -302,7 +302,6 @@ function atualizarModoAdmin() {
     atualizarStatusCard();
 }
 
-/* ─── STATUS TOGGLE ────────────────────────────────────────── */
 function toggleStatus() {
     if (state.adminMode) return;
     state.userActive = !state.userActive;
@@ -324,7 +323,6 @@ function atualizarStatusCard() {
     card.classList.toggle('disabled', state.adminMode);
 }
 
-/* ─── SALVAR ───────────────────────────────────────────────── */
 async function salvar() {
     const name = document.getElementById('mName').value.trim();
     const sector = document.getElementById('mSector').value;
@@ -372,7 +370,6 @@ async function salvar() {
     }
 }
 
-/* ─── EXCLUIR ──────────────────────────────────────────────── */
 async function confirmarExclusao(user) {
     const id = user ? user.id : state.editingId;
     if (!id) return;
@@ -394,7 +391,6 @@ async function confirmarExclusao(user) {
     }
 }
 
-/* ─── SINCRONIZAR ──────────────────────────────────────────── */
 async function sincronizar() {
     const btn = document.getElementById('syncBtn');
     btn.classList.add('spinning');
@@ -414,7 +410,6 @@ async function sincronizar() {
     }
 }
 
-/* ─── UTILS ────────────────────────────────────────────────── */
 function esc(s) {
     return String(s ?? '')
         .replace(/&/g, '&amp;')
