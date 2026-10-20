@@ -239,9 +239,6 @@ input:focus, select:focus { border-color: var(--primary); }
 input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
 
 /* ─── Aba Informações: grade 2×2 ────────────────────────────── */
-/* Nome+Setor em cima, E-mail+Telefone embaixo. Largura e altura
-   idênticas para os 4 campos (o grid 1fr 1fr garante a largura;
-   a altura já vem do padding/font do input base). */
 .info-grid {
     grid-template-columns: 1fr 1fr;
     gap: 1.2rem;
@@ -268,8 +265,8 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 180px;
-    max-width: 240px;
+    min-width: 220px;
+    max-width: 300px;
     min-height: 40px;
     padding: 8px 20px;
     font-size: 0.82rem;
@@ -412,7 +409,7 @@ input:disabled { background: #E5E7EB; cursor: not-allowed; color: #6B7280; }
     .dashboard-card { padding: 12px 14px; font-size: 0.85rem; }
 
     .status-toggle-wrap { margin-top: 1.25rem; padding-top: 1rem; }
-    .status-toggle-wrap .status-card { min-width: 160px; max-width: 220px; }
+    .status-toggle-wrap .status-card { min-width: 200px; max-width: 260px; }
 
     .modal-actions { flex-direction: column-reverse; gap: 0.5rem; }
     .modal-actions button { width: 100%; min-width: 0; margin: 0; }
