@@ -36,17 +36,6 @@
         </select>
     </div>
 
-    <div class="icons-row">
-        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 4v6h-6"/>
-                <path d="M1 20v-6h6"/>
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
-                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
-            </svg>
-        </button>
-    </div>
-
     <div class="list" id="userList"></div>
 
     <div class="empty-state" id="emptyState" hidden>
@@ -55,21 +44,33 @@
         <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
     </div>
 
-    <!-- FAB: apenas o "+", fixo no canto inferior direito -->
-    <button class="fab-register" id="addBtn" type="button" aria-label="Novo Usuário" title="Novo Usuário">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-    </button>
+    <!-- Grupo flutuante: ícones enfileirados acima do botão "+" -->
+    <div class="fab-group">
+        <div class="icons-row" id="iconsRow">
+            <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 4v6h-6"/>
+                    <path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                    <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+                </svg>
+            </button>
+        </div>
+        <button class="fab-register" id="addBtn" type="button" aria-label="Novo Usuário" title="Novo Usuário">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+    </div>
 
 <div class="modal" id="userModal" aria-hidden="true">
     <div class="modal-box" role="dialog" aria-modal="true">
 
         <header class="modal-head">
-            <button class="modal-close" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
-            <h2 class="modal-head-title" id="modalTitle">Novo Usuário</h2>
             <div class="modal-head-spacer"></div>
+            <h2 class="modal-head-title" id="modalTitle">Novo Usuário</h2>
+            <button class="modal-close" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
         </header>
 
         <div class="modal-tabs" role="tablist">
@@ -130,8 +131,10 @@
         </div>
 
         <footer class="modal-foot">
-            <button class="btn btn-red" id="deleteBtn" type="button" hidden>Excluir</button>
+            <button class="btn btn-gray tab-prev" id="btnTabPrev" type="button" style="display:none;">Anterior</button>
+            <button class="btn btn-gray tab-next" id="btnTabNext" type="button">Próximo</button>
             <button class="btn btn-green" id="saveBtn" type="button">Salvar</button>
+            <button class="btn btn-red" id="cancelBtn" type="button">Cancelar</button>
         </footer>
     </div>
 </div>
