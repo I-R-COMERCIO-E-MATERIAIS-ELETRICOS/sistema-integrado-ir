@@ -1,422 +1,548 @@
-// ============================================================
-// Usuários · Mobile (padrão para os demais módulos em m/)
-// Cores, mensagens e efeitos idênticos ao desktop.
-// Todas as informações das colunas do desktop estão presentes
-// em cada bloco da lista mobile.
-// ============================================================
+:root {
+    /* Paleta idêntica ao desktop (apps/usuarios/styles.css) */
+    --primary: #FF521D;
+    --bg-secondary: #F4F5F7;
+    --bg-card: #FFFFFF;
+    --text-primary: #111111;
+    --text-secondary: #5B6470;
+    --border-color: #E1E4E8;
+    --input-bg: #F7F8FA;
+    --success-color: #22C55E;
+    --danger-color: #EF4444;
+    --btn-register: #3B82F6;
+    --btn-register-hover: #2563EB;
+    --btn-delete: #EF4444;
+    --btn-edit: #6B7280;
+    --btn-save: #22C55E;
+    --btn-cancel: #dc2626;
+    color-scheme: light only;
+}
 
-const API = '/api/usuarios';
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-let accessToken = null;
-let state = {
-    users: [],
-    filtered: [],
-    search: '',
-    sector: 'TODOS',
-    employeeId: 'TODOS',
-    modulesCatalog: [],
-    employeesCatalog: [],
-    editingId: null,
-    selectedModules: [],
-    userActive: true,
-    adminMode: false,
-};
+/* `hidden` vence qualquer regra de display */
+[hidden] { display: none !important; }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    accessToken = resolveToken();
-    if (!accessToken) { location.replace('/'); return; }
-    try { IR.setToken(accessToken); } catch (_) {}
+html, body {
+    height: 100%;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+}
 
-    wireUI();
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    padding:
+        max(12px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+    gap: 10px;
+}
 
-    try {
-        await carregarModulos();
-        await carregarEmployees();
-        await carregarUsuarios();
-    } catch (err) {
-        console.error('[usuarios/m]', err);
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ═══════════════════════════════════════════════════════════
+   1. BOTÃO DE REGISTRO
+   ═══════════════════════════════════════════════════════════ */
+.btn-register {
+    flex-shrink: 0;
+    height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 20px;
+    border-radius: 10px;
+    background: var(--btn-register);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    transition: background 0.15s ease, transform 0.1s ease;
+    width: 100%;
+}
+.btn-register:active {
+    background: var(--btn-register-hover);
+    transform: scale(0.98);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   2. BARRA DE PESQUISA
+   ═══════════════════════════════════════════════════════════ */
+.search-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.search-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+.search-bar input {
+    flex: 1;
+    height: 100%;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    background: transparent;
+    min-width: 0;
+}
+.search-bar input::placeholder { color: var(--text-secondary); }
+
+/* ═══════════════════════════════════════════════════════════
+   3. FILTROS
+   ═══════════════════════════════════════════════════════════ */
+.filters {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+}
+.filter-select {
+    flex: 1;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    min-width: 0;
+    cursor: pointer;
+}
+.filter-select:focus { border-color: var(--primary); }
+
+/* ═══════════════════════════════════════════════════════════
+   4. ÍCONES — apenas ícone, centralizados
+   ═══════════════════════════════════════════════════════════ */
+.icons-row {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+.icon-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.icon-btn:active {
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transform: scale(0.96);
+}
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.icon-btn.spinning svg { animation: spinIcon 0.6s linear infinite; }
+@keyframes spinIcon { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════
+   5. LISTA — blocos com TODAS as informações do desktop
+   Colunas desktop: Cód · Nome · Usuário · Setor · Status · Criado · Ações
+   ═══════════════════════════════════════════════════════════ */
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 4px;
+}
+
+.user-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: box-shadow 0.15s ease;
+}
+
+.user-card-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+.user-card-main:active { background: #FAFAFA; }
+
+.user-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #6B7280;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+.user-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+.user-meta {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+.user-meta-sub {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+
+.user-badge {
+    flex-shrink: 0;
+    align-self: flex-start;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.user-badge.active   { background: rgba(34, 197, 94, 0.12); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.3); }
+.user-badge.inactive { background: rgba(239, 68, 68, 0.12); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+/* Ações por card (Editar / Excluir) */
+.user-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-color);
+    background: #FAFAFA;
+}
+.user-actions .action-btn {
+    flex: 1;
+    height: 36px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.user-actions .action-btn:active { opacity: 0.9; transform: scale(0.98); }
+.user-actions .action-btn.edit   { background: var(--btn-edit); }
+.user-actions .action-btn.delete { background: var(--btn-delete); }
+
+/* ─── Empty state ─── */
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+.empty-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.empty-desc { font-size: 0.85rem; }
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL — CENTRALIZADO (igual ao desktop)
+   ═══════════════════════════════════════════════════════════ */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 16px;
+}
+.modal.show { display: flex; animation: modalFade 0.2s ease; }
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-sheet {
+    width: 100%;
+    max-width: 640px;
+    max-height: calc(100dvh - 32px);
+    background: var(--bg-card);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    animation: scaleIn 0.2s ease;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+}
+@keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.modal-head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 8px 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+.modal-head .icon-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    padding: 0;
+    color: var(--btn-cancel);
+}
+.modal-head .icon-btn:active { background: rgba(220, 38, 38, 0.08); }
+.modal-head-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+.modal-head-spacer { width: 40px; flex-shrink: 0; }
+
+/* ── Tabs ── */
+.modal-tabs {
+    flex-shrink: 0;
+    display: flex;
+    gap: 0;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.modal-tabs::-webkit-scrollbar { display: none; }
+
+.modal-tab {
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    background: transparent;
+}
+.modal-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* ── Corpo ── */
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+}
+
+.tab-pane { display: none; flex-direction: column; gap: 14px; }
+.tab-pane.active { display: flex; }
+
+@media (min-width: 540px) {
+    .tab-pane[data-pane="info"] {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 16px;
     }
-});
-
-function resolveToken() {
-    const p = new URLSearchParams(location.search);
-    const fromUrl = p.get('access_token') || p.get('sessionToken');
-    if (fromUrl) {
-        try { sessionStorage.setItem('irToken', fromUrl); } catch (_) {}
-        history.replaceState({}, '', location.pathname);
-        return fromUrl;
-    }
-    return sessionStorage.getItem('irToken');
+    .tab-pane[data-pane="info"].active { display: grid; }
 }
 
-/* ─── FETCH WRAPPER ─────────────────────────────────────────── */
-async function api(path, opts = {}) {
-    const r = await IR.fetchJSON(API + path, {
-        ...opts,
-        headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            ...(opts.headers || {})
-        }
-    });
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.field input,
+.field select {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+.field input:focus,
+.field select:focus { border-color: var(--primary); }
+.field input:disabled { background: #E5E7EB; color: #6B7280; }
 
-    if (!r) return null;
+/* ── Módulos ── */
+.pane-hint { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 4px; }
+.pane-note {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 10px;
+    opacity: 0.85;
+}
+.hidden { display: none !important; }
 
-    if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        throw new Error(body.error || `Erro ${r.status}`);
-    }
-    if (r.status === 204) return { ok: true };
-    return r.json().catch(() => ({}));
+.modules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.module-card {
+    padding: 12px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-color);
+    background: var(--input-bg);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.module-card:active { transform: scale(0.97); }
+.module-card.selected {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16A34A;
+    border-color: rgba(34, 197, 94, 0.4);
+}
+.modules-grid.admin-mode .module-card {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16A34A;
+    border-color: rgba(34, 197, 94, 0.4);
+    pointer-events: none;
 }
 
-/* ─── WIRE UI ──────────────────────────────────────────────── */
-function wireUI() {
-    document.getElementById('addBtn').addEventListener('click', () => abrirForm(null));
-    document.getElementById('closeModalBtn').addEventListener('click', fecharForm);
-    document.getElementById('syncBtn').addEventListener('click', sincronizar);
-    document.getElementById('saveBtn').addEventListener('click', salvar);
-    document.getElementById('deleteBtn').addEventListener('click', () => confirmarExclusao(null));
-    document.getElementById('statusCard').addEventListener('click', toggleStatus);
-
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        state.search = e.target.value.trim().toLowerCase();
-        aplicarFiltros();
-    });
-    document.getElementById('sectorFilter').addEventListener('change', (e) => {
-        state.sector = e.target.value;
-        aplicarFiltros();
-    });
-    document.getElementById('employeeFilter').addEventListener('change', (e) => {
-        state.employeeId = e.target.value;
-        aplicarFiltros();
-    });
-
-    document.querySelectorAll('.modal-tab').forEach(t => {
-        t.addEventListener('click', () => ativarAba(t.dataset.tab));
-    });
-
-    document.getElementById('mSector').addEventListener('change', () => {
-        state.adminMode = document.getElementById('mSector').value === 'Administrador';
-        atualizarModoAdmin();
-    });
+/* ── Toggle Status (Credenciais) ── */
+.status-toggle-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
 }
-
-/* ─── CARREGAR ─────────────────────────────────────────────── */
-async function carregarModulos() {
-    try {
-        const data = await api('/meta/modules');
-        state.modulesCatalog = Array.isArray(data) ? data : [];
-    } catch (err) {
-        console.error('[usuarios/m] módulos:', err.message);
-    }
+.status-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 220px;
+    max-width: 300px;
+    min-height: 40px;
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1.5px solid transparent;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    user-select: none;
 }
-
-async function carregarEmployees() {
-    try {
-        const data = await api('/employees');
-        state.employeesCatalog = Array.isArray(data) ? data : [];
-        popularEmployees();
-    } catch (err) {
-        console.error('[usuarios/m] employees:', err.message);
-    }
+.status-card.active {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16A34A;
+    border-color: rgba(34, 197, 94, 0.4);
 }
-
-async function carregarUsuarios() {
-    try {
-        const data = await api('');
-        if (data === null) return;
-        state.users = Array.isArray(data) ? data : [];
-        aplicarFiltros();
-    } catch (err) {
-        console.error('[usuarios/m] usuários:', err.message);
-        IR.toast('Erro ao carregar usuários', 'error');
-    }
+.status-card.inactive {
+    background: rgba(239, 68, 68, 0.12);
+    color: #DC2626;
+    border-color: rgba(239, 68, 68, 0.4);
 }
+.status-card.disabled { opacity: 0.55; pointer-events: none; }
 
-function popularEmployees() {
-    const sel = document.getElementById('employeeFilter');
-    if (!sel) return;
-    const atual = sel.value || 'TODOS';
-    sel.innerHTML = '<option value="TODOS">Todos os Funcionários</option>';
-    state.employeesCatalog.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id;
-        opt.textContent = u.name;
-        sel.appendChild(opt);
-    });
-    sel.value = atual;
+/* ── Footer ── */
+.modal-foot {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    background: #FAFAFA;
 }
+.modal-foot .btn { flex: 1; height: 46px; font-size: 0.95rem; }
 
-/* ─── FILTROS ──────────────────────────────────────────────── */
-function aplicarFiltros() {
-    const t = state.search;
-    state.filtered = state.users.filter(u => {
-        if (state.sector !== 'TODOS' && u.sector !== state.sector) return false;
-        if (state.employeeId !== 'TODOS' && u.id !== state.employeeId) return false;
-        if (t) {
-            const hay = `${u.code || ''} ${u.name || ''} ${u.username || ''}`.toLowerCase();
-            if (!hay.includes(t)) return false;
-        }
-        return true;
-    });
-    renderList();
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    min-width: 100px;
+    padding: 0 18px;
 }
-
-/* ─── LISTA (blocos com todas as colunas) ──────────────────── */
-function renderList() {
-    const list = document.getElementById('userList');
-    const empty = document.getElementById('emptyState');
-    list.innerHTML = '';
-
-    if (!state.filtered.length) {
-        empty.hidden = false;
-        return;
-    }
-    empty.hidden = true;
-
-    state.filtered.forEach(u => {
-        const card = document.createElement('div');
-        card.className = 'user-card';
-        const inicial = (u.name || u.username || '?').charAt(0).toUpperCase();
-
-        card.innerHTML = `
-            <div class="user-card-main">
-                <div class="user-avatar">${inicial}</div>
-                <div class="user-info">
-                    <div class="user-name">${esc(u.name || '—')}</div>
-                    <div class="user-meta">@${esc(u.username || '—')} · ${esc(u.sector || '—')}</div>
-                    <div class="user-meta-sub">Cód. ${u.code != null ? u.code : '—'} · Criado ${formatDate(u.created_at)}</div>
-                </div>
-                <div class="user-badge ${u.is_active ? 'active' : 'inactive'}">
-                    ${u.is_active ? 'Ativo' : 'Inativo'}
-                </div>
-            </div>
-            <div class="user-actions">
-                <button class="action-btn edit" type="button">Editar</button>
-                <button class="action-btn delete" type="button">Excluir</button>
-            </div>
-        `;
-
-        card.querySelector('.user-card-main').addEventListener('click', () => abrirForm(u));
-        card.querySelector('.action-btn.edit').addEventListener('click', (e) => {
-            e.stopPropagation();
-            abrirForm(u);
-        });
-        card.querySelector('.action-btn.delete').addEventListener('click', (e) => {
-            e.stopPropagation();
-            confirmarExclusao(u);
-        });
-
-        list.appendChild(card);
-    });
-}
-
-/* ─── FORM ─────────────────────────────────────────────────── */
-function abrirForm(u) {
-    state.editingId = u ? u.id : null;
-    state.adminMode = u?.is_admin === true;
-
-    document.getElementById('modalTitle').textContent = u ? 'Editar Usuário' : 'Novo Usuário';
-
-    document.getElementById('mName').value = u?.name || '';
-    document.getElementById('mSector').value = u?.sector || 'Almoxarifado';
-    document.getElementById('mEmail').value = u?.contact_email || '';
-    document.getElementById('mPhone').value = u?.contact_phone || '';
-    document.getElementById('mUsername').value = u?.username || '';
-    document.getElementById('mUsername').disabled = !!u;
-    document.getElementById('mPassword').value = '';
-    document.getElementById('pwdHint').textContent = u ? '(deixe em branco para manter)' : '';
-
-    state.userActive = u ? (u.is_active !== false) : true;
-    atualizarStatusCard();
-
-    state.selectedModules = Array.isArray(u?.apps) ? u.apps.slice() : [];
-    renderModulos();
-    atualizarModoAdmin();
-
-    document.getElementById('deleteBtn').hidden = !u;
-
-    ativarAba('info');
-    document.getElementById('userModal').classList.add('show');
-    document.getElementById('userModal').setAttribute('aria-hidden', 'false');
-}
-
-function fecharForm() {
-    document.getElementById('userModal').classList.remove('show');
-    document.getElementById('userModal').setAttribute('aria-hidden', 'true');
-    state.editingId = null;
-}
-
-function ativarAba(tab) {
-    document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
-}
-
-/* ─── MÓDULOS ──────────────────────────────────────────────── */
-function renderModulos() {
-    const grid = document.getElementById('modulesGrid');
-    grid.innerHTML = '';
-    state.modulesCatalog.forEach(m => {
-        const selected = state.selectedModules.includes(m.id);
-        const el = document.createElement('div');
-        el.className = 'module-card' + (selected ? ' selected' : '');
-        el.textContent = m.name;
-        el.addEventListener('click', () => {
-            if (state.adminMode) return;
-            toggleModulo(m.id);
-        });
-        grid.appendChild(el);
-    });
-}
-
-function toggleModulo(id) {
-    const idx = state.selectedModules.indexOf(id);
-    if (idx >= 0) state.selectedModules.splice(idx, 1);
-    else state.selectedModules.push(id);
-    renderModulos();
-}
-
-function atualizarModoAdmin() {
-    const note = document.getElementById('modulesNote');
-    const grid = document.getElementById('modulesGrid');
-    if (state.adminMode) {
-        note.classList.remove('hidden');
-        state.selectedModules = state.modulesCatalog.map(m => m.id);
-        renderModulos();
-        grid.classList.add('admin-mode');
-    } else {
-        note.classList.add('hidden');
-        grid.classList.remove('admin-mode');
-        renderModulos();
-    }
-    atualizarStatusCard();
-}
-
-/* ─── STATUS TOGGLE ────────────────────────────────────────── */
-function toggleStatus() {
-    if (state.adminMode) return;
-    state.userActive = !state.userActive;
-    atualizarStatusCard();
-}
-
-function atualizarStatusCard() {
-    const card = document.getElementById('statusCard');
-    const text = document.getElementById('statusCardText');
-    if (state.userActive) {
-        card.classList.remove('inactive');
-        card.classList.add('active');
-        text.textContent = 'Selecione para desativar';
-    } else {
-        card.classList.remove('active');
-        card.classList.add('inactive');
-        text.textContent = 'Selecione para ativar';
-    }
-    card.classList.toggle('disabled', state.adminMode);
-}
-
-/* ─── SALVAR ───────────────────────────────────────────────── */
-async function salvar() {
-    const name = document.getElementById('mName').value.trim();
-    const sector = document.getElementById('mSector').value;
-    const contact_email = document.getElementById('mEmail').value.trim();
-    const contact_phone = document.getElementById('mPhone').value.trim();
-    const username = document.getElementById('mUsername').value.trim().toLowerCase();
-    const password = document.getElementById('mPassword').value;
-
-    if (!name || !sector) {
-        return IR.toast('Verifique se todas as informações obrigatórias estão preenchidas', 'error');
-    }
-    if (!state.editingId && (!username || !password)) {
-        return IR.toast('Verifique se todas as informações obrigatórias estão preenchidas', 'error');
-    }
-
-    const isAdmin = sector === 'Administrador';
-    const apps = isAdmin ? [] : state.selectedModules.slice();
-
-    const body = { name, sector, is_active: state.userActive, apps };
-    if (!state.editingId) body.username = username;
-    if (password) body.password = password;
-    body.contact_email = contact_email;
-    body.contact_phone = contact_phone;
-
-    const btn = document.getElementById('saveBtn');
-    btn.disabled = true;
-    btn.textContent = 'Salvando...';
-
-    try {
-        await api(state.editingId ? `/${state.editingId}` : '', {
-            method: state.editingId ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        IR.toast(state.editingId ? 'Usuário atualizado' : 'Usuário criado', 'success');
-        fecharForm();
-        await carregarEmployees();
-        await carregarUsuarios();
-    } catch (err) {
-        IR.toast(err.message || 'Erro ao salvar', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Salvar';
-    }
-}
-
-/* ─── EXCLUIR (confirm centralizado via IR.confirm) ────────── */
-async function confirmarExclusao(user) {
-    const id = user ? user.id : state.editingId;
-    if (!id) return;
-
-    const ok = await IR.confirm('Tem certeza que deseja excluir este usuário?', {
-        confirmText: 'Sim',
-        cancelText: 'Não'
-    });
-    if (!ok) return;
-
-    try {
-        await api(`/${id}`, { method: 'DELETE' });
-        IR.toast('Usuário excluído', 'success');
-        if (!user) fecharForm();
-        await carregarEmployees();
-        await carregarUsuarios();
-    } catch (err) {
-        IR.toast(err.message || 'Erro ao excluir', 'error');
-    }
-}
-
-/* ─── SINCRONIZAR ──────────────────────────────────────────── */
-async function sincronizar() {
-    const btn = document.getElementById('syncBtn');
-    btn.classList.add('spinning');
-    btn.disabled = true;
-    try {
-        await carregarModulos();
-        await carregarEmployees();
-        await carregarUsuarios();
-        IR.toast('Dados sincronizados.', 'success');
-    } catch {
-        IR.toast('Erro na sincronização', 'error');
-    } finally {
-        setTimeout(() => {
-            btn.classList.remove('spinning');
-            btn.disabled = false;
-        }, 600);
-    }
-}
-
-/* ─── UTILS ────────────────────────────────────────────────── */
-function esc(s) {
-    return String(s ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function formatDate(iso) {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleDateString('pt-BR'); }
-    catch { return '—'; }
-}
+.btn:active { opacity: 0.9; transform: translateY(1px); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-green { background: var(--btn-save); }
+.btn-red   { background: var(--btn-cancel); }
