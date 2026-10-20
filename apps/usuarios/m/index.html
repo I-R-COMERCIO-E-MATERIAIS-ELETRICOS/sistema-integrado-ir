@@ -47,7 +47,7 @@
         </select>
     </div>
 
-    <!-- 4. Ícones (apenas ícones, centralizados) -->
+    <!-- 4. Ícones (somente ícone, centralizado) -->
     <div class="icons-row">
         <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,20 +59,21 @@
         </button>
     </div>
 
-    <!-- 5. Registros (blocos, com todas as informações do desktop) -->
+    <!-- 5. Registros -->
     <div class="list" id="userList"></div>
+
     <div class="empty-state" id="emptyState" hidden>
         <div class="empty-icon">👥</div>
         <div class="empty-title">Nenhum usuário encontrado</div>
         <div class="empty-desc">Toque em <b>Novo Usuário</b> para cadastrar.</div>
     </div>
 
-<!-- ════════ Modal cadastro/edição (centralizado) ════════ -->
+<!-- ════════ Modal registro/edição — centralizado ════════ -->
 <div class="modal" id="userModal" aria-hidden="true">
-    <div class="modal-sheet" role="dialog" aria-modal="true">
+    <div class="modal-box" role="dialog" aria-modal="true">
 
         <header class="modal-head">
-            <button class="icon-btn close" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
+            <button class="modal-close" id="closeModalBtn" type="button" aria-label="Fechar">✕</button>
             <h2 class="modal-head-title" id="modalTitle">Novo Usuário</h2>
             <div class="modal-head-spacer"></div>
         </header>
@@ -126,7 +127,7 @@
                 </div>
 
                 <div class="status-toggle-wrap">
-                    <div class="status-card active" id="statusCard" role="switch" aria-checked="true" tabindex="0">
+                    <div class="status-card active" id="statusCard" onclick="toggleStatus()">
                         <span id="statusCardText">Selecione para desativar</span>
                     </div>
                 </div>
