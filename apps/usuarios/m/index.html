@@ -47,20 +47,19 @@
         </select>
     </div>
 
-    <!-- 4. Ícones -->
+    <!-- 4. Ícones (apenas ícones, centralizados) -->
     <div class="icons-row">
-        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar">
+        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M23 4v6h-6"/>
                 <path d="M1 20v-6h6"/>
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
                 <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
             </svg>
-            <span>Sincronizar</span>
         </button>
     </div>
 
-    <!-- 5. Registros (blocos) -->
+    <!-- 5. Registros (blocos, com todas as informações do desktop) -->
     <div class="list" id="userList"></div>
     <div class="empty-state" id="emptyState" hidden>
         <div class="empty-icon">👥</div>
@@ -68,7 +67,7 @@
         <div class="empty-desc">Toque em <b>Novo Usuário</b> para cadastrar.</div>
     </div>
 
-<!-- ════════ Modal cadastro/edição ════════ -->
+<!-- ════════ Modal cadastro/edição (centralizado) ════════ -->
 <div class="modal" id="userModal" aria-hidden="true">
     <div class="modal-sheet" role="dialog" aria-modal="true">
 
