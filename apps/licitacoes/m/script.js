@@ -12,8 +12,13 @@ const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO'
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 const COLORS = { amarelo:'#fef9c3', azul:'#bfdbfe', cinza:'#e5e7eb', vermelho:'#fca5a5', laranja:'#fed7aa' };
 const STATUS_LABEL = {
-  aguardando:'AGUARDANDO DISPUTA', 'disputa-aberta':'DISPUTA ABERTA', ganho:'GANHO',
-  realizado:'REALIZADO', suspenso:'SUSPENSO', encerrado:'ENCERRADO', cancelado:'CANCELADO'
+  aguardando:'AGUARDANDO DISPUTA',
+  'disputa-aberta':'DISPUTA ABERTA',
+  ganho:'GANHO',
+  realizado:'REALIZADO',
+  suspenso:'SUSPENSO',
+  encerrado:'ENCERRADO',
+  cancelado:'CANCELADO'
 };
 const MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 const MESES_CURTO = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -31,6 +36,7 @@ let delTableIdx = null;
 let colorPop = null;
 let pdfBusy = false;
 let selectedDoc = null;
+let quoteTIdx = null;
 let assetsPromise = null;
 let lastWarnSig = '';
 let currentMonth = new Date();
@@ -111,7 +117,11 @@ const api = async (url, opts = {}) => {
     triggerGlobalLogout('Sua sessão expirou');
     throw new Error('Sessão expirada');
   }
-  if (!r.ok) { let e = {}; try { e = await r.json(); } catch {}; throw new Error(e.error || e.hint || `Erro ${r.status}`); }
+  if (!r.ok) {
+    let e = {};
+    try { e = await r.json(); } catch {}
+    throw new Error(e.error || e.hint || `Erro ${r.status}`);
+  }
   return r.status === 204 ? null : r.json();
 };
 
@@ -121,19 +131,30 @@ function toastError(msg){ const t=$('toast'); t.className='toast error'; t.textC
 function open(id){ const el=$(id); if(el){ el.classList.add('show'); el.setAttribute('aria-hidden','false'); } }
 function close(id){ const el=$(id); if(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); } }
 
-document.querySelectorAll('[data-close]').forEach(b=>{ b.addEventListener('click', ()=>close(b.dataset.close)); });
-document.querySelectorAll('.modal').forEach(o=>{ o.addEventListener('click', e=>{ if(e.target === o) close(o.id); }); });
+document.querySelectorAll('[data-close]').forEach(b=>{
+  b.addEventListener('click', ()=>close(b.dataset.close));
+});
+document.querySelectorAll('.modal').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target === o) close(o.id); });
+});
 
 $('uf').innerHTML += states.map(s=>`<option>${s}</option>`).join('');
 $('requirements').innerHTML = reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
 $('requirements').querySelectorAll('[data-req]').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('selected')));
 
-document.querySelectorAll('.modal-tab[data-tab]').forEach(t => t.addEventListener('click', () => setFormTab(t.dataset.tab)));
+// Form tabs
+document.querySelectorAll('.modal-tab[data-tab]').forEach(t => {
+  t.addEventListener('click', () => setFormTab(t.dataset.tab));
+});
 function setFormTab(tab) {
   document.querySelectorAll('.modal-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.tab-pane[data-pane]').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
 }
-document.querySelectorAll('.modal-tab[data-vtab]').forEach(t => t.addEventListener('click', () => setViewTab(t.dataset.vtab)));
+
+// View tabs
+document.querySelectorAll('.modal-tab[data-vtab]').forEach(t => {
+  t.addEventListener('click', () => setViewTab(t.dataset.vtab));
+});
 function setViewTab(tab) {
   document.querySelectorAll('.modal-tab[data-vtab]').forEach(t => t.classList.toggle('active', t.dataset.vtab === tab));
   document.querySelectorAll('.tab-pane[data-vpane]').forEach(p => p.classList.toggle('active', p.dataset.vpane === tab));
@@ -154,14 +175,20 @@ function updateMonthDisplay(){
 }
 function changeMonth(direction){
   currentMonth.setMonth(currentMonth.getMonth() + direction);
-  currentPage = 1; records = []; updateMonthDisplay(); loadList();
+  currentPage = 1;
+  records = [];
+  updateMonthDisplay();
+  loadList();
 }
-function monthParams(){ return { mes: String(currentMonth.getMonth()), ano: String(currentMonth.getFullYear()) }; }
+function monthParams(){
+  return { mes: String(currentMonth.getMonth()), ano: String(currentMonth.getFullYear()) };
+}
 
 function buildListParams(){
   const params = new URLSearchParams();
   const { mes, ano } = monthParams();
-  params.set('mes', mes); params.set('ano', ano);
+  params.set('mes', mes);
+  params.set('ano', ano);
   const s = $('searchInput').value.trim(); if(s) params.set('search', s);
   const v = $('vendedorFilter').value.trim(); if(v) params.set('vendedor', v);
   const st = $('statusFilter').value.trim(); if(st) params.set('status', st);
@@ -175,6 +202,7 @@ async function loadOpcoes(){
     const sel = $('vendedor');
     sel.innerHTML = '<option value="">Selecione o vendedor</option>' +
       users.map(u=>`<option value="${esc(u.id)}">${esc(u.firstName || u.name)}</option>`).join('');
+
     const fv = $('vendedorFilter');
     const uniq = [...new Set(users.map(u=>up(u.firstName || u.name)))].sort();
     fv.innerHTML = '<option value="">Todos os Vendedores</option>' +
@@ -213,8 +241,10 @@ async function loadMore(){
 async function syncNow(){
   const btn=$('syncBtn');
   if(btn){ btn.classList.add('spinning'); btn.disabled=true; }
-  try{ await loadList(); toastSuccess('Dados sincronizados'); }
-  catch(e){ toastError('Erro de sincronização'); }
+  try{
+    await loadList();
+    toastSuccess('Dados sincronizados');
+  }catch(e){ toastError('Erro de sincronização'); }
   finally{ if(btn){ setTimeout(()=>{ btn.classList.remove('spinning'); btn.disabled=false; }, 600); } }
 }
 
@@ -222,7 +252,9 @@ function renderList(){
   const wrap = $('list');
   const empty = $('emptyState');
   if(!records.length){
-    wrap.innerHTML = ''; empty.hidden = false; return;
+    wrap.innerHTML = '';
+    empty.hidden = false;
+    return;
   }
   empty.hidden = true;
   wrap.innerHTML = records.map(r=>{
@@ -301,7 +333,10 @@ async function toggleGanho(id, ganho, chkEl){
     }
     if (ganho) toastSuccess(`O ${numP} foi marcado como ganho`);
     else toastSuccess(`Pregão ${numP} atualizado`);
-  }catch(err){ if (chkEl) chkEl.checked = !ganho; toastError(err.message); }
+  }catch(err){
+    if (chkEl) chkEl.checked = !ganho;
+    toastError(err.message);
+  }
 }
 
 async function openDisputaModal(){
@@ -309,7 +344,10 @@ async function openDisputaModal(){
   open('disputaModal');
   try{
     const list = await api('/api/licitacoes/disputa-hoje');
-    if(!list.length){ $('disputaBody').innerHTML = '<div class="empty-mini">Nenhum pregão programado para hoje.</div>'; return; }
+    if(!list.length){
+      $('disputaBody').innerHTML = '<div class="empty-mini">Nenhum pregão programado para hoje.</div>';
+      return;
+    }
     $('disputaBody').innerHTML = list.map(r=>`
       <div class="disputa-row">
         <div class="d-top">
@@ -319,7 +357,9 @@ async function openDisputaModal(){
         <div class="d-meta">${esc(up(r.vendedor)||'—')} · ${esc(fmtDate(r.data_pregao))}</div>
         <div class="d-meta">${esc(up(r.nome_orgao))}</div>
       </div>`).join('');
-  }catch(e){ $('disputaBody').innerHTML = `<div class="empty-mini">${esc(e.message)}</div>`; }
+  }catch(e){
+    $('disputaBody').innerHTML = `<div class="empty-mini">${esc(e.message)}</div>`;
+  }
 }
 
 function newRecord(){
@@ -376,17 +416,27 @@ $('recordForm').addEventListener('submit', async e => {
   const requisitos = {};
   $('requirements').querySelectorAll('[data-req]').forEach(b=>requisitos[b.dataset.req]=b.classList.contains('selected'));
   const body = {
-    vendedorId: user?.id || null, vendedor: user?.name || '',
+    vendedorId: user?.id || null,
+    vendedor: user?.name || '',
     dataRegistro: $('dataRegistro').value || todayStr(),
-    dataPregao: $('dataPregao').value || '', horarioPregao: $('horarioPregao').value || '',
-    modalidade: $('modalidade').value, numeroPregao: $('numeroPregao').value.trim(),
-    nomeOrgao: $('nomeOrgao').value.trim(), uasg: $('uasg').value.trim(),
-    cidade: $('cidade').value.trim(), uf: $('uf').value,
-    telefone: $('telefone').value.trim(), email: $('email').value.trim(),
-    bancoPagamento: $('bancoPagamento').value, status: $('statusManual').value || '',
-    requisitos, validadeProposta: $('validadeProposta').value,
-    prazoEntrega: $('prazoEntrega').value, prazoPagamento: $('prazoPagamento').value,
-    items: current?.items || [], grupos: current?.grupos || []
+    dataPregao: $('dataPregao').value || '',
+    horarioPregao: $('horarioPregao').value || '',
+    modalidade: $('modalidade').value,
+    numeroPregao: $('numeroPregao').value.trim(),
+    nomeOrgao: $('nomeOrgao').value.trim(),
+    uasg: $('uasg').value.trim(),
+    cidade: $('cidade').value.trim(),
+    uf: $('uf').value,
+    telefone: $('telefone').value.trim(),
+    email: $('email').value.trim(),
+    bancoPagamento: $('bancoPagamento').value,
+    status: $('statusManual').value || '',
+    requisitos,
+    validadeProposta: $('validadeProposta').value,
+    prazoEntrega: $('prazoEntrega').value,
+    prazoPagamento: $('prazoPagamento').value,
+    items: current?.items || [],
+    grupos: current?.grupos || []
   };
   try{
     const id = $('recordId').value;
@@ -394,7 +444,11 @@ $('recordForm').addEventListener('submit', async e => {
       { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
     close('formModal');
     const numP = up(saved?.numero_pregao || body.numeroPregao);
-    toastSuccess(id ? `Pregão ${numP} atualizado` : 'Licitação salva com sucesso.');
+    if(id){
+      toastSuccess(`Pregão ${numP} atualizado`);
+    } else {
+      toastSuccess('Licitação salva com sucesso.');
+    }
     await loadList();
   }catch(err){ toastError(err.message); }
 });
@@ -402,14 +456,16 @@ $('recordForm').addEventListener('submit', async e => {
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
-  delId = id; delTableIdx = null;
+  delId = id;
+  delTableIdx = null;
   $('deleteMsg').textContent = `Deseja excluir o pregão ${up(r.numero_pregao)}?`;
   open('deleteModal');
 }
 function confirmDeleteTable(tIdx){
   const t = tables[tIdx];
   if(!t) return;
-  delId = null; delTableIdx = tIdx;
+  delId = null;
+  delTableIdx = tIdx;
   const qtd = t.items.length;
   const nome = t.titulo ? `o grupo "${up(t.titulo)}"` : 'a tabela de itens';
   const extra = qtd ? ` (${qtd} ${qtd === 1 ? 'item' : 'itens'})` : '';
@@ -418,8 +474,14 @@ function confirmDeleteTable(tIdx){
 }
 $('confirmDelete').addEventListener('click', async ()=>{
   if(delTableIdx !== null){
-    const tI = delTableIdx; delTableIdx = null; close('deleteModal');
-    if(tables[tI]){ tables.splice(tI, 1); renderAllTables(); scheduleSave(); }
+    const tI = delTableIdx;
+    delTableIdx = null;
+    close('deleteModal');
+    if(tables[tI]){
+      tables.splice(tI, 1);
+      renderAllTables();
+      scheduleSave();
+    }
     return;
   }
   if(!delId) return;
@@ -427,7 +489,8 @@ $('confirmDelete').addEventListener('click', async ()=>{
   const numP = up(r?.numero_pregao || '');
   try{
     await api(`/api/licitacoes/${delId}`, { method:'DELETE' });
-    close('deleteModal'); delId = null;
+    close('deleteModal');
+    delId = null;
     toastSuccess(`Pregão ${numP} foi excluído`);
     await loadList();
   }catch(e){ toastError(e.message); }
@@ -477,29 +540,53 @@ function viewRecord(id){
 function normalizeTables(r){
   const rawItems = Array.isArray(r.items) ? r.items : [];
   const gruposList = Array.isArray(r.grupos) ? r.grupos.slice() : [];
-  const main = []; const byGroup = {};
+  const main = [];
+  const byGroup = {};
+
   rawItems.forEach((x,i)=>{
     const g = String(x.grupo || '').trim();
     const it = {
-      item: x.item ?? (i+1), descricao: x.descricao || '',
-      qtd: x.qtd ?? 1, und: x.und || 'UN', marca: x.marca || '', modelo: x.modelo || '',
-      estimadoUnt: x.estimadoUnt ?? '', custoUnt: x.custoUnt ?? '',
-      porcentagem: x.porcentagem ?? 149, selecionado: x.selecionado !== false, cor: x.cor || ''
+      item: x.item ?? (i+1),
+      descricao: x.descricao || '',
+      qtd: x.qtd ?? 1,
+      und: x.und || 'UN',
+      marca: x.marca || '',
+      modelo: x.modelo || '',
+      estimadoUnt: x.estimadoUnt ?? '',
+      custoUnt: x.custoUnt ?? '',
+      porcentagem: x.porcentagem ?? 149,
+      selecionado: x.selecionado !== false,
+      cor: x.cor || ''
     };
     if(!g) main.push(it);
-    else { if(!gruposList.includes(g)) gruposList.push(g); if(!byGroup[g]) byGroup[g] = []; byGroup[g].push(it); }
+    else {
+      if(!gruposList.includes(g)) gruposList.push(g);
+      if(!byGroup[g]) byGroup[g] = [];
+      byGroup[g].push(it);
+    }
   });
+
   const out = [];
   if(main.length) out.push({ titulo:'', items: main });
-  gruposList.forEach(titulo=>out.push({ titulo, items: byGroup[titulo] || [] }));
+  gruposList.forEach(titulo=>{
+    out.push({ titulo, items: byGroup[titulo] || [] });
+  });
   return out;
 }
+
 function flatItems(){
   const all = [];
-  tables.forEach(t=>t.items.forEach(it=>all.push({ ...it, grupo: t.titulo })));
+  tables.forEach(t=>{
+    t.items.forEach(it=>{
+      all.push({ ...it, grupo: t.titulo });
+    });
+  });
   return all;
 }
-function groupTitles(){ return tables.filter(t=>t.titulo).map(t=>t.titulo); }
+
+function groupTitles(){
+  return tables.filter(t=>t.titulo).map(t=>t.titulo);
+}
 
 function showItems(id){
   const r = records.find(x=>x.id===id);
@@ -514,7 +601,8 @@ function showItems(id){
   document.querySelector('.search-bar').style.display = 'none';
   document.querySelector('.filters').style.display = 'none';
   document.querySelector('.month-nav').style.display = 'none';
-  document.querySelector('.fab-group').style.display = 'none';
+  $('mainFab').hidden = true;
+  $('itemsFab').hidden = false;
   $('itemsPage').hidden = false;
   renderAllTables();
   lastSnapshot = snapshotAll();
@@ -553,7 +641,10 @@ function renderAllTables(){
     return;
   }
   let html = INSERT_BAR(0);
-  tables.forEach((t, tIdx)=>{ html += renderSingleTable(t, tIdx); html += INSERT_BAR(tIdx+1); });
+  tables.forEach((t, tIdx)=>{
+    html += renderSingleTable(t, tIdx);
+    html += INSERT_BAR(tIdx+1);
+  });
   container.innerHTML = html;
   bindTableEvents();
   bindInsertButtons();
@@ -566,8 +657,9 @@ function renderSingleTable(t, tIdx){
   const isMain = !t.titulo;
   const cardsHTML = t.items.map((it, i)=>itemCardHTML(it, tIdx, i)).join('');
   const totais = computeTotals(t.items);
-  const titleHTML = isMain ? '' :
-    `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
+  const titleHTML = isMain
+    ? ''
+    : `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
 
   return `
     <div class="grupo-tabela" data-gidx="${tIdx}">
@@ -579,6 +671,9 @@ function renderSingleTable(t, tIdx){
           </button>
           <button type="button" class="grupo-icon-btn add-range" data-gidx="${tIdx}" title="Adicionar Intervalo">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+          <button type="button" class="grupo-icon-btn cotacao-group" data-gidx="${tIdx}" title="Cotação de Preço">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
           </button>
           <button type="button" class="grupo-icon-btn del-table" data-gidx="${tIdx}" title="Excluir grupo/tabela">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -663,9 +758,13 @@ function itemCardHTML(it, tIdx, idx){
 function computeTotals(list){
   let e=0,c=0,v=0;
   list.forEach(x=>{
-    const qtd = num(x.qtd); const cu = num(x.custoUnt); const eu = num(x.estimadoUnt);
+    const qtd = num(x.qtd);
+    const cu = num(x.custoUnt);
+    const eu = num(x.estimadoUnt);
     const pct = num(x.porcentagem ?? 149);
-    e += eu * qtd; c += cu * qtd; v += (cu * pct / 100) * qtd;
+    e += eu * qtd;
+    c += cu * qtd;
+    v += (cu * pct / 100) * qtd;
   });
   return { estimado:e, custo:c, venda:v };
 }
@@ -674,7 +773,8 @@ function bindInsertButtons(){
   document.querySelectorAll('.btn-toggle-table').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const at = parseInt(btn.dataset.insertAt) || 0;
-      insertNewTable(at, btn.dataset.type);
+      const type = btn.dataset.type;
+      insertNewTable(at, type);
     });
   });
 }
@@ -706,8 +806,11 @@ function bindTableEvents(){
           i.value = String(num(i.value)).replace('.', ',');
         }
       });
-      if(i.tagName === 'TEXTAREA'){ i.addEventListener('keydown', e=>{ if(e.key === 'Enter') e.stopPropagation(); }); }
+      if(i.tagName === 'TEXTAREA'){
+        i.addEventListener('keydown', e=>{ if(e.key === 'Enter') e.stopPropagation(); });
+      }
     });
+
     const titleInput = gt.querySelector('.grupo-titulo-input');
     if(titleInput){
       titleInput.addEventListener('input', ()=>{
@@ -717,6 +820,7 @@ function bindTableEvents(){
         scheduleSave();
       });
     }
+
     gt.querySelectorAll('.grupo-icon-btn.del-table').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const tI = parseInt(btn.dataset.gidx);
@@ -724,6 +828,7 @@ function bindTableEvents(){
         confirmDeleteTable(tI);
       });
     });
+
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
       b.addEventListener('click', ()=>{
         const card = b.closest('.item-card');
@@ -732,13 +837,18 @@ function bindTableEvents(){
         if(isNaN(tI) || isNaN(iI)) return;
         const before = tables[tI].items.length;
         tables[tI].items.splice(iI, 1);
-        if(before > 0 && tables[tI].items.length === 0) tables.splice(tI, 1);
-        renderAllTables(); scheduleSave();
+        if(before > 0 && tables[tI].items.length === 0){
+          tables.splice(tI, 1);
+        }
+        renderAllTables();
+        scheduleSave();
       });
     });
+
     gt.querySelectorAll('.row-btn.brush').forEach(b=>{
       b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
     });
+
     gt.querySelectorAll('.item-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
         const card = chk.closest('.item-card');
@@ -749,39 +859,68 @@ function bindTableEvents(){
           tables[tI].items[iI].selecionado = ganho;
         }
         card.classList.toggle('row-ganho-item', ganho);
-        if(ganho){ [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c)); }
-        else { const cor = card.dataset.cor || ''; if(cor && COLORS[cor]) card.classList.add('row-color-'+cor); }
+        if(ganho){
+          [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
+        } else {
+          const cor = card.dataset.cor || '';
+          if(cor && COLORS[cor]) card.classList.add('row-color-'+cor);
+        }
         recalcAll();
       });
     });
+
     gt.querySelectorAll('.grupo-icon-btn.add-item').forEach(btn=>{
-      btn.addEventListener('click', ()=>{ const gI = parseInt(btn.dataset.gidx); addNewItem(gI); });
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        addNewItem(gI);
+      });
     });
     gt.querySelectorAll('.grupo-icon-btn.add-range').forEach(btn=>{
-      btn.addEventListener('click', ()=>{ const gI = parseInt(btn.dataset.gidx); openRangeModal(gI); });
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        openRangeModal(gI);
+      });
+    });
+    gt.querySelectorAll('.grupo-icon-btn.cotacao-group').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const gI = parseInt(btn.dataset.gidx);
+        openQuoteModal(gI);
+      });
     });
   });
 }
 
-function autoResizeAll(){ document.querySelectorAll('.item-card textarea').forEach(ta=>autoResize(ta)); }
-function autoResize(el){ if(!el) return; el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
+function autoResizeAll(){
+  document.querySelectorAll('.item-card textarea').forEach(ta=>autoResize(ta));
+}
+function autoResize(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight) + 'px';
+}
 
 function readTableState(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
     const tIdx = parseInt(gt.dataset.gidx);
     if(isNaN(tIdx) || !tables[tIdx]) return;
     const cards = [...gt.querySelectorAll('.item-card[data-idx]')];
-    tables[tIdx].items = cards.map(card=>{
+    const newItems = cards.map(card=>{
       const o = {};
       card.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
-      o.item = o.item ?? ''; o.descricao = o.descricao ?? ''; o.qtd = num(o.qtd);
-      o.und = o.und ?? 'UN'; o.marca = o.marca ?? ''; o.modelo = o.modelo ?? '';
-      o.estimadoUnt = num(o.estimadoUnt); o.custoUnt = num(o.custoUnt);
+      o.item = o.item ?? '';
+      o.descricao = o.descricao ?? '';
+      o.qtd = num(o.qtd);
+      o.und = o.und ?? 'UN';
+      o.marca = o.marca ?? '';
+      o.modelo = o.modelo ?? '';
+      o.estimadoUnt = num(o.estimadoUnt);
+      o.custoUnt = num(o.custoUnt);
       o.porcentagem = num(o.porcentagem ?? 149);
       o.selecionado = card.querySelector('.item-chk').checked;
       o.cor = card.dataset.cor || '';
       return o;
     });
+    tables[tIdx].items = newItems;
   });
 }
 
@@ -813,8 +952,10 @@ function recalcAll(doSave = true){
       const qtd = num(card.querySelector('[data-k="qtd"]').value);
       const cu = num(card.querySelector('[data-k="custoUnt"]').value);
       const pct = num(card.querySelector('[data-k="porcentagem"]').value);
-      const estT = estU * qtd; const ct = cu * qtd;
-      const vu = cu * pct / 100; const vt = vu * qtd;
+      const estT = estU * qtd;
+      const ct = cu * qtd;
+      const vu = cu * pct / 100;
+      const vt = vu * qtd;
       card.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
       card.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
       card.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
@@ -851,16 +992,20 @@ async function persistItems(){
       vendedorId: current.vendedor_id, vendedor: current.vendedor,
       numeroPregao: current.numero_pregao, uasg: current.uasg, nomeOrgao: current.nome_orgao,
       cidade: current.cidade, uf: current.uf, telefone: current.telefone, email: current.email,
-      dataRegistro: current.data_registro, dataPregao: current.data_pregao,
-      horarioPregao: current.horario_pregao, modalidade: current.modalidade,
+      dataRegistro: current.data_registro,
+      dataPregao: current.data_pregao, horarioPregao: current.horario_pregao,
+      modalidade: current.modalidade,
       bancoPagamento: current.banco_pagamento, requisitos: current.requisitos || {},
-      status: current.status || '', validadeProposta: current.validade_proposta,
+      status: current.status || '',
+      validadeProposta: current.validade_proposta,
       prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
-      items: allItems, grupos: groupTitles()
+      items: allItems,
+      grupos: groupTitles()
     };
     await api(`/api/licitacoes/${current.id}`, { method:'PUT', body: JSON.stringify(body) });
     lastSnapshot = cur;
-    current.items = allItems; current.grupos = groupTitles();
+    current.items = allItems;
+    current.grupos = groupTitles();
     const idx = records.findIndex(r=>r.id===current.id);
     if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
     toastSuccess('Dados atualizados.');
@@ -883,13 +1028,15 @@ function openColorPop(btn){
     b.addEventListener('click', e => {
       e.stopPropagation();
       const card = btn.closest('.item-card');
-      const tI = parseInt(card.dataset.tidx); const iI = parseInt(card.dataset.idx);
+      const tI = parseInt(card.dataset.tidx);
+      const iI = parseInt(card.dataset.idx);
       [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
       const chk = card.querySelector('.item-chk');
       card.dataset.cor = c;
       if(!chk.checked) card.classList.add('row-color-'+c);
       if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = c;
-      closeColorPop(); scheduleSave();
+      closeColorPop();
+      scheduleSave();
     });
     pop.appendChild(b);
   });
@@ -900,11 +1047,13 @@ function openColorPop(btn){
   clr.addEventListener('click', e => {
     e.stopPropagation();
     const card = btn.closest('.item-card');
-    const tI = parseInt(card.dataset.tidx); const iI = parseInt(card.dataset.idx);
+    const tI = parseInt(card.dataset.tidx);
+    const iI = parseInt(card.dataset.idx);
     [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
     card.dataset.cor = '';
     if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = '';
-    closeColorPop(); scheduleSave();
+    closeColorPop();
+    scheduleSave();
   });
   pop.appendChild(clr);
   document.body.appendChild(pop);
@@ -925,7 +1074,8 @@ $('backItems').addEventListener('click', async ()=>{
   document.querySelector('.search-bar').style.display = '';
   document.querySelector('.filters').style.display = '';
   document.querySelector('.month-nav').style.display = '';
-  document.querySelector('.fab-group').style.display = '';
+  $('itemsFab').hidden = true;
+  $('mainFab').hidden = false;
   loadList();
 });
 
@@ -935,7 +1085,8 @@ function addNewItem(tIdx){
   const next = Math.max(0, ...t.items.map(x=>num(x.item))) + 1;
   t.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
   t.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderAllTables(); scheduleSave();
+  renderAllTables();
+  scheduleSave();
 }
 
 function openRangeModal(tIdx){
@@ -951,7 +1102,9 @@ $('confirmRange').addEventListener('click', ()=>{
   close('rangeModal');
   addItemRangeToTable(pendingRangeTIdx, values);
 });
-$('rangeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); } });
+$('rangeInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); }
+});
 
 function parseRangeOrdered(raw){
   const values = [];
@@ -963,11 +1116,18 @@ function parseRangeOrdered(raw){
       if(b < a){ toastError(`Intervalo em ordem decrescente: ${p}`); return null; }
       if(b - a > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
       for(let n=a; n<=b; n++) values.push(n);
-    } else if(/^\d+$/.test(p)){ values.push(Number(p)); }
-    else { toastError(`Intervalo inválido: ${p}`); return null; }
+    } else if(/^\d+$/.test(p)){
+      values.push(Number(p));
+    } else {
+      toastError(`Intervalo inválido: ${p}`);
+      return null;
+    }
   }
   for(let i=1; i<values.length; i++){
-    if(values[i] <= values[i-1]){ toastError('Intervalos devem estar em ordem crescente e sem repetições.'); return null; }
+    if(values[i] <= values[i-1]){
+      toastError('Intervalos devem estar em ordem crescente e sem repetições.');
+      return null;
+    }
   }
   return values;
 }
@@ -977,10 +1137,16 @@ function addItemRangeToTable(tIdx, nums){
   if(!t) return;
   const existing = new Set(t.items.map(x=>String(num(x.item))));
   const dups = nums.filter(n=>existing.has(String(n)));
-  if(dups.length){ toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':'')); return; }
-  nums.forEach(n=>t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' }));
+  if(dups.length){
+    toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':''));
+    return;
+  }
+  nums.forEach(n=>{
+    t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+  });
   t.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderAllTables(); scheduleSave();
+  renderAllTables();
+  scheduleSave();
 }
 
 $('itemSearch').addEventListener('input', applyFilters);
@@ -1031,37 +1197,54 @@ $('syncItemsBtn').addEventListener('click', async ()=>{
   }catch(e){ toastError(e.message); }
 });
 
-$('cotacaoBtn').addEventListener('click', ()=>{
+// ─── Cotação POR GRUPO ─────────────────────────────────
+function openQuoteModal(tIdx){
+  quoteTIdx = tIdx;
   quoteMode = null;
   document.querySelectorAll('.quote-option').forEach(b=>b.classList.remove('selected'));
   $('quoteRange').value = '';
+  const t = tables[tIdx];
+  const nome = t && t.titulo ? `do grupo "${up(t.titulo)}"` : 'da tabela principal';
+  const helper = $('quoteHelper');
+  if(helper) helper.textContent = `Modelo de cotação (${nome}):`;
   open('quoteModal');
-});
+}
+
 document.querySelectorAll('.quote-option').forEach(b=>b.addEventListener('click', ()=>{
   quoteMode = b.dataset.quote;
   document.querySelectorAll('.quote-option').forEach(x=>x.classList.toggle('selected', x===b));
 }));
+
 $('confirmQuote').addEventListener('click', ()=>{
+  if(quoteTIdx === null || !tables[quoteTIdx]){ toastError('Nenhuma tabela selecionada.'); return; }
   if(!quoteMode){ toastError('Selecione o modelo de cotação.'); return; }
   const values = parseRangeOrdered($('quoteRange').value);
   if(values === null) return;
   if(!values.length){ toastError('Informe o intervalo de itens.'); return; }
+
   readTableState();
+  const t = tables[quoteTIdx];
   const selected = [];
-  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
-    const tI = parseInt(card.dataset.tidx); const iI = parseInt(card.dataset.idx);
-    const x = tables[tI]?.items?.[iI];
-    if(!x) return;
-    if(values.includes(num(x.item))){
+
+  t.items.forEach((x, i)=>{
+    if(!values.includes(num(x.item))) return;
+    const card = document.querySelector(`.item-card[data-tidx="${quoteTIdx}"][data-idx="${i}"]`);
+    if(card){
       [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
       const chk = card.querySelector('.item-chk');
-      card.dataset.cor = 'amarelo'; x.cor = 'amarelo';
+      card.dataset.cor = 'amarelo';
       if(!chk.checked) card.classList.add('row-color-amarelo');
-      selected.push(x);
     }
+    x.cor = 'amarelo';
+    selected.push(x);
   });
-  if(!selected.length){ toastError('Nenhum item encontrado no intervalo informado.'); return; }
+
+  if(!selected.length){
+    toastError('Nenhum item encontrado no intervalo informado para esta tabela.');
+    return;
+  }
   selected.sort((a,b)=>num(a.item)-num(b.item));
+
   const hr = new Date().getHours();
   const greeting = hr < 12 ? 'Bom dia' : (hr < 18 ? 'Boa tarde' : 'Boa noite');
   const linhas = selected.map((x,i)=>{
@@ -1070,10 +1253,13 @@ $('confirmQuote').addEventListener('click', ()=>{
     return `${seq} - ${alvo}\n${num(x.qtd)} ${up(x.und||'')}`;
   }).join('\n\n');
   const msg = `${greeting}, tudo bem?\n\nGostaria de solicitar um orçamento para os seguintes itens:\n\n${linhas}\n\nPoderia realizar este processo, por gentileza?`;
+
   navigator.clipboard.writeText(msg)
     .then(()=>toastSuccess('Cotação copiada para a área de transferência.'))
     .catch(()=>toastError('Não foi possível copiar a cotação.'));
-  close('quoteModal'); scheduleSave();
+  close('quoteModal');
+  quoteTIdx = null;
+  scheduleSave();
 });
 
 $('pdfBtn').addEventListener('click', ()=>{
@@ -1096,8 +1282,12 @@ $('confirmDoc').addEventListener('click', ()=>{
 });
 
 function safeFilename(name){
-  return String(name || 'PROPOSTA').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
-    .replace(/\s+/g, ' ').replace(/[.\s]+$/g, '').trim().slice(0, 180) || 'PROPOSTA';
+  return String(name || 'PROPOSTA')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+    .trim()
+    .slice(0, 180) || 'PROPOSTA';
 }
 function triggerDownload(blob, filename){
   const safe = safeFilename(filename);
@@ -1113,8 +1303,16 @@ function fileBase(r){
   const uasg = (r.uasg||'').trim();
   return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
 }
-async function loadBanksIfNeeded(){ if(banks && banks.length) return; try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; } }
-function loadImg(src){ return new Promise(res=>{ const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = ()=>res(i); i.onerror = ()=>res(null); i.src = src; }); }
+async function loadBanksIfNeeded(){
+  if(banks && banks.length) return;
+  try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
+}
+function loadImg(src){
+  return new Promise(res=>{
+    const i = new Image(); i.crossOrigin = 'anonymous';
+    i.onload = ()=>res(i); i.onerror = ()=>res(null); i.src = src;
+  });
+}
 function imgToData(img, maxW, alpha){
   if(!img || !img.width) return null;
   try{
@@ -1225,7 +1423,7 @@ async function runPdf(){
     { w: tw*0.12, t:'PREÇO UNIT.', a:'center' },
     { w: tw*0.12, t:'PREÇO TOTAL', a:'center' }
   ];
-  const LH = 3.6; const HLH = 3.3;
+  const LH = 3.6, HLH = 3.3;
 
   const drawHead = () => {
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
@@ -1250,7 +1448,8 @@ async function runPdf(){
     if(g.titulo){
       if(y + 20 > limitY){ doc.addPage(); y = 15; }
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
-      doc.text(up(g.titulo), margin, y); y += 5;
+      doc.text(up(g.titulo), margin, y);
+      y += 5;
     }
     drawHead();
     g.linhas.forEach(({ it, vUnt, vTot }, idx) => {
@@ -1371,17 +1570,20 @@ async function gerarDocWord(){
       const subtotal = g.titulo ? `<p class="group-total">TOTAL ${esc(up(g.titulo))}: ${money(g.total)}</p>` : '';
       return `${title}<table class="dados">
         <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
-        <tbody>${rows}</tbody></table>${subtotal}`;
+        <tbody>${rows}</tbody>
+      </table>${subtotal}`;
     }).join('');
 
     const logoCell = logo
       ? `<td style="border:none;padding:0 8pt 0 0;vertical-align:middle;width:${logoWpt}pt;">
            <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}"
-                style="width:${logoWpt}pt;height:${logoHpt}pt;"></td>` : '';
+                style="width:${logoWpt}pt;height:${logoHpt}pt;"></td>`
+      : '';
 
     const html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40" lang="pt-BR">
-<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>${esc(safeFilename(fileBase(current)))}</title>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
 <style>
@@ -1445,7 +1647,8 @@ async function gerarDocWord(){
     E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
   </p>
 </div>
-</body></html>`;
+</body>
+</html>`;
 
     const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
     triggerDownload(blob, `${safeFilename(fileBase(current))}.doc`);
