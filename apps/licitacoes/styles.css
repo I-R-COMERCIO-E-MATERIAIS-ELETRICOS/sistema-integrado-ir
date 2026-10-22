@@ -511,3 +511,41 @@ button.cancel-close{background:#dc2626;color:#fff}
   .items-page { padding: 0.5rem; }
   .items-page .items-table { min-width: 1050px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AJUSTE EXTRA: página de itens em telas desktop pequenas
+   (Adicionar no final do arquivo styles.css)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 1200px) {
+  .items-table thead th { font-size: 9px; padding: 6px 3px; line-height: 1.15; }
+  .items-table td { font-size: 10px; padding: 4px 2px; }
+  .items-table input,
+  .items-table textarea { font-size: 10px; padding: 3px 1px; }
+  .items-table .checkbox-label-styled { width: 32px; height: 32px; }
+  .items-table .styled-checkbox { width: 32px; height: 32px; }
+  .grupo-titulo-input { font-size: .9rem; }
+}
+
+@media (max-width: 960px) {
+  .items-page { padding: 1.25rem 1rem; }
+  .items-header h2 { font-size: 1.35rem; }
+  .totals-bar { gap: 1rem; padding: 10px 14px; }
+  .totals-item strong { font-size: .95rem; }
+  .grupo-header { gap: .35rem; }
+  .btn-toggle-table { font-size: 11px; padding: 5px 10px; }
+}
+
+@media (max-width: 768px) {
+  .items-page { padding: .75rem; }
+  .items-header { flex-direction: column; align-items: stretch; gap: .5rem; }
+  .items-header h2 { font-size: 1.15rem; }
+  .items-page .search-bar { padding: .5rem; }
+  .items-page .search-bar input { font-size: .85rem; }
+  .items-page .items-table { min-width: 0; }
+  .items-table thead th { font-size: 8px; padding: 5px 2px; }
+  .items-table td { font-size: 9px; padding: 3px 1px; }
+  .items-table input,
+  .items-table textarea { font-size: 9px; padding: 2px 1px; }
+  .items-table .checkbox-label-styled { width: 26px; height: 26px; }
+  .items-table .styled-checkbox { width: 26px; height: 26px; }
+}
