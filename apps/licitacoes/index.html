@@ -122,7 +122,6 @@
         </div>
       </div>
       <button type="button" class="sync-btn" id="pdfBtn" title="Gerar documento"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line></svg></button>
-      <button type="button" class="sync-btn" id="cotacaoBtn" title="Cotação de Preço"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></button>
       <button type="button" class="sync-btn" id="syncItemsBtn" title="Sincronizar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
     </div>
   </div>
@@ -283,7 +282,7 @@
       <h3 class="modal-title">Cotação de Preço</h3>
       <button type="button" class="close-modal" data-close="quoteOverlay">✕</button>
     </div>
-    <p class="helper">Modelo de cotação:</p>
+    <p class="helper" id="quoteHelper">Modelo de cotação:</p>
     <div class="quote-options">
       <button type="button" class="quote-option" data-quote="descricao">DESCRIÇÃO</button>
       <button type="button" class="quote-option" data-quote="modelo">MODELO</button>
