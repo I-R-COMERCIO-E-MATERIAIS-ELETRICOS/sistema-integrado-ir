@@ -11,8 +11,6 @@ const SIGN_SRC = '/apps/imagens/assinatura.png';
 
 const reqs = ['CERTIFICADO IBAMA','REGISTRO DE PREÇO','INSTALAÇÃO/INSPEÇÃO','VISITA TÉCNICA/ENSAIO','ENVIO DE AMOSTRA','ATESTADO DE CAPACIDADE','GARANTIA DE PROPOSTA','INFORMAÇÕES SOBRE ICMS'];
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-// amarelo permanece porque a feature de cotação o utiliza como marcador;
-// a paleta do pincel agora é: azul, cinza, vermelho, laranja
 const COLORS = { amarelo:'#fef9c3', azul:'#bfdbfe', cinza:'#e5e7eb', vermelho:'#fca5a5', laranja:'#fed7aa' };
 const STATUS_LABEL = {
   aguardando:'AGUARDANDO DISPUTA',
@@ -91,13 +89,8 @@ function triggerGlobalLogout(message) {
   let inIframe = false;
   try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
   if (inIframe) {
-    try {
-      window.top.postMessage({ type: 'IR_LOGOUT', message: msg, source: 'licitacoes' }, '*');
-    } catch (e) { }
-    try {
-      window.top.location.href = PORTAL_URL + '/?logout=1&reason=session';
-      return;
-    } catch (e) { }
+    try { window.top.postMessage({ type: 'IR_LOGOUT', message: msg, source: 'licitacoes' }, '*'); } catch (e) { }
+    try { window.top.location.href = PORTAL_URL + '/?logout=1&reason=session'; return; } catch (e) { }
     return;
   }
   window.location.href = PORTAL_URL + '/?logout=1&reason=session';
@@ -207,14 +200,14 @@ $('uf').innerHTML += states.map(s=>`<option>${s}</option>`).join('');
 $('requirements').innerHTML = reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
 $('requirements').querySelectorAll('[data-req]').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('selected')));
 
-const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-prazos','tab-detail'];
-const TAB_KEYS = ['info','orgao','req','prazos','detail'];
+const TAB_IDS = ['tab-info','tab-orgao','tab-req','tab-prazos'];
+const TAB_KEYS = ['info','orgao','req','prazos'];
 function setTab(n){
-  activeTab = Math.max(0, Math.min(4, n));
+  activeTab = Math.max(0, Math.min(3, n));
   document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach((b,i)=>b.classList.toggle('active', i===activeTab));
   TAB_IDS.forEach((id,i)=>$(id).classList.toggle('active', i===activeTab));
   $('prevTab').style.display = activeTab===0 ? 'none' : '';
-  $('nextTab').style.display = activeTab===4 ? 'none' : '';
+  $('nextTab').style.display = activeTab===3 ? 'none' : '';
 }
 document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach(b=>{
   b.addEventListener('click', ()=>{
@@ -225,7 +218,7 @@ document.querySelectorAll('.tabs-nav .tab-btn[data-tab]').forEach(b=>{
 $('prevTab').addEventListener('click', ()=>setTab(activeTab-1));
 $('nextTab').addEventListener('click', ()=>setTab(activeTab+1));
 
-const VIEW_TABS = ['vinfo','vorgao','vreq','vprazos','vdetail'];
+const VIEW_TABS = ['vinfo','vorgao','vreq','vprazos'];
 function setViewTab(id){
   document.querySelectorAll('[data-vtab]').forEach(b=>b.classList.toggle('active', b.dataset.vtab===id));
   VIEW_TABS.forEach(i=>$(i).classList.toggle('active', i===id));
@@ -290,11 +283,11 @@ async function loadOpcoes(){
     users = o.users || []; banks = o.banks || [];
     const sel = $('vendedor'); const old = sel.value;
     sel.innerHTML = '<option value="">Selecione o vendedor</option>' +
-      users.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
+      users.map(u=>`<option value="${esc(u.id)}">${esc(u.firstName || u.name)}</option>`).join('');
     if(old) sel.value = old;
 
     const fv = $('filterVendedor'); const fvOld = fv.value;
-    const uniq = [...new Set(users.map(u=>up(u.name)))].sort();
+    const uniq = [...new Set(users.map(u=>up(u.firstName || u.name)))].sort();
     fv.innerHTML = '<option value="">Todos os Vendedores</option>' +
       uniq.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
     if(fvOld) fv.value = fvOld;
@@ -467,8 +460,6 @@ function newRecord(){
   $('modalidade').value = 'ABERTO';
   $('bancoPagamento').value = 'BANCO DO BRASIL';
   $('statusManual').value = '';
-  $('atualizadoPor').value = '';
-  $('ultimaAtualizacao').value = '';
   $('dataRegistro').value = todayStr();
   $('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.remove('selected'));
   open('formOverlay');
@@ -500,8 +491,6 @@ function editRecord(id){
   const stManual = String(r.status || '').toLowerCase();
   $('statusManual').value = ['suspenso','encerrado','cancelado'].includes(stManual) ? stManual : '';
   $('requirements').querySelectorAll('.requirement').forEach(b=>b.classList.toggle('selected', !!(r.requisitos||{})[b.dataset.req]));
-  $('atualizadoPor').value = r.atualizado_por || '';
-  $('ultimaAtualizacao').value = r.ultima_atualizacao ? new Date(r.ultima_atualizacao).toLocaleString('pt-BR') : '';
   setTab(0);
   open('formOverlay');
 }
@@ -627,11 +616,6 @@ function viewRecord(id){
       <p><b>Validade da proposta:</b> ${esc(up(r.validade_proposta)||'—')}</p>
       <p><b>Prazo de entrega:</b> ${esc(up(r.prazo_entrega)||'—')}</p>
       <p><b>Prazo de pagamento:</b> ${esc(up(r.prazo_pagamento)||'—')}</p>
-    </div>`;
-  $('vdetail').innerHTML = `
-    <div>
-      <p><b>Atualizado por:</b> ${esc(r.atualizado_por||'—')}</p>
-      <p><b>Última atualização:</b> ${r.ultima_atualizacao ? new Date(r.ultima_atualizacao).toLocaleString('pt-BR') : '—'}</p>
     </div>`;
   setViewTab('vinfo');
   open('viewOverlay');
@@ -1129,7 +1113,6 @@ function openColorPop(btn){
   pop.className = 'color-pop';
   pop.style.top = (rect.bottom+6)+'px';
   pop.style.left = Math.max(8, rect.left-60)+'px';
-  // Paleta do pincel: azul, cinza, vermelho, laranja
   ['azul','cinza','vermelho','laranja'].forEach(c=>{
     const b = document.createElement('button');
     b.style.background = COLORS[c];
@@ -1528,7 +1511,7 @@ function propostaDados(){
 async function runPdf(){
   const { jsPDF } = window.jspdf;
   const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
-  const { groups, total, bank } = propostaDados();
+  const { groups, bank } = propostaDados();
 
   const doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
   const margin = 15, pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
@@ -1629,19 +1612,22 @@ async function runPdf(){
     });
 
     if(g.titulo){
-      if(y + 8 > limitY){ doc.addPage(); y = 20; }
+      // Espaço para o total não sobrepor a última linha da tabela
+      y += 5;
+      if(y + 10 > limitY){
+        doc.addPage(); y = 20;
+      }
       doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
       doc.text(`TOTAL ${up(g.titulo)}: ${money(g.total)}`, pw - margin, y, { align:'right' });
       y += 6;
     }
   });
 
-  y += 4;
+  // Sem "VALOR TOTAL" final — cada grupo tem seu próprio total (conforme solicitado)
+  y += 10;
   if(y + 45 > limitY){ doc.addPage(); y = 20; }
   doc.setTextColor(0,0,0);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.text(`VALOR TOTAL: ${money(total)}`, pw - margin, y, { align:'right' }); y += 8;
-  doc.setFontSize(9);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
   doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
   doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
