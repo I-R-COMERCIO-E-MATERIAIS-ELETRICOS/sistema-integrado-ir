@@ -126,7 +126,6 @@ const api = async (url, opts = {}) => {
 
 function toastSuccess(msg){ const t=$('toast'); t.className='toast success'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3000); }
 function toastError(msg){ const t=$('toast'); t.className='toast error'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3000); }
-function toastWarn(msg){ const t=$('toast'); t.className='toast warn'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3200); }
 
 function open(id){ const el=$(id); if(el){ el.classList.add('show'); el.setAttribute('aria-hidden','false'); } }
 function close(id){ const el=$(id); if(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); } }
@@ -540,9 +539,7 @@ function normalizeTables(r){
 function flatItems(){
   const all = [];
   tables.forEach(t=>{
-    t.items.forEach(it=>{
-      all.push({ ...it, grupo: t.titulo });
-    });
+    t.items.forEach(it=>{ all.push({ ...it, grupo: t.titulo }); });
   });
   return all;
 }
@@ -556,11 +553,11 @@ function showItems(id){
   tables.forEach(t=>t.items.sort((a,b)=>num(a.item)-num(b.item)));
   $('itemsTitle').textContent = `Pregão ${up(current.numero_pregao)}`;
   $('itemsSubtitle').textContent = up(current.nome_orgao || '');
+  document.body.classList.add('items-view');
   $('list').style.display = 'none';
   document.querySelector('.search-bar').style.display = 'none';
   document.querySelector('.filters').style.display = 'none';
   document.querySelector('.month-nav').style.display = 'none';
-  $('fabGroupHide');
   document.querySelector('.fab-group').style.display = 'none';
   $('itemsPage').hidden = false;
   renderAllTables();
@@ -614,7 +611,7 @@ function renderAllTables(){
 
 function renderSingleTable(t, tIdx){
   const isMain = !t.titulo;
-  const rowsHTML = t.items.map((it, i)=>itemRowHTML(it, tIdx, i)).join('');
+  const cardsHTML = t.items.map((it, i)=>itemCardHTML(it, tIdx, i)).join('');
   const totais = computeTotals(t.items);
   const titleHTML = isMain
     ? ''
@@ -631,36 +628,13 @@ function renderSingleTable(t, tIdx){
           <button type="button" class="grupo-icon-btn add-range" data-gidx="${tIdx}" title="Adicionar Intervalo">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
           </button>
-          <button type="button" class="grupo-icon-btn del-table" data-gidx="${tIdx}" title="Excluir tabela inteira">
+          <button type="button" class="grupo-icon-btn del-table" data-gidx="${tIdx}" title="Excluir grupo/tabela">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
       </div>
-      <div class="items-card">
-        <div class="items-wrap">
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width:5%;">✓</th>
-                <th style="width:4%;">ITEM</th>
-                <th style="width:22%;">DESCRIÇÃO</th>
-                <th style="width:4.5%;">QTD</th>
-                <th style="width:4%;">UND</th>
-                <th style="width:6.5%;">MARCA</th>
-                <th style="width:6.5%;">MODELO</th>
-                <th style="width:6.5%;">ESTIM. UNT</th>
-                <th style="width:6.5%;">ESTIM. TOTAL</th>
-                <th style="width:6.5%;">CUSTO UNT</th>
-                <th style="width:6.5%;">CUSTO TOTAL</th>
-                <th style="width:4.5%;">%</th>
-                <th style="width:6.5%;">VENDA UNT</th>
-                <th style="width:6.5%;">VENDA TOTAL</th>
-                <th style="width:5%;"></th>
-              </tr>
-            </thead>
-            <tbody>${rowsHTML || '<tr><td colspan="15" style="text-align:center;padding:20px;">Nenhum item</td></tr>'}</tbody>
-          </table>
-        </div>
+      <div class="items-cards">
+        ${cardsHTML || '<div class="empty-mini">Nenhum item</div>'}
       </div>
       <div class="totals-bar">
         <div class="totals-item"><span>ESTIMADO</span><strong>${money(totais.estimado)}</strong></div>
@@ -670,9 +644,9 @@ function renderSingleTable(t, tIdx){
     </div>`;
 }
 
-function itemRowHTML(it, tIdx, idx){
+function itemCardHTML(it, tIdx, idx){
   const sel = it.selecionado !== false;
-  const cls = [];
+  const cls = ['item-card'];
   if(sel) cls.push('row-ganho-item');
   else if(it.cor && COLORS[it.cor]) cls.push('row-color-'+it.cor);
   const custoTotal = num(it.custoUnt) * num(it.qtd);
@@ -681,33 +655,79 @@ function itemRowHTML(it, tIdx, idx){
   const vendaTotal = vendaUnt * num(it.qtd);
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
-  return `<tr data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}" class="${cls.join(' ')}">
-    <td style="text-align:center;">
+
+  return `<div class="${cls.join(' ')}" data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}">
+    <div class="item-card-top">
       <div class="checkbox-wrapper">
         <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${tIdx}-${idx}" ${sel?'checked':''}>
         <label for="it-chk-${tIdx}-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
       </div>
-    </td>
-    <td><input class="itemno" data-k="item" value="${esc(it.item??'')}"></td>
-    <td><textarea class="desc" data-k="descricao" rows="1">${esc(it.descricao??'')}</textarea></td>
-    <td><input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}"></td>
-    <td><input class="unit" data-k="und" value="${esc(up(it.und??'UN'))}"></td>
-    <td><input data-k="marca" value="${esc(up(it.marca??''))}"></td>
-    <td><input data-k="modelo" value="${esc(up(it.modelo??''))}"></td>
-    <td><input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt!==undefined && it.estimadoUnt!=='' ? fmtNum(it.estimadoUnt) : '')}"></td>
-    <td><input class="num calculated" data-k="estimadoTotal" readonly value="${esc(fmtNum(estimTotal))}"></td>
-    <td><input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt!==undefined && it.custoUnt!=='' ? fmtNum(it.custoUnt) : '')}"></td>
-    <td><input class="num calculated" data-k="custoTotal" readonly value="${esc(fmtNum(custoTotal))}"></td>
-    <td><input class="num" data-k="porcentagem" inputmode="decimal" value="${esc(fmtNum(it.porcentagem??149, 0))}"></td>
-    <td><input class="num calculated" data-k="vendaUnt" readonly value="${esc(fmtNum(vendaUnt))}"></td>
-    <td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}"></td>
-    <td>
-      <div class="row-actions">
-        <button type="button" class="row-btn brush" title="Cor"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg></button>
-        <button type="button" class="row-btn del" title="Excluir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="item-card-number">
+        <span class="item-card-number-label">ITEM</span>
+        <input class="itemno" data-k="item" inputmode="numeric" value="${esc(it.item??'')}">
       </div>
-    </td>
-  </tr>`;
+      <div class="item-card-actions">
+        <button type="button" class="row-btn brush" title="Cor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg>
+        </button>
+        <button type="button" class="row-btn del" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="item-field full">
+      <label>Descrição</label>
+      <textarea data-k="descricao" rows="2" placeholder="Descrição do item">${esc(it.descricao??'')}</textarea>
+    </div>
+
+    <div class="item-fields">
+      <div class="item-field">
+        <label>Qtd</label>
+        <input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}">
+      </div>
+      <div class="item-field">
+        <label>Und</label>
+        <input data-k="und" value="${esc(up(it.und??'UN'))}">
+      </div>
+      <div class="item-field">
+        <label>Marca</label>
+        <input data-k="marca" value="${esc(up(it.marca??''))}">
+      </div>
+      <div class="item-field">
+        <label>Modelo</label>
+        <input data-k="modelo" value="${esc(up(it.modelo??''))}">
+      </div>
+      <div class="item-field">
+        <label>Estim. Unt</label>
+        <input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt!==undefined && it.estimadoUnt!=='' ? fmtNum(it.estimadoUnt) : '')}">
+      </div>
+      <div class="item-field">
+        <label>Estim. Total</label>
+        <input class="num calculated" data-k="estimadoTotal" readonly value="${esc(fmtNum(estimTotal))}">
+      </div>
+      <div class="item-field">
+        <label>Custo Unt</label>
+        <input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt!==undefined && it.custoUnt!=='' ? fmtNum(it.custoUnt) : '')}">
+      </div>
+      <div class="item-field">
+        <label>Custo Total</label>
+        <input class="num calculated" data-k="custoTotal" readonly value="${esc(fmtNum(custoTotal))}">
+      </div>
+      <div class="item-field">
+        <label>%</label>
+        <input class="num" data-k="porcentagem" inputmode="decimal" value="${esc(fmtNum(it.porcentagem??149, 0))}">
+      </div>
+      <div class="item-field">
+        <label>Venda Unt</label>
+        <input class="num calculated" data-k="vendaUnt" readonly value="${esc(fmtNum(vendaUnt))}">
+      </div>
+      <div class="item-field full">
+        <label>Venda Total</label>
+        <input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}">
+      </div>
+    </div>
+  </div>`;
 }
 
 function computeTotals(list){
@@ -786,9 +806,9 @@ function bindTableEvents(){
 
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
       b.addEventListener('click', ()=>{
-        const tr = b.closest('tr');
-        const tI = parseInt(tr.dataset.tidx);
-        const iI = parseInt(tr.dataset.idx);
+        const card = b.closest('.item-card');
+        const tI = parseInt(card.dataset.tidx);
+        const iI = parseInt(card.dataset.idx);
         if(isNaN(tI) || isNaN(iI)) return;
         const before = tables[tI].items.length;
         tables[tI].items.splice(iI, 1);
@@ -806,19 +826,19 @@ function bindTableEvents(){
 
     gt.querySelectorAll('.item-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
-        const tr = chk.closest('tr');
-        const tI = parseInt(tr.dataset.tidx);
-        const iI = parseInt(tr.dataset.idx);
+        const card = chk.closest('.item-card');
+        const tI = parseInt(card.dataset.tidx);
+        const iI = parseInt(card.dataset.idx);
         const ganho = chk.checked;
         if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
           tables[tI].items[iI].selecionado = ganho;
         }
-        tr.classList.toggle('row-ganho-item', ganho);
+        card.classList.toggle('row-ganho-item', ganho);
         if(ganho){
-          [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
+          [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
         } else {
-          const cor = tr.dataset.cor || '';
-          if(cor && COLORS[cor]) tr.classList.add('row-color-'+cor);
+          const cor = card.dataset.cor || '';
+          if(cor && COLORS[cor]) card.classList.add('row-color-'+cor);
         }
         recalcAll();
       });
@@ -839,17 +859,23 @@ function bindTableEvents(){
   });
 }
 
-function autoResizeAll(){ document.querySelectorAll('.items-table textarea').forEach(ta=>autoResize(ta)); }
-function autoResize(el){ if(!el) return; el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
+function autoResizeAll(){
+  document.querySelectorAll('.item-card textarea').forEach(ta=>autoResize(ta));
+}
+function autoResize(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight) + 'px';
+}
 
 function readTableState(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
     const tIdx = parseInt(gt.dataset.gidx);
     if(isNaN(tIdx) || !tables[tIdx]) return;
-    const rows = [...gt.querySelectorAll('tbody tr[data-idx]')];
-    const newItems = rows.map(tr=>{
+    const cards = [...gt.querySelectorAll('.item-card[data-idx]')];
+    const newItems = cards.map(card=>{
       const o = {};
-      tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
+      card.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
       o.item = o.item ?? '';
       o.descricao = o.descricao ?? '';
       o.qtd = num(o.qtd);
@@ -859,8 +885,8 @@ function readTableState(){
       o.estimadoUnt = num(o.estimadoUnt);
       o.custoUnt = num(o.custoUnt);
       o.porcentagem = num(o.porcentagem ?? 149);
-      o.selecionado = tr.querySelector('.item-chk').checked;
-      o.cor = tr.dataset.cor || '';
+      o.selecionado = card.querySelector('.item-chk').checked;
+      o.cor = card.dataset.cor || '';
       return o;
     });
     tables[tIdx].items = newItems;
@@ -890,23 +916,23 @@ function recalcAll(doSave = true){
     const t = tables[tIdx];
     if(!t) return;
     let e=0,c=0,v=0;
-    gt.querySelectorAll('tbody tr[data-idx]').forEach(tr=>{
-      const estU = num(tr.querySelector('[data-k="estimadoUnt"]').value);
-      const qtd = num(tr.querySelector('[data-k="qtd"]').value);
-      const cu = num(tr.querySelector('[data-k="custoUnt"]').value);
-      const pct = num(tr.querySelector('[data-k="porcentagem"]').value);
+    gt.querySelectorAll('.item-card[data-idx]').forEach(card=>{
+      const estU = num(card.querySelector('[data-k="estimadoUnt"]').value);
+      const qtd = num(card.querySelector('[data-k="qtd"]').value);
+      const cu = num(card.querySelector('[data-k="custoUnt"]').value);
+      const pct = num(card.querySelector('[data-k="porcentagem"]').value);
       const estT = estU * qtd;
       const ct = cu * qtd;
       const vu = cu * pct / 100;
       const vt = vu * qtd;
-      tr.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
-      tr.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
-      tr.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
-      tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
+      card.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
+      card.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
+      card.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
+      card.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
       const warn = vu > estU && estU > 0;
-      tr.classList.toggle('row-warn', warn);
+      card.classList.toggle('row-warn', warn);
       if(warn){
-        const itemN = tr.querySelector('[data-k="item"]').value;
+        const itemN = card.querySelector('[data-k="item"]').value;
         warnings.push(`O item ${itemN || '?'} possui valor unitário de venda superior ao estimado unitário.`);
       }
       e += estT; c += ct; v += vt;
@@ -970,13 +996,13 @@ function openColorPop(btn){
     b.title = c.charAt(0).toUpperCase()+c.slice(1);
     b.addEventListener('click', e => {
       e.stopPropagation();
-      const tr = btn.closest('tr');
-      const tI = parseInt(tr.dataset.tidx);
-      const iI = parseInt(tr.dataset.idx);
-      [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
-      const chk = tr.querySelector('.item-chk');
-      tr.dataset.cor = c;
-      if(!chk.checked) tr.classList.add('row-color-'+c);
+      const card = btn.closest('.item-card');
+      const tI = parseInt(card.dataset.tidx);
+      const iI = parseInt(card.dataset.idx);
+      [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
+      const chk = card.querySelector('.item-chk');
+      card.dataset.cor = c;
+      if(!chk.checked) card.classList.add('row-color-'+c);
       if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = c;
       closeColorPop();
       scheduleSave();
@@ -989,11 +1015,11 @@ function openColorPop(btn){
   clr.style.borderRadius = '4px'; clr.textContent = '×'; clr.title = 'Limpar';
   clr.addEventListener('click', e => {
     e.stopPropagation();
-    const tr = btn.closest('tr');
-    const tI = parseInt(tr.dataset.tidx);
-    const iI = parseInt(tr.dataset.idx);
-    [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
-    tr.dataset.cor = '';
+    const card = btn.closest('.item-card');
+    const tI = parseInt(card.dataset.tidx);
+    const iI = parseInt(card.dataset.idx);
+    [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
+    card.dataset.cor = '';
     if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = '';
     closeColorPop();
     scheduleSave();
@@ -1011,6 +1037,7 @@ $('backItems').addEventListener('click', async ()=>{
   clearTimeout(saveTimer);
   await persistItems();
   updateWarnings([]);
+  document.body.classList.remove('items-view');
   $('itemsPage').hidden = true;
   $('list').style.display = '';
   document.querySelector('.search-bar').style.display = '';
@@ -1095,24 +1122,24 @@ function applyFilters(){
   const q = $('itemSearch').value.toLowerCase().trim();
   const marca = $('filterMarca').value.trim();
   const itens = $('filterItens').value;
-  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
-    const desc = (tr.querySelector('[data-k="descricao"]').value||'').toLowerCase();
-    const itemN = (tr.querySelector('[data-k="item"]').value||'').toLowerCase();
-    const marcaTr = (tr.querySelector('[data-k="marca"]').value||'').toUpperCase();
-    const sel = tr.querySelector('.item-chk').checked;
+  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
+    const desc = (card.querySelector('[data-k="descricao"]').value||'').toLowerCase();
+    const itemN = (card.querySelector('[data-k="item"]').value||'').toLowerCase();
+    const marcaTr = (card.querySelector('[data-k="marca"]').value||'').toUpperCase();
+    const sel = card.querySelector('.item-chk').checked;
     let show = true;
     if(q && !(desc.includes(q) || itemN.includes(q))) show = false;
     if(marca && marcaTr !== marca) show = false;
     if(itens === 'ganhos' && !sel) show = false;
     if(itens === 'nao-ganhos' && sel) show = false;
-    tr.style.display = show ? '' : 'none';
+    card.style.display = show ? '' : 'none';
   });
 }
 
 function updateMarcaFilter(){
   const marcas = new Set();
-  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
-    const m = (tr.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
+  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
+    const m = (card.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
     if(m) marcas.add(m);
   });
   const sel = $('filterMarca'); const old = sel.value;
@@ -1154,17 +1181,17 @@ $('confirmQuote').addEventListener('click', ()=>{
 
   readTableState();
   const selected = [];
-  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
-    const tI = parseInt(tr.dataset.tidx);
-    const iI = parseInt(tr.dataset.idx);
+  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
+    const tI = parseInt(card.dataset.tidx);
+    const iI = parseInt(card.dataset.idx);
     const x = tables[tI]?.items?.[iI];
     if(!x) return;
     if(values.includes(num(x.item))){
-      [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
-      const chk = tr.querySelector('.item-chk');
-      tr.dataset.cor = 'amarelo';
+      [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
+      const chk = card.querySelector('.item-chk');
+      card.dataset.cor = 'amarelo';
       x.cor = 'amarelo';
-      if(!chk.checked) tr.classList.add('row-color-amarelo');
+      if(!chk.checked) card.classList.add('row-color-amarelo');
       selected.push(x);
     }
   });
