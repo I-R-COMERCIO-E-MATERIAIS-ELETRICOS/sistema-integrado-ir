@@ -50,14 +50,27 @@ module.exports = function (supabase) {
   router.get('/licitacoes/opcoes', async (req, res) => {
     try {
       const [{ data: profiles, error: pErr }, { data: banks, error: bErr }] = await Promise.all([
-        supabase.from('profiles').select('id,name,username,is_admin,is_active,apps').eq('is_active', true).order('name'),
+        supabase.from('profiles')
+          .select('id,name,username,sector,is_admin,is_active,apps')
+          .eq('is_active', true)
+          .order('name'),
         supabase.from(bankTable).select('*').order('nome_banco')
       ]);
       if (pErr) throw pErr;
       if (bErr && !String(bErr.message || '').includes('does not exist')) throw bErr;
+
       const users = (profiles || [])
-        .filter(p => p.is_admin || (Array.isArray(p.apps) ? p.apps : []).includes('licitacoes'))
-        .map(p => ({ id: p.id, name: p.name || p.username }));
+        .filter(p => {
+          const apps = Array.isArray(p.apps) ? p.apps : [];
+          if (p.is_admin) return true;
+          return p.sector === 'Vendas' && apps.includes('licitacoes');
+        })
+        .map(p => {
+          const full = p.name || p.username || '';
+          const first = String(full).trim().split(/\s+/)[0] || '';
+          return { id: p.id, name: full, firstName: first };
+        });
+
       res.json({ users, banks: banks || [] });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
