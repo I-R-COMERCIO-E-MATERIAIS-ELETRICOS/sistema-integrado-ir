@@ -1289,4 +1289,222 @@ async function runPdf(){
     if(gIdx > 0) y += 6;
     if(g.titulo){
       if(y + 20 > limitY){ doc.addPage(); y = 15; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+      doc.text(up(g.titulo), margin, y); y += 5;
+    }
+    drawHead();
+    g.linhas.forEach(({ it, vUnt, vTot }, idx) => {
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+      const cells = [
+        String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''),
+        up(it.descricao || ''), up(it.marca || ''), up(it.modelo || ''),
+        money(vUnt), money(vTot)
+      ];
+      const wrapped = cells.map((t,i) => hardWrap(doc, t, cols[i].w - 3));
+      const needed = Math.max(7, Math.max(...wrapped.map(w=>w.length)) * LH + 3);
+
+      if(y + needed > limitY){
+        doc.addPage(); y = 15;
+        if(g.titulo){
+          doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+          doc.text(up(g.titulo), margin, y); y += 5;
+        }
+        drawHead();
+        doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      }
+
+      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
+      let x = margin;
+      doc.setDrawColor(120,120,120); doc.setLineWidth(0.2);
+      cols.forEach((c, i)=>{
+        doc.rect(x, y, c.w, needed, 'S');
+        const tx = c.a==='right' ? x + c.w - 1.5 : (c.a==='center' ? x + c.w/2 : x + 1.5);
+        wrapped[i].forEach((ln, k)=> doc.text(ln, tx, y + 4 + k*LH, { align: c.a }));
+        x += c.w;
+      });
+      y += needed;
+    });
+    if(g.titulo){
+      y += 5;
+      if(y + 10 > limitY){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+      doc.text(`TOTAL ${up(g.titulo)}: ${money(g.total)}`, pw - margin, y, { align:'right' });
+      y += 6;
+    }
+  });
+
+  y += 10;
+  if(y + 45 > limitY){ doc.addPage(); y = 20; }
+  doc.setTextColor(0,0,0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
+  doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
+  doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
+  doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, y); y += 10;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
+  const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
+  const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
+  const l1 = doc.splitTextToSize(d1, tw);
+  if(y + l1.length*4 + 20 > limitY){ doc.addPage(); y = 20; }
+  doc.text(l1, pw/2, y, { align:'center' }); y += l1.length*4 + 4;
+  doc.text(d2, pw/2, y, { align:'center' }); y += 6;
+  doc.text(d3, pw/2, y, { align:'center' }); y += 14;
+
+  const sign = assets && assets.sign;
+  const iw = 55;
+  const ih = sign ? (sign.h / sign.w) * iw : 20;
+  const blockH = 12 + 14 + ih + 14 + 5 + 4 + 4;
+  if(y + blockH > limitY){ doc.addPage(); y = 20; }
+
+  const dt = new Date();
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
+  y += 14;
+  if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
+  y += ih + 14;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, y, { align:'center' }); y += 5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, y, { align:'center' }); y += 4;
+  doc.text('DIRETORA', pw/2, y, { align:'center' });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let i=1; i<=totalPages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
+    const yBase = ph - 20;
+    doc.text('RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES', pw/2, yBase, { align:'center' });
+    doc.text('TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058', pw/2, yBase+3.5, { align:'center' });
+    doc.text('CNPJ: 33.149.502/0001-38', pw/2, yBase+7, { align:'center' });
+    doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
+    doc.setTextColor(0,0,0);
+  }
+  doc.save(`${safeFilename(fileBase(current))}.pdf`);
+  toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
+}
+
+async function gerarDocWord(){
+  if(!current) return;
+  if(pdfBusy) return;
+  pdfBusy = true;
+  try{
+    const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
+    const { groups, total, bank } = propostaDados();
+    const dt = new Date();
+    const logo = assets && assets.logo;
+    const logoWpt = Math.round(40 * 2.8346);
+    const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
+    const topMargin = Math.round(14 + Math.max(logoHpt, 34) + 18);
+
+    const groupsHTML = groups.map(g => {
+      const rows = g.linhas.map(({ it, vUnt, vTot })=>`<tr>
+        <td>${esc(it.item)}</td><td>${esc(it.qtd)}</td><td>${esc(up(it.und))}</td>
+        <td class="desc">${esc(up(it.descricao))}</td>
+        <td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
+        <td>${money(vUnt)}</td><td>${money(vTot)}</td>
+      </tr>`).join('');
+      const title = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
+      const subtotal = g.titulo ? `<p class="group-total">TOTAL ${esc(up(g.titulo))}: ${money(g.total)}</p>` : '';
+      return `${title}<table class="dados">
+        <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>${subtotal}`;
+    }).join('');
+
+    const logoCell = logo
+      ? `<td style="border:none;padding:0 8pt 0 0;vertical-align:middle;width:${logoWpt}pt;">
+           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}"
+                style="width:${logoWpt}pt;height:${logoHpt}pt;"></td>` : '';
+
+    const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40" lang="pt-BR">
+<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>${esc(safeFilename(fileBase(current)))}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+  @page Section1 { size: 595.3pt 841.9pt; margin: ${topMargin}pt 26pt 70pt 26pt; mso-header-margin: 14pt; mso-footer-margin: 22pt; mso-header: h1; mso-footer: f1; }
+  div.Section1 { page: Section1; }
+  body { font: 10pt Arial, sans-serif; color: #111; }
+  h3 { margin: 6pt 0; font-size: 11pt; text-align: left; }
+  p { margin: 4pt 0; }
+  table.dados { width: 100%; border-collapse: collapse; margin: 12pt 0; font-size: 8pt; }
+  table.dados th, table.dados td { border: 1px solid #444; padding: 4pt 3pt; vertical-align: middle; text-align: center; word-wrap: break-word; }
+  table.dados td.desc { text-align: left; }
+  table.dados th { background: #f0f0f0; white-space: nowrap; }
+  .group-title { font-weight: bold; font-size: 10pt; margin: 14pt 0 2pt; text-transform: uppercase; }
+  .group-total { text-align: right; font-weight: bold; margin: 4pt 0 0; }
+  table.hdr { width: auto; border-collapse: collapse; margin: 0; font-size: 11pt; }
+  table.hdr td { border: none; padding: 0; }
+  .total { text-align: right; font-weight: bold; margin: 8pt 0; }
+  .decl { text-align: center; margin: 10pt 0; line-height: 1.5; }
+  .date { text-align: center; margin-top: 26pt; }
+  p.sign-space { height: 58pt; line-height: 58pt; mso-line-height-rule: exactly; margin: 0; font-size: 10pt; }
+  .sign-name { text-align: center; font-weight: bold; margin: 0; }
+  .sign-sub { text-align: center; font-size: 9pt; margin: 0; }
+</style>
+</head>
+<body>
+<div class="Section1">
+  <h3>AO ${esc(up(current.nome_orgao))}</h3>
+  <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
+  <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
+  ${groupsHTML}
+  <p class="total">VALOR TOTAL: ${money(total)}</p>
+  <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
+  <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
+  <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
+  <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
+  <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
+  <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
+  <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
+  <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
+  <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
+  <p class="date">SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}</p>
+  <p class="sign-space">&nbsp;</p>
+  <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
+  <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
+  <p class="sign-sub">DIRETORA</p>
+</div>
+<div style="mso-element:header" id="h1">
+  <div class="MsoHeader">
+    <table class="hdr"><tr>${logoCell}
+      <td style="border:none;padding:0;vertical-align:middle;white-space:nowrap;">
+        <p style="margin:0;color:#969696;font-weight:bold;font-size:17pt;line-height:20pt;font-family:Arial,sans-serif;">I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA</p>
+      </td>
+    </tr></table>
+  </div>
+</div>
+<div style="mso-element:footer" id="f1">
+  <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
+    RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
+    TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>
+    CNPJ: 33.149.502/0001-38<br>
+    E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
+  </p>
+</div>
+</body></html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+    triggerDownload(blob, `${safeFilename(fileBase(current))}.doc`);
+    toastSuccess('Documento Word gerado');
+  }catch(e){ toastError(e.message || 'Falha ao gerar documento.'); }
+  finally{ pdfBusy = false; }
+}
+
+async function startApp(){
+  if(booted) return;
+  booted = true;
+  updateMonthDisplay();
+  await loadOpcoes();
+  await Promise.all([loadList(), loadStats()]);
+  setInterval(()=>{ Promise.all([loadList(), loadStats()]); }, 30000);
+}
+
+if (DEVELOPMENT_MODE) { sessionToken = 'dev-mode'; startApp(); }
+else { verificarAutenticacao(); }
+
+})();
