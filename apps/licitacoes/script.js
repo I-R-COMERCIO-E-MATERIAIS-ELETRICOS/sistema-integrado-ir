@@ -1630,13 +1630,13 @@ async function runPdf(){
       y += needed;
     });
 
-    if(g.titulo){
-      y += 5;
-      if(y + 10 > limitY){ doc.addPage(); y = 20; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-      doc.text(`TOTAL ${up(g.titulo)}: ${money(g.total)}`, pw - margin, y, { align:'right' });
-      y += 6;
-    }
+    // ── Total em CADA tabela (com ou sem grupo) ──
+    y += 5;
+    if(y + 10 > limitY){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    const totalLabel = g.titulo ? `TOTAL ${up(g.titulo)}` : 'TOTAL';
+    doc.text(`${totalLabel}: ${money(g.total)}`, pw - margin, y, { align:'right' });
+    y += 6;
   });
 
   y += 10;
@@ -1716,8 +1716,9 @@ async function gerarDocWord(){
         <td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
         <td>${money(vUnt)}</td><td>${money(vTot)}</td>
       </tr>`).join('');
-      const title    = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
-      const subtotal = g.titulo ? `<p class="group-total">TOTAL ${esc(up(g.titulo))}: ${money(g.total)}</p>` : '';
+      const title      = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
+      const totalLabel = g.titulo ? `TOTAL ${esc(up(g.titulo))}` : 'TOTAL';
+      const subtotal   = `<p class="group-total">${totalLabel}: ${money(g.total)}</p>`;
       return `${title}<table class="dados">
         <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
         <tbody>${rows}</tbody>
