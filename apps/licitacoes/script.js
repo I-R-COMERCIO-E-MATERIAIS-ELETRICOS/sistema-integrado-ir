@@ -1707,7 +1707,9 @@ async function gerarDocWord(){
     const logo    = assets && assets.logo;
     const logoWpt = Math.round(40 * 2.8346);
     const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
-    const topMargin = Math.round(20 + Math.max(logoHpt, 34) + 20);
+    
+    // Garante que o topo tenha espaço suficiente para o cabeçalho
+    const topMargin = Math.max(120, Math.round(20 + logoHpt + 30));
 
     const groupsHTML = groups.map(g => {
       const rows = g.linhas.map(({ it, vUnt, vTot })=>`<tr>
@@ -1720,9 +1722,10 @@ async function gerarDocWord(){
       const title = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
       const totalLabel = g.titulo ? `TOTAL ${esc(up(g.titulo))}` : 'TOTAL';
       
+      // O total agora é a última linha (TR) da tabela, sem bordas laterais para ficar limpo
       const totalRow = `<tr>
-        <td colspan="7" style="text-align:right; font-weight:bold; border-top:2px solid #444; background-color:#f9f9f9; padding: 6pt 4pt;">${totalLabel}</td>
-        <td style="font-weight:bold; border-top:2px solid #444; background-color:#f9f9f9; padding: 6pt 4pt;">${money(g.total)}</td>
+        <td colspan="7" style="text-align:right; font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${totalLabel}:</td>
+        <td style="font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${money(g.total)}</td>
       </tr>`;
 
       return `${title}<table class="dados">
@@ -1733,7 +1736,7 @@ async function gerarDocWord(){
 
     const logoCell = logo
       ? `<td style="border:none; padding:0; vertical-align:middle; width:${logoWpt}pt;">
-           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}" style="width:${logoWpt}pt; height:${logoHpt}pt;">
+           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}" style="width:${logoWpt}pt; height:${logoHpt}pt; max-width:100%;">
          </td>`
       : '';
 
@@ -1759,7 +1762,7 @@ async function gerarDocWord(){
   @page Section1 {
     size: 595.3pt 841.9pt;
     margin: ${topMargin}pt 26pt 70pt 26pt;
-    mso-header-margin: ${topMargin - 20}pt;
+    mso-header-margin: 20pt;
     mso-footer-margin: 22pt;
     mso-header: h1;
     mso-footer: f1;
@@ -1787,6 +1790,24 @@ async function gerarDocWord(){
 </style>
 </head>
 <body>
+
+<!-- CABEÇALHO NO TOPO DO BODY -->
+<div style="mso-element:header" id="h1">
+  <div class="MsoHeader">
+    <table width="100%" style="border-collapse:collapse; border:none; margin:0; padding:0;">
+      <tr>
+        ${logoCell}
+        <td style="border:none; padding:0 0 0 10pt; vertical-align:middle;">
+          <p style="margin:0; color:#969696; font-weight:bold; font-size:16pt; line-height:18pt; mso-line-height-rule:exactly; font-family:Arial,sans-serif;">
+            I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- CONTEÚDO -->
 <div class="Section1">
   <h3>AO ${esc(up(current.nome_orgao))}</h3>
   <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
@@ -1808,20 +1829,8 @@ async function gerarDocWord(){
   <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
   <p class="sign-sub">DIRETORA</p>
 </div>
-<div style="mso-element:header" id="h1">
-  <div class="MsoHeader">
-    <table width="100%" style="border-collapse:collapse; border:none; margin:0; padding:0;">
-      <tr>
-        ${logoCell}
-        <td style="border:none; padding:0 0 0 10pt; vertical-align:middle;">
-          <p style="margin:0; color:#969696; font-weight:bold; font-size:17pt; line-height:20pt; mso-line-height-rule:exactly; font-family:Arial,sans-serif;">
-            I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA
-          </p>
-        </td>
-      </tr>
-    </table>
-  </div>
-</div>
+
+<!-- RODAPÉ -->
 <div style="mso-element:footer" id="f1">
   <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
     RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
@@ -1830,6 +1839,7 @@ async function gerarDocWord(){
     E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
   </p>
 </div>
+
 </body>
 </html>`;
 
