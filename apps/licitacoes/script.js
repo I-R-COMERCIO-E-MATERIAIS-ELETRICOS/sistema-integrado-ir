@@ -1707,7 +1707,7 @@ async function gerarDocWord(){
     const logo    = assets && assets.logo;
     const logoWpt = Math.round(40 * 2.8346);
     const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
-    const topMargin = Math.round(14 + Math.max(logoHpt, 34) + 18);
+    const topMargin = Math.round(20 + Math.max(logoHpt, 34) + 20);
 
     const groupsHTML = groups.map(g => {
       const rows = g.linhas.map(({ it, vUnt, vTot })=>`<tr>
@@ -1716,19 +1716,24 @@ async function gerarDocWord(){
         <td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
         <td>${money(vUnt)}</td><td>${money(vTot)}</td>
       </tr>`).join('');
-      const title      = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
+      
+      const title = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
       const totalLabel = g.titulo ? `TOTAL ${esc(up(g.titulo))}` : 'TOTAL';
-      const subtotal   = `<p class="group-total">${totalLabel}: ${money(g.total)}</p>`;
+      
+      const totalRow = `<tr>
+        <td colspan="7" style="text-align:right; font-weight:bold; border-top:2px solid #444; background-color:#f9f9f9; padding: 6pt 4pt;">${totalLabel}</td>
+        <td style="font-weight:bold; border-top:2px solid #444; background-color:#f9f9f9; padding: 6pt 4pt;">${money(g.total)}</td>
+      </tr>`;
+
       return `${title}<table class="dados">
         <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>${subtotal}`;
+        <tbody>${rows}${totalRow}</tbody>
+      </table>`;
     }).join('');
 
     const logoCell = logo
-      ? `<td style="border:none;padding:0 8pt 0 0;vertical-align:middle;width:${logoWpt}pt;">
-           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}"
-                style="width:${logoWpt}pt;height:${logoHpt}pt;">
+      ? `<td style="border:none; padding:0; vertical-align:middle; width:${logoWpt}pt;">
+           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}" style="width:${logoWpt}pt; height:${logoHpt}pt;">
          </td>`
       : '';
 
@@ -1754,7 +1759,7 @@ async function gerarDocWord(){
   @page Section1 {
     size: 595.3pt 841.9pt;
     margin: ${topMargin}pt 26pt 70pt 26pt;
-    mso-header-margin: 14pt;
+    mso-header-margin: ${topMargin - 20}pt;
     mso-footer-margin: 22pt;
     mso-header: h1;
     mso-footer: f1;
@@ -1772,10 +1777,7 @@ async function gerarDocWord(){
   table.dados td.desc { text-align: left; }
   table.dados th { background: #f0f0f0; white-space: nowrap; }
   .group-title { font-weight: bold; font-size: 10pt; margin: 14pt 0 2pt; text-transform: uppercase; }
-  .group-total { text-align: right; font-weight: bold; margin: 4pt 0 0; }
-  table.hdr { width: auto; border-collapse: collapse; margin: 0; font-size: 11pt; }
-  table.hdr td { border: none; padding: 0; }
-  .total { text-align: right; font-weight: bold; margin: 8pt 0; }
+  .total { text-align: right; font-weight: bold; margin: 12pt 0; font-size: 11pt; }
   .decl { text-align: center; margin: 10pt 0; line-height: 1.5; }
   .date { text-align: center; margin-top: 26pt; }
   p.sign-space { height: 58pt; line-height: 58pt; mso-line-height-rule: exactly; margin: 0; font-size: 10pt; }
@@ -1790,7 +1792,7 @@ async function gerarDocWord(){
   <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
   <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
   ${groupsHTML}
-  <p class="total">VALOR TOTAL: ${money(total)}</p>
+  <p class="total">VALOR TOTAL GERAL: ${money(total)}</p>
   <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
   <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
   <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
@@ -1808,11 +1810,11 @@ async function gerarDocWord(){
 </div>
 <div style="mso-element:header" id="h1">
   <div class="MsoHeader">
-    <table class="hdr" style="border:none;border-collapse:collapse;margin:0;width:auto;">
+    <table width="100%" style="border-collapse:collapse; border:none; margin:0; padding:0;">
       <tr>
         ${logoCell}
-        <td style="border:none;padding:0;vertical-align:middle;white-space:nowrap;">
-          <p style="margin:0;color:#969696;font-weight:bold;font-size:17pt;line-height:20pt;mso-line-height-rule:exactly;font-family:Arial,sans-serif;">
+        <td style="border:none; padding:0 0 0 10pt; vertical-align:middle;">
+          <p style="margin:0; color:#969696; font-weight:bold; font-size:17pt; line-height:20pt; mso-line-height-rule:exactly; font-family:Arial,sans-serif;">
             I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA
           </p>
         </td>
