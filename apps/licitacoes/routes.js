@@ -59,11 +59,13 @@ module.exports = function (supabase) {
       if (pErr) throw pErr;
       if (bErr && !String(bErr.message || '').includes('does not exist')) throw bErr;
 
+      // FIX: Aceita qualquer variação de "vendas" (case-insensitive) e não exige mais
+      // a permissão 'licitacoes' no array apps para o vendedor aparecer na lista.
       const users = (profiles || [])
         .filter(p => {
-          const apps = Array.isArray(p.apps) ? p.apps : [];
           if (p.is_admin) return true;
-          return p.sector === 'Vendas' && apps.includes('licitacoes');
+          const sector = String(p.sector || '').trim().toLowerCase();
+          return sector === 'vendas';
         })
         .map(p => {
           const full = p.name || p.username || '';
