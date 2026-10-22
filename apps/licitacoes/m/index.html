@@ -52,7 +52,36 @@
   <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
 </div>
 
-<div class="fab-group">
+<!-- ══════════════ Página de ITENS ══════════════ -->
+<section class="items-page" id="itemsPage" hidden>
+  <div class="items-head">
+    <div class="items-head-text">
+      <h2 id="itemsTitle">Itens</h2>
+      <p id="itemsSubtitle" class="subtitle"></p>
+    </div>
+    <button class="icon-btn back-btn" id="backItems" type="button" aria-label="Voltar ao início" title="Voltar ao início">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </button>
+  </div>
+
+  <div class="search-bar">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="itemSearch" placeholder="Pesquisar item...">
+  </div>
+  <div class="filters">
+    <select id="filterMarca" class="filter-select"><option value="">Todas as Marcas</option></select>
+    <select id="filterItens" class="filter-select">
+      <option value="">Todos os Itens</option>
+      <option value="ganhos">Ganhos</option>
+      <option value="nao-ganhos">Não Ganhos</option>
+    </select>
+  </div>
+
+  <div id="tablesContainer"></div>
+</section>
+
+<!-- ══════════════ FAB principal (lista) ══════════════ -->
+<div class="fab-group" id="mainFab">
   <div class="icons-row">
     <button class="icon-btn" id="disputaBtn" type="button" aria-label="Alerta de disputa" title="Alerta de Disputa">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -72,45 +101,17 @@
   </button>
 </div>
 
-<!-- ══════════════ Página de ITENS ══════════════ -->
-<section class="items-page" id="itemsPage" hidden>
-  <div class="items-head">
-    <button class="icon-btn back-btn" id="backItems" type="button" aria-label="Voltar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </button>
-    <div class="items-head-text">
-      <h2 id="itemsTitle">Itens</h2>
-      <p id="itemsSubtitle" class="subtitle"></p>
-    </div>
-  </div>
-
-  <div class="search-bar">
-    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input id="itemSearch" placeholder="Pesquisar item...">
-  </div>
-  <div class="filters">
-    <select id="filterMarca" class="filter-select"><option value="">Todas as Marcas</option></select>
-    <select id="filterItens" class="filter-select">
-      <option value="">Todos os Itens</option>
-      <option value="ganhos">Ganhos</option>
-      <option value="nao-ganhos">Não Ganhos</option>
-    </select>
-  </div>
-
-  <div class="items-actions-row">
-    <button class="icon-btn" id="pdfBtn" type="button" title="Gerar documento">
+<!-- ══════════════ FAB de ITENS (pdf + sync) ══════════════ -->
+<div class="fab-group items-fab" id="itemsFab" hidden>
+  <div class="icons-row">
+    <button class="icon-btn" id="pdfBtn" type="button" aria-label="Gerar documento" title="Gerar documento">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
     </button>
-    <button class="icon-btn" id="cotacaoBtn" type="button" title="Cotação de Preço">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-    </button>
-    <button class="icon-btn" id="syncItemsBtn" type="button" title="Sincronizar">
+    <button class="icon-btn" id="syncItemsBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
     </button>
   </div>
-
-  <div id="tablesContainer"></div>
-</section>
+</div>
 
 <!-- ══════════════ MODAL: FORM ══════════════ -->
 <div class="modal" id="formModal" aria-hidden="true">
@@ -286,7 +287,7 @@
       <button class="modal-close" data-close="quoteModal" type="button" aria-label="Fechar">✕</button>
     </header>
     <div class="modal-body">
-      <p class="pane-hint">Modelo de cotação:</p>
+      <p class="pane-hint" id="quoteHelper">Modelo de cotação:</p>
       <div class="quote-options">
         <button type="button" class="quote-option" data-quote="descricao">DESCRIÇÃO</button>
         <button type="button" class="quote-option" data-quote="modelo">MODELO</button>
