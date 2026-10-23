@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F4F5F7">
+    <meta name="color-scheme" content="light only">
+    <title>Transportadoras</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/transportadoras/m/styles.css">
+    <script>
+        const PORTAL_URL = window.location.origin;
+        const DEVELOPMENT_MODE = false;
+    </script>
+</head>
+<body>
+
+<div class="search-bar">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="search" id="searchInput" placeholder="Buscar nome, representante, e-mail..." autocomplete="off">
+</div>
+
+<div class="dashboard-grid">
+  <div class="stat-card">
+    <div class="stat-value" id="statTotal">0</div>
+    <div class="stat-label">Total</div>
+  </div>
+  <div class="stat-card stat-success">
+    <div class="stat-value" id="statRegioes">0</div>
+    <div class="stat-label">Regiões</div>
+  </div>
+  <div class="stat-card stat-warning">
+    <div class="stat-value" id="statEstados">0</div>
+    <div class="stat-label">Estados</div>
+  </div>
+  <div class="stat-card stat-info">
+    <div class="stat-value" id="statFiltradas">0</div>
+    <div class="stat-label">Exibidas</div>
+  </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="empty-state" id="emptyState" hidden>
+  <div class="empty-icon">🚚</div>
+  <div class="empty-title">Nenhuma transportadora encontrada</div>
+  <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
+</div>
+
+<div class="fab-group">
+  <div class="icons-row">
+    <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+      </svg>
+    </button>
+  </div>
+  <button class="fab-register" id="addBtn" type="button" aria-label="Nova Transportadora" title="Nova Transportadora">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- MODAL: FORM -->
+<div class="modal" id="formModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="formTitle">Nova Transportadora</h2>
+      <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-tab="geral" type="button">Geral</button>
+      <button class="modal-tab" data-tab="atendimento" type="button">Atendimento</button>
+    </div>
+    <form id="transpForm" class="modal-body">
+      <input type="hidden" id="editId" value="">
+
+      <section class="tab-pane active" data-pane="geral">
+        <div class="field"><label>Nome *</label><input type="text" id="nome" required placeholder="NOME DA TRANSPORTADORA"></div>
+        <div class="field"><label>Representante</label><input type="text" id="representante" placeholder="Nome do representante"></div>
+        <div class="field"><label>E-mail *</label><input type="email" id="email" required placeholder="email@transportadora.com"></div>
+        <div class="field"><label>Telefones <small>(separe por vírgula)</small></label><input type="text" id="telefones" placeholder="(00) 0000-0000, (00) 0000-0000"></div>
+        <div class="field"><label>Celulares <small>(separe por vírgula)</small></label><input type="text" id="celulares" placeholder="(00) 00000-0000"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="atendimento">
+        <div class="field">
+          <label>Regiões atendidas</label>
+          <div id="regioesContainer" class="chips-container"></div>
+        </div>
+        <div class="field">
+          <label>Estados atendidos</label>
+          <div id="estadosContainer" class="chips-container"></div>
+        </div>
+      </section>
+    </form>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSave" type="submit" form="transpForm">Salvar</button>
+      <button class="btn btn-red" data-close="formModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: DELETE -->
+<div class="modal" id="deleteModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="deleteModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="deleteMsg">Tem certeza que deseja excluir esta transportadora?</div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="confirmDeleteBtn" type="button">Sim</button>
+      <button class="btn btn-red" data-close="deleteModal" type="button">Não</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/transportadoras/m/script.js"></script>
+</body>
+</html>
