@@ -7,6 +7,7 @@ const MODULE_SESSION_KEY = 'tabelaPrecosSession';
 const PAGE_SIZE = 20;
 
 let sessionToken = null;
+let currentUserName = null; // Variável adicionada para corrigir o erro
 let records = [];
 let currentPage = 1;
 let hasMorePages = false;
@@ -39,6 +40,7 @@ function verificarAutenticacao() {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 sessionToken = parsed.token || parsed.sessionToken || null;
+                currentUserName = parsed.name || parsed.nome || parsed.fullName || null; // Pega o nome
             }
         } catch (e) {}
     }
