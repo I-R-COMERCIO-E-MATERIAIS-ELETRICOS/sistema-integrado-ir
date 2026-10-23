@@ -59,8 +59,6 @@ module.exports = function (supabase) {
       if (pErr) throw pErr;
       if (bErr && !String(bErr.message || '').includes('does not exist')) throw bErr;
 
-      // FIX: Aceita qualquer variação de "vendas" (case-insensitive) e não exige mais
-      // a permissão 'licitacoes' no array apps para o vendedor aparecer na lista.
       const users = (profiles || [])
         .filter(p => {
           if (p.is_admin) return true;
@@ -77,8 +75,6 @@ module.exports = function (supabase) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Stats — total/ganhos/realizados do mês selecionado (data_registro).
-  // Alerta de Disputa é UNIVERSAL (todos os registros).
   router.get('/licitacoes/stats', async (req, res) => {
     try {
       const { data, error } = await supabase
