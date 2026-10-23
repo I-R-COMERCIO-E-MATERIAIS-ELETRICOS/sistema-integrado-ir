@@ -250,14 +250,75 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .info-label { font-weight: 700; color: var(--text-primary); white-space: nowrap; flex-shrink: 0; }
 .info-value { color: var(--text-primary); }
 
-.items-table { width: 100%; margin: 1rem 0; table-layout: fixed; border-collapse: collapse; }
-.items-table th, .items-table td { padding: 12px 8px; border: 1px solid var(--border-color); text-align: left; vertical-align: middle; overflow: hidden; }
-.items-table th { background: var(--th-bg); color: var(--th-color); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; white-space: nowrap; }
-.items-table input, .items-table textarea, .items-table select { padding: 10px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
-.items-table textarea { min-height: 70px; resize: vertical; }
+/* ═══════════════════════════════════════════════════════════════
+   TABELA DE ITENS — cabe 100% dentro do modal no desktop
+   (sem min-width fixo + larguras percentuais por coluna)
+   ═══════════════════════════════════════════════════════════════ */
+.items-table {
+    width: 100%;
+    margin: 1rem 0;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.items-table th,
+.items-table td {
+    padding: 10px 6px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: middle;
+    overflow: hidden;
+}
+.items-table th {
+    background: var(--th-bg);
+    color: var(--th-color);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.items-table input,
+.items-table textarea,
+.items-table select {
+    padding: 8px 6px;
+    font-size: 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.items-table textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+.items-table .danger.small {
+    padding: 6px 8px;
+    min-width: 0;
+    font-size: 0.8rem;
+}
 
-.items-table-container { width: 100%; overflow-x: auto; overflow-y: visible; margin: 1rem 0; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); }
-.items-table-container .items-table { margin: 0; min-width: 1300px; }
+/* Larguras exatas por coluna — somam 100% */
+.items-table th:nth-child(1), .items-table td:nth-child(1) { width: 6%;  }  /* Item          */
+.items-table th:nth-child(2), .items-table td:nth-child(2) { width: 11%; }  /* Cód. Estoque  */
+.items-table th:nth-child(3), .items-table td:nth-child(3) { width: 29%; }  /* Especificação */
+.items-table th:nth-child(4), .items-table td:nth-child(4) { width: 6%;  }  /* UN            */
+.items-table th:nth-child(5), .items-table td:nth-child(5) { width: 7%;  }  /* Qtd           */
+.items-table th:nth-child(6), .items-table td:nth-child(6) { width: 10%; }  /* Valor Un.     */
+.items-table th:nth-child(7), .items-table td:nth-child(7) { width: 10%; }  /* Valor Total   */
+.items-table th:nth-child(8), .items-table td:nth-child(8) { width: 11%; }  /* NCM           */
+.items-table th:nth-child(9), .items-table td:nth-child(9) { width: 10%; }  /* Ação          */
+
+.items-table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-card);
+}
+.items-table-container .items-table {
+    margin: 0;
+    min-width: 0;
+}
 
 .hidden { display: none !important; }
 
