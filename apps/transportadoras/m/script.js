@@ -111,27 +111,10 @@ async function loadTransportadoras() {
   try {
     const data = await api(`${API_URL}/transportadoras`);
     transportadoras = Array.isArray(data) ? data : (data.data || []);
-    renderAll();
+    renderList();
   } catch (e) {
     console.error(e);
   }
-}
-
-function renderAll() {
-  updateDashboard();
-  renderList();
-}
-
-function updateDashboard() {
-  const regioesSet = new Set();
-  const estadosSet = new Set();
-  transportadoras.forEach(t => {
-    (t.regioes || []).forEach(r => regioesSet.add(r));
-    (t.estados || []).forEach(e => estadosSet.add(e));
-  });
-  $('statTotal').textContent = transportadoras.length;
-  $('statRegioes').textContent = regioesSet.size;
-  $('statEstados').textContent = estadosSet.size;
 }
 
 function filteredTransportadoras() {
@@ -150,8 +133,6 @@ function renderList() {
   const wrap = $('list');
   const empty = $('emptyState');
   const filtered = filteredTransportadoras();
-
-  $('statFiltradas').textContent = filtered.length;
 
   if (!filtered.length) {
     wrap.innerHTML = '';
