@@ -429,12 +429,12 @@ function showFormModal(editingId) {
         '<div class="form-group"><label for="modalCodigo">Código *</label><input type="text" id="modalCodigo" value="' + codigoAtual + '" required autocomplete="off"></div>' +
         '<div class="form-group"><label for="modalAtualizadoPor">Atualizado por</label><input type="text" id="modalAtualizadoPor" value="' + escHtml(atualizadoPorValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
         '<div class="form-group"><label for="modalUltimaAtualizacao">Última Atualização</label><input type="text" id="modalUltimaAtualizacao" value="' + escHtml(ultimaAtualizacaoValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
-        '<div class="form-group full-width"><label for="modalDescricao">Descrição *</label><textarea id="modalDescricao" rows="2" required>' + descAtual + '</textarea></div>' +
+        '<div class="form-group"><label for="modalDescricao">Descrição *</label><input type="text" id="modalDescricao" value="' + descAtual + '" required></div>' +
         '</div>' +
         '</div>' +
         '<div class="tab-content" id="preco-tab-valores">' +
         '<div class="form-grid">' +
-        '<div class="form-group full-width"><label for="modalPreco">Preço (R$) *</label><input type="number" id="modalPreco" step="0.01" min="0.01" value="' + precoAtual + '" required></div>' +
+        '<div class="form-group"><label for="modalPreco">Preço (R$) *</label><input type="number" id="modalPreco" step="0.01" min="0.01" value="' + precoAtual + '" required></div>' +
         '</div>' +
         '</div>' +
         '<div class="modal-actions">' +
@@ -451,18 +451,12 @@ function showFormModal(editingId) {
     showPrecoTab(0);
 
     setTimeout(function () {
-        var autoResize = function (el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
-        };
         var ta = document.getElementById('modalDescricao');
         if (ta) {
-            autoResize(ta);
             ta.addEventListener('input', function (e) {
                 var start = e.target.selectionStart;
                 e.target.value = e.target.value.toUpperCase();
                 try { e.target.setSelectionRange(start, start); } catch (_) {}
-                autoResize(e.target);
             });
         }
         var marcaInput = document.getElementById('modalMarca');
