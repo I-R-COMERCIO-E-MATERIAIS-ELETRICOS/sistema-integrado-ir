@@ -20,7 +20,6 @@ const PRECO_TABS = ['produto', 'valores'];
 
 document.addEventListener('DOMContentLoaded', function () { verificarAutenticacao(); });
 
-// ─── AUTENTICAÇÃO ─────────────────────────────────────────────────────────────
 function verificarAutenticacao() {
     var urlParams = new URLSearchParams(window.location.search);
     var tokenFromUrl = urlParams.get('sessionToken');
@@ -64,7 +63,6 @@ function mostrarTelaAcessoNegado(mensagem) {
         '</div>';
 }
 
-// ─── INICIALIZAÇÃO ────────────────────────────────────────────────────────────
 function inicializarApp() {
     carregarTudo();
 
@@ -122,7 +120,6 @@ async function verificarConexao() {
     }
 }
 
-// ─── SINCRONIZAR ─────────────────────────────────────────────────────────────
 window.sincronizarDados = async function () {
     var btn = document.querySelector('.sync-btn');
     if (btn) { btn.classList.add('spinning'); btn.style.pointerEvents = 'none'; }
@@ -136,7 +133,6 @@ window.sincronizarDados = async function () {
     }
 };
 
-// ─── MARCAS ─────────────────────────────────────────────────────────────────
 async function atualizarMarcasDisponiveis() {
     try {
         var response = await fetchWithTimeout(
@@ -200,7 +196,6 @@ async function carregarTudo() {
     }
 }
 
-// ─── CARREGAR PREÇOS ─────────────────────────────────────────────────────────
 async function loadPrecos(page) {
     page = page || 1;
     if (state.isLoading) return;
@@ -281,7 +276,6 @@ function normalizePreco(p) {
     };
 }
 
-// ─── BUSCA COM DEBOUNCE ──────────────────────────────────────────────────────
 var searchDebounceTimer = null;
 window.filterPrecos = function () {
     var input = document.getElementById('search');
@@ -290,7 +284,6 @@ window.filterPrecos = function () {
     searchDebounceTimer = setTimeout(function () { loadPrecos(1); }, 300);
 };
 
-// ─── RENDER TABELA ───────────────────────────────────────────────────────────
 function renderPrecos() {
     var container = document.getElementById('precosTableBody');
     if (!container) return;
@@ -326,7 +319,6 @@ function escHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// ─── PAGINAÇÃO ───────────────────────────────────────────────────────────────
 function renderPaginacao() {
     var existing = document.getElementById('paginacaoContainer');
     if (existing) existing.remove();
@@ -373,7 +365,6 @@ function renderPaginacao() {
     tableCard.appendChild(div);
 }
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
 window.toggleForm = function () { showFormModal(null); };
 
 function showFormModal(editingId) {
@@ -476,7 +467,6 @@ function closeFormModal(showCancelMessage) {
     setTimeout(function () { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
 }
 
-// ─── SUBMIT ──────────────────────────────────────────────────────────────────
 async function handleSubmit(event) {
     event.preventDefault();
 
@@ -502,7 +492,7 @@ async function handleSubmit(event) {
         return;
     }
 
-    // Busca o nome do usuário logado direto da sessão
+    // Captura o nome do usuário direto da sessão
     var sessionData = {};
     try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); } catch (_) {}
     var nomeSessao = sessionData.name || sessionData.nome || sessionData.fullName || 'SISTEMA';
@@ -563,7 +553,6 @@ async function handleSubmit(event) {
     }
 }
 
-// ─── EDITAR / EXCLUIR ────────────────────────────────────────────────────────
 window.editPreco = function (id) {
     if (!id) return;
     showFormModal(id);
@@ -642,7 +631,6 @@ async function confirmDelete(id) {
     }
 }
 
-// ─── TEMPO RELATIVO ──────────────────────────────────────────────────────────
 function getTimeAgo(timestamp) {
     if (!timestamp) return 'Sem data';
     var past = new Date(timestamp);
@@ -656,7 +644,6 @@ function getTimeAgo(timestamp) {
     return past.toLocaleDateString('pt-BR');
 }
 
-// ─── TOAST ───────────────────────────────────────────────────────────────────
 function showToast(message, type) {
     type = type || 'success';
     document.querySelectorAll('.floating-message').forEach(function (m) { m.remove(); });
