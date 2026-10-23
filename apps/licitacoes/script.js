@@ -1057,4 +1057,792 @@ function recalcAll(doSave = true){
       tr.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
       tr.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
       tr.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
-      tr.querySelector('[data-k="
+      tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
+      const warn = vu > estU && estU > 0;
+      tr.classList.toggle('row-warn', warn);
+      if(warn){
+        const itemN = tr.querySelector('[data-k="item"]').value;
+        warnings.push(`O item ${itemN || '?'} possui valor unitário de venda superior ao estimado unitário.`);
+      }
+      e += estT; c += ct; v += vt;
+    });
+    const totBar = gt.querySelector('.totals-bar');
+    if(totBar){
+      const strongs = totBar.querySelectorAll('.totals-item strong');
+      if(strongs[0]) strongs[0].textContent = money(e);
+      if(strongs[1]) strongs[1].textContent = money(c);
+      if(strongs[2]) strongs[2].textContent = money(v);
+    }
+  });
+  updateWarnings(warnings);
+  if(doSave) scheduleSave();
+}
+
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistItems, 700);
+}
+
+async function persistItems(){
+  if(!current) return;
+  const allItems = flatItems();
+  const cur = JSON.stringify(allItems) + '|' + JSON.stringify(groupTitles());
+  if(cur === lastSnapshot) return;
+  try{
+    const body = {
+      vendedorId: current.vendedor_id, vendedor: current.vendedor,
+      numeroPregao: current.numero_pregao, uasg: current.uasg, nomeOrgao: current.nome_orgao,
+      cidade: current.cidade, uf: current.uf, telefone: current.telefone, email: current.email,
+      dataRegistro: current.data_registro,
+      dataPregao: current.data_pregao, horarioPregao: current.horario_pregao,
+      modalidade: current.modalidade,
+      bancoPagamento: current.banco_pagamento, requisitos: current.requisitos || {},
+      status: current.status || '',
+      validadeProposta: current.validade_proposta,
+      prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
+      items: allItems,
+      grupos: groupTitles()
+    };
+    await api(`/api/licitacoes/${current.id}`, { method:'PUT', body: JSON.stringify(body) });
+    lastSnapshot = cur;
+    current.items = allItems;
+    current.grupos = groupTitles();
+    const idx = records.findIndex(r=>r.id===current.id);
+    if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
+    toastSuccess('Dados Atualizados.');
+  }catch(e){ toastError('Falha ao salvar: '+e.message); }
+}
+
+function snapshotAll(){
+  return JSON.stringify(flatItems()) + '|' + JSON.stringify(groupTitles());
+}
+
+function openColorPop(btn){
+  closeColorPop();
+  const rect = btn.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'color-pop';
+  pop.style.top = (rect.bottom+6)+'px';
+  pop.style.left = Math.max(8, rect.left-60)+'px';
+  ['azul','cinza','vermelho','laranja'].forEach(c=>{
+    const b = document.createElement('button');
+    b.style.background = COLORS[c];
+    b.title = c.charAt(0).toUpperCase()+c.slice(1);
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const tr = btn.closest('tr');
+      const tI = parseInt(tr.dataset.tidx);
+      const iI = parseInt(tr.dataset.idx);
+      [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
+      const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = c;
+      if(!chk.checked){
+        tr.classList.add('row-color-'+c);
+      }
+      if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
+        tables[tI].items[iI].cor = c;
+      }
+      closeColorPop();
+      scheduleSave();
+    });
+    pop.appendChild(b);
+  });
+  const clr = document.createElement('button');
+  clr.style.background = '#fff'; clr.style.color = '#6b7280'; clr.style.fontSize = '10px';
+  clr.style.width = 'auto'; clr.style.minWidth = '24px'; clr.style.padding = '0 6px';
+  clr.style.borderRadius = '4px'; clr.textContent = '×'; clr.title = 'Limpar';
+  clr.addEventListener('click', e => {
+    e.stopPropagation();
+    const tr = btn.closest('tr');
+    const tI = parseInt(tr.dataset.tidx);
+    const iI = parseInt(tr.dataset.idx);
+    [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
+    tr.dataset.cor = '';
+    if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
+      tables[tI].items[iI].cor = '';
+    }
+    closeColorPop();
+    scheduleSave();
+  });
+  pop.appendChild(clr);
+  document.body.appendChild(pop);
+  colorPop = pop;
+}
+function closeColorPop(){
+  if(colorPop){ colorPop.remove(); colorPop = null; }
+}
+document.addEventListener('click', e=>{
+  if(colorPop && !colorPop.contains(e.target) && !e.target.closest('.row-btn.brush')) closeColorPop();
+});
+
+$('backItems').addEventListener('click', async ()=>{
+  clearTimeout(saveTimer);
+  await persistItems();
+  updateWarnings([]);
+  $('itemsPage').hidden = true;
+  $('mainContainer').hidden = false;
+  Promise.all([loadList(), loadStats()]);
+});
+
+function addNewItem(tIdx){
+  const t = tables[tIdx];
+  if(!t) return;
+  const next = Math.max(0, ...t.items.map(x=>num(x.item))) + 1;
+  t.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+  t.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderAllTables();
+  scheduleSave();
+}
+
+let pendingRangeTIdx = 0;
+function openRangeModal(tIdx){
+  pendingRangeTIdx = tIdx;
+  $('rangeInput').value = '';
+  open('rangeOverlay');
+  setTimeout(()=>$('rangeInput').focus(), 100);
+}
+$('confirmRange').addEventListener('click', ()=>{
+  const values = parseRangeOrdered($('rangeInput').value);
+  if(values === null) return;
+  if(!values.length){ toastError('Informe ao menos um item.'); return; }
+  close('rangeOverlay');
+  addItemRangeToTable(pendingRangeTIdx, values);
+});
+$('rangeInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); }
+});
+
+function parseRangeOrdered(raw){
+  const values = [];
+  for(const part of String(raw || '').split(',')){
+    const p = part.trim();
+    if(!p) continue;
+    if(/^\d+\s*-\s*\d+$/.test(p)){
+      const [a,b] = p.split('-').map(Number);
+      if(b < a){ toastError(`Intervalo em ordem decrescente: ${p}`); return null; }
+      if(b - a > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
+      for(let n=a; n<=b; n++) values.push(n);
+    } else if(/^\d+$/.test(p)){
+      values.push(Number(p));
+    } else {
+      toastError(`Intervalo inválido: ${p}`);
+      return null;
+    }
+  }
+  for(let i=1; i<values.length; i++){
+    if(values[i] <= values[i-1]){
+      toastError('Intervalos devem estar em ordem crescente e sem repetições.');
+      return null;
+    }
+  }
+  return values;
+}
+
+function addItemRangeToTable(tIdx, nums){
+  const t = tables[tIdx];
+  if(!t) return;
+  const existing = new Set(t.items.map(x=>String(num(x.item))));
+  const dups = nums.filter(n=>existing.has(String(n)));
+  if(dups.length){
+    toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':''));
+    return;
+  }
+  nums.forEach(n=>{
+    t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
+  });
+  t.items.sort((a,b)=>num(a.item)-num(b.item));
+  renderAllTables();
+  scheduleSave();
+}
+
+$('itemSearch').addEventListener('input', applyFilters);
+$('filterMarca').addEventListener('change', applyFilters);
+$('filterItens').addEventListener('change', applyFilters);
+function applyFilters(){
+  const q = $('itemSearch').value.toLowerCase().trim();
+  const marca = $('filterMarca').value.trim();
+  const itens = $('filterItens').value;
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
+    const desc = (tr.querySelector('[data-k="descricao"]').value||'').toLowerCase();
+    const itemN = (tr.querySelector('[data-k="item"]').value||'').toLowerCase();
+    const marcaTr = (tr.querySelector('[data-k="marca"]').value||'').toUpperCase();
+    const sel = tr.querySelector('.item-chk').checked;
+    let show = true;
+    if(q && !(desc.includes(q) || itemN.includes(q))) show = false;
+    if(marca && marcaTr !== marca) show = false;
+    if(itens === 'ganhos' && !sel) show = false;
+    if(itens === 'nao-ganhos' && sel) show = false;
+    tr.style.display = show ? '' : 'none';
+  });
+}
+
+function updateMarcaFilter(){
+  const marcas = new Set();
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
+    const m = (tr.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
+    if(m) marcas.add(m);
+  });
+  const sel = $('filterMarca'); const old = sel.value;
+  sel.innerHTML = '<option value="">Todas as Marcas</option>' +
+    [...marcas].sort().map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  if(old && marcas.has(old)) sel.value = old;
+}
+
+$('syncItemsBtn').addEventListener('click', async ()=>{
+  const b = $('syncItemsBtn'); b.classList.add('spin'); setTimeout(()=>b.classList.remove('spin'),1000);
+  try{
+    clearTimeout(saveTimer);
+    await persistItems();
+    const fresh = await api(`/api/licitacoes/${current.id}`);
+    current = fresh;
+    tables = normalizeTables(current);
+    tables.forEach(t=>t.items.sort((a,b)=>num(a.item)-num(b.item)));
+    renderAllTables();
+    lastSnapshot = snapshotAll();
+    toastSuccess('Dados sincronizados');
+  }catch(e){ toastError(e.message); }
+});
+
+function openQuoteModal(tIdx){
+  quoteTIdx = tIdx;
+  quoteMode = null;
+  document.querySelectorAll('.quote-option').forEach(b=>b.classList.remove('selected'));
+  $('quoteRange').value = '';
+  const t = tables[tIdx];
+  const nome = t && t.titulo ? `do grupo "${up(t.titulo)}"` : 'da tabela principal';
+  const helper = $('quoteHelper');
+  if(helper) helper.textContent = `Modelo de cotação (${nome}):`;
+  open('quoteOverlay');
+}
+
+document.querySelectorAll('.quote-option').forEach(b=>b.addEventListener('click', ()=>{
+  quoteMode = b.dataset.quote;
+  document.querySelectorAll('.quote-option').forEach(x=>x.classList.toggle('selected', x===b));
+}));
+
+$('confirmQuote').addEventListener('click', ()=>{
+  if(quoteTIdx === null || !tables[quoteTIdx]){ toastError('Nenhuma tabela selecionada.'); return; }
+  if(!quoteMode){ toastError('Selecione o modelo de cotação.'); return; }
+  const values = parseRangeOrdered($('quoteRange').value);
+  if(values === null) return;
+  if(!values.length){ toastError('Informe o intervalo de itens.'); return; }
+
+  readTableState();
+  const t = tables[quoteTIdx];
+  const selected = [];
+
+  t.items.forEach((x, i)=>{
+    if(!values.includes(num(x.item))) return;
+    const tr = document.querySelector(`.items-table tbody tr[data-tidx="${quoteTIdx}"][data-idx="${i}"]`);
+    if(tr){
+      [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
+      const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = 'amarelo';
+      if(!chk.checked) tr.classList.add('row-color-amarelo');
+    }
+    x.cor = 'amarelo';
+    selected.push(x);
+  });
+
+  if(!selected.length){
+    toastError('Nenhum item encontrado no intervalo informado para esta tabela.');
+    return;
+  }
+  selected.sort((a,b)=>num(a.item)-num(b.item));
+
+  const hr = new Date().getHours();
+  const greeting = hr < 12 ? 'Bom dia' : (hr < 18 ? 'Boa tarde' : 'Boa noite');
+  const linhas = selected.map((x,i)=>{
+    const seq = i+1;
+    const alvo = quoteMode === 'modelo' ? up(x.modelo||'') : up(x.descricao||'');
+    return `${seq} - ${alvo}\n${num(x.qtd)} ${up(x.und||'')}`;
+  }).join('\n\n');
+  const msg = `${greeting}, tudo bem?\n\nGostaria de solicitar um orçamento para os seguintes itens:\n\n${linhas}\n\nPoderia realizar este processo, por gentileza?`;
+
+  navigator.clipboard.writeText(msg)
+    .then(()=>toastSuccess('Cotação copiada para a área de transferência.'))
+    .catch(()=>toastError('Não foi possível copiar a cotação.'));
+  close('quoteOverlay');
+  quoteTIdx = null;
+  scheduleSave();
+});
+
+$('pdfBtn').addEventListener('click', ()=>{
+  selectedDoc = null;
+  document.querySelectorAll('.doc-choice').forEach(c=>c.classList.remove('selected'));
+  open('docOverlay');
+});
+document.querySelectorAll('.doc-choice').forEach(c=>{
+  c.addEventListener('click', ()=>{
+    selectedDoc = c.dataset.doc;
+    document.querySelectorAll('.doc-choice').forEach(x=>x.classList.toggle('selected', x===c));
+  });
+});
+$('confirmDoc').addEventListener('click', ()=>{
+  if(!selectedDoc){ toastError('Selecione um documento.'); return; }
+  const t = selectedDoc;
+  close('docOverlay');
+  if(t === 'proposta-pdf') gerarPdf();
+  else if(t === 'proposta-docs') gerarDocWord();
+});
+
+function safeFilename(name){
+  return String(name || 'PROPOSTA')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+    .trim()
+    .slice(0, 180) || 'PROPOSTA';
+}
+
+function triggerDownload(blob, filename){
+  const safe = safeFilename(filename);
+  if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
+    try { window.navigator.msSaveOrOpenBlob(blob, safe); return; } catch (e) {}
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = safe;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  let clicked = false;
+  try { a.click(); clicked = true; } catch (e) { clicked = false; }
+  if (!clicked) {
+    try { window.location.href = url; } catch (e) {}
+  }
+  setTimeout(()=>{
+    try { a.remove(); } catch (e) {}
+    try { URL.revokeObjectURL(url); } catch (e) {}
+  }, 4000);
+}
+
+function fileBase(r){
+  const numP = up(r.numero_pregao || '');
+  const uasg = (r.uasg||'').trim();
+  return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
+}
+
+async function loadBanksIfNeeded(){
+  if(banks && banks.length) return;
+  try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
+}
+
+function loadImg(src){
+  return new Promise(res=>{
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload = ()=>res(i);
+    i.onerror = ()=>res(null);
+    i.src = src;
+  });
+}
+
+function imgToData(img, maxW, alpha){
+  if(!img || !img.width) return null;
+  try{
+    const s = Math.min(1, maxW / img.width);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * s));
+    c.height = Math.max(1, Math.round(img.height * s));
+    const ctx = c.getContext('2d');
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return { url: c.toDataURL('image/png'), w: c.width, h: c.height };
+  }catch{ return null; }
+}
+
+function preloadAssets(){
+  if(!assetsPromise){
+    assetsPromise = (async ()=>{
+      const [logoImg, signImg] = await Promise.all([
+        loadImg(LOGO_SRC), loadImg(SIGN_SRC), loadBanksIfNeeded()
+      ]);
+      const out = { logo: imgToData(logoImg, 420, 0.35), sign: imgToData(signImg, 520, 1) };
+      if(!out.logo && !out.sign) assetsPromise = null;
+      return out;
+    })();
+  }
+  return assetsPromise;
+}
+
+async function gerarPdf(){
+  if(!current){ toastError('Nenhuma licitação aberta.'); return; }
+  if(pdfBusy) return;
+  pdfBusy = true;
+  try{
+    if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF não disponível. Recarregue a página.');
+    await runPdf();
+  }catch(e){
+    toastError(e.message || 'Falha ao gerar PDF.');
+  }finally{
+    pdfBusy = false;
+  }
+}
+
+function hardWrap(doc, text, w){
+  const out = [];
+  String(text ?? '').split('\n').forEach(par=>{
+    doc.splitTextToSize(par, w).forEach(l=>{
+      if(doc.getTextWidth(l) <= w){ out.push(l); return; }
+      let cur = '';
+      for(const ch of l){
+        if(doc.getTextWidth(cur + ch) > w){ out.push(cur); cur = ch; }
+        else cur += ch;
+      }
+      if(cur) out.push(cur);
+    });
+  });
+  return out.length ? out : [''];
+}
+
+function propostaDados(){
+  const allItems = (current.items || []).filter(x => x.selecionado !== false);
+  const groupsMap = new Map();
+  allItems.forEach(it => {
+    const g = String(it.grupo || '').trim();
+    if(!groupsMap.has(g)) groupsMap.set(g, []);
+    groupsMap.get(g).push(it);
+  });
+  const groups = [...groupsMap.entries()].map(([titulo, items]) => {
+    const linhas = items.map(it => {
+      const cu  = num(it.custoUnt);
+      const pct = num(it.porcentagem ?? 149);
+      const vUnt = cu * pct / 100;
+      const vTot = vUnt * num(it.qtd);
+      return { it, vUnt, vTot };
+    });
+    const total = linhas.reduce((a,l)=>a + l.vTot, 0);
+    return { titulo, linhas, total };
+  });
+  const total = groups.reduce((a,g)=>a + g.total, 0);
+  const bank = banks.find(b => b.nome_banco === current.banco_pagamento) || {};
+  return { groups, total, bank };
+}
+
+async function runPdf(){
+  const { jsPDF } = window.jspdf;
+  const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
+  const { groups, bank } = propostaDados();
+
+  const doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
+  const margin = 15, pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
+  const tw = pw - margin*2;
+  const limitY = ph - 32;
+
+  const lw = 40;
+  const logo = assets && assets.logo;
+  const lh = logo ? (logo.h / logo.w) * lw : 12;
+  if(logo){ try{ doc.addImage(logo.url, 'PNG', 5, 5, lw, lh, undefined, 'FAST'); }catch{} }
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(150,150,150);
+  const baseY = 5 + lh*0.4;
+  doc.text('I.R COMÉRCIO E', 5+lw+3, baseY);
+  doc.text('MATERIAIS ELÉTRICOS LTDA', 5+lw+3, baseY + 7);
+  doc.setTextColor(0,0,0);
+
+  let y = 5 + lh + 8;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(`AO ${up(current.nome_orgao)}`, margin, y); y += 5;
+  doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, y); y += 5;
+  const linha3 = `PREGÃO ELETRÔNICO ${up(current.numero_pregao)}` + (current.uasg?` UASG ${up(current.uasg)}`:'');
+  doc.text(linha3, margin, y); y += 7;
+
+  const cols = [
+    { w: tw*0.06, t:'ITEM',        a:'center' },
+    { w: tw*0.07, t:'QTD',         a:'center' },
+    { w: tw*0.07, t:'UND',         a:'center' },
+    { w: tw*0.30, t:'DESCRIÇÃO',   a:'left'   },
+    { w: tw*0.13, t:'MARCA',       a:'center' },
+    { w: tw*0.13, t:'MODELO',      a:'center' },
+    { w: tw*0.12, t:'PREÇO UNIT.', a:'center' },
+    { w: tw*0.12, t:'PREÇO TOTAL', a:'center' }
+  ];
+  const LH = 3.6;
+  const HLH = 3.3;
+
+  const drawHead = () => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    const heads = cols.map(c => hardWrap(doc, c.t, c.w - 2));
+    const hh = Math.max(7, Math.max(...heads.map(h=>h.length)) * HLH + 3.4);
+    let x = margin;
+    cols.forEach((c, i)=>{
+      doc.setFillColor(225,225,225);
+      doc.rect(x, y, c.w, hh, 'F');
+      doc.setDrawColor(120,120,120); doc.setLineWidth(0.2);
+      doc.rect(x, y, c.w, hh, 'S');
+      doc.setTextColor(0,0,0);
+      const startY = y + (hh - heads[i].length*HLH)/2 + 2.4;
+      heads[i].forEach((ln, k)=> doc.text(ln, x + c.w/2, startY + k*LH, { align:'center' }));
+      x += c.w;
+    });
+    y += hh;
+  };
+
+  groups.forEach((g, gIdx) => {
+    if(gIdx > 0) y += 6;
+
+    if(g.titulo){
+      if(y + 20 > limitY){ doc.addPage(); y = 15; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+      doc.text(up(g.titulo), margin, y);
+      y += 5;
+    }
+
+    drawHead();
+
+    g.linhas.forEach(({ it, vUnt, vTot }, idx) => {
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+      const cells = [
+        String(it.item ?? ''), String(it.qtd ?? ''), up(it.und || ''),
+        up(it.descricao || ''), up(it.marca || ''), up(it.modelo || ''),
+        money(vUnt), money(vTot)
+      ];
+      const wrapped = cells.map((t,i) => hardWrap(doc, t, cols[i].w - 3));
+      const needed  = Math.max(7, Math.max(...wrapped.map(w=>w.length)) * LH + 3);
+
+      if(y + needed > limitY){
+        doc.addPage(); y = 15;
+        if(g.titulo){
+          doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+          doc.text(up(g.titulo), margin, y); y += 5;
+        }
+        drawHead();
+        doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      }
+
+      if(idx % 2 === 0){ doc.setFillColor(250,250,250); doc.rect(margin, y, tw, needed, 'F'); }
+      let x = margin;
+      doc.setDrawColor(120,120,120); doc.setLineWidth(0.2);
+      cols.forEach((c, i)=>{
+        doc.rect(x, y, c.w, needed, 'S');
+        const tx = c.a==='right' ? x + c.w - 1.5 : (c.a==='center' ? x + c.w/2 : x + 1.5);
+        wrapped[i].forEach((ln, k)=> doc.text(ln, tx, y + 4 + k*LH, { align: c.a }));
+        x += c.w;
+      });
+      y += needed;
+    });
+
+    y += 5;
+    if(y + 10 > limitY){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    const totalLabel = g.titulo ? `TOTAL ${up(g.titulo)}` : 'TOTAL';
+    doc.text(`${totalLabel}: ${money(g.total)}`, pw - margin, y, { align:'right' });
+    y += 6;
+  });
+
+  y += 10;
+  if(y + 45 > limitY){ doc.addPage(); y = 20; }
+  doc.setTextColor(0,0,0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(`BANCO: ${up(current.banco_pagamento||'—')}`, margin, y); y += 5;
+  doc.text(`AGÊNCIA: ${bank.agencia||''}`, margin, y); y += 5;
+  doc.text(`CONTA CORRENTE: ${bank.conta_corrente||''}`, margin, y); y += 5;
+  doc.text(`VALIDADE DA PROPOSTA: ${up(current.validade_proposta||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE ENTREGA: ${up(current.prazo_entrega||'')}`, margin, y); y += 5;
+  doc.text(`PRAZO DE PAGAMENTO: ${up(current.prazo_pagamento||'')}`, margin, y); y += 10;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  const d1 = 'Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.';
+  const d2 = 'Declaramos que somos Optantes pelo Simples Nacional';
+  const d3 = 'Declaramos que o objeto fornecido não é remanufaturado ou recondicionado';
+  const l1 = doc.splitTextToSize(d1, tw);
+  if(y + l1.length*4 + 20 > limitY){ doc.addPage(); y = 20; }
+  doc.text(l1, pw/2, y, { align:'center' }); y += l1.length*4 + 4;
+  doc.text(d2, pw/2, y, { align:'center' }); y += 6;
+  doc.text(d3, pw/2, y, { align:'center' }); y += 14;
+
+  const sign = assets && assets.sign;
+  const iw = 55;
+  const ih = sign ? (sign.h / sign.w) * iw : 20;
+  const blockH = 12 + 14 + ih + 14 + 5 + 4 + 4;
+  if(y + blockH > limitY){ doc.addPage(); y = 20; }
+
+  const dt = new Date();
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text(`SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}`, pw/2, y, { align:'center' });
+
+  y += 14;
+  if(sign){ try{ doc.addImage(sign.url, 'PNG', pw/2 - iw/2, y, iw, ih, undefined, 'FAST'); }catch{} }
+  y += ih + 14;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pw/2, y, { align:'center' }); y += 5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('MG-10.078.568 / CPF: 045.160.616-78', pw/2, y, { align:'center' }); y += 4;
+  doc.text('DIRETORA', pw/2, y, { align:'center' });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let i=1; i<=totalPages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(90,90,90);
+    const yBase = ph - 20;
+    doc.text('RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES', pw/2, yBase, { align:'center' });
+    doc.text('TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058', pw/2, yBase+3.5, { align:'center' });
+    doc.text('CNPJ: 33.149.502/0001-38', pw/2, yBase+7, { align:'center' });
+    doc.text('E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', pw/2, yBase+10.5, { align:'center' });
+    doc.setTextColor(0,0,0);
+  }
+  doc.save(`${safeFilename(fileBase(current))}.pdf`);
+  toastSuccess(`Documento de ${up(current.numero_pregao)} gerado`);
+}
+
+async function gerarDocWord(){
+  if(!current) return;
+  if(pdfBusy) return;
+  pdfBusy = true;
+  try{
+    const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
+    const { groups, total, bank } = propostaDados();
+    const dt = new Date();
+
+    const logo    = assets && assets.logo;
+    const logoWpt = Math.round(40 * 2.8346);
+    const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
+    
+    const topMargin = Math.max(120, Math.round(20 + logoHpt + 30));
+
+    const groupsHTML = groups.map(g => {
+      const rows = g.linhas.map(({ it, vUnt, vTot })=>`<tr>
+        <td>${esc(it.item)}</td><td>${esc(it.qtd)}</td><td>${esc(up(it.und))}</td>
+        <td class="desc">${esc(up(it.descricao))}</td>
+        <td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
+        <td>${money(vUnt)}</td><td>${money(vTot)}</td>
+      </tr>`).join('');
+      const title      = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
+      const totalLabel = g.titulo ? `TOTAL ${esc(up(g.titulo))}` : 'VALOR TOTAL DA TABELA';
+      const totalRow   = `<tr>
+        <td colspan="7" style="text-align:right; font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${totalLabel}:</td>
+        <td style="font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${money(g.total)}</td>
+      </tr>`;
+      return `${title}<table class="dados">
+        <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
+        <tbody>${rows}${totalRow}</tbody>
+      </table>`;
+    }).join('');
+
+    const logoCell = logo
+      ? `<td style="border:none; padding:0; vertical-align:middle; width:${logoWpt}pt;">
+           <img src="${logo.url}" width="${logoWpt}" height="${logoHpt}" style="width:${logoWpt}pt; height:${logoHpt}pt; max-width:100%;">
+         </td>`
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40" lang="pt-BR">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>${esc(safeFilename(fileBase(current)))}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+  @page Section1 {
+    size: 595.3pt 841.9pt;
+    margin: ${topMargin}pt 26pt 70pt 26pt;
+    mso-header-margin: 20pt;
+    mso-footer-margin: 22pt;
+    mso-header: h1;
+    mso-footer: f1;
+    mso-title-page: yes;
+    mso-first-header: h1;
+    mso-first-footer: f1;
+  }
+  div.Section1 { page: Section1; }
+  body { font: 10pt Arial, sans-serif; color: #111; margin: 0; padding: 0; }
+  h3 { margin: 6pt 0; font-size: 11pt; text-align: left; }
+  p { margin: 4pt 0; }
+  table.dados { width: 100%; border-collapse: collapse; margin: 12pt 0; font-size: 8pt; }
+  table.dados th, table.dados td { border: 1px solid #444; padding: 4pt 3pt; vertical-align: middle; text-align: center; word-wrap: break-word; }
+  table.dados td.desc { text-align: left; }
+  table.dados th { background: #f0f0f0; white-space: nowrap; }
+  .group-title { font-weight: bold; font-size: 10pt; margin: 14pt 0 2pt; text-transform: uppercase; }
+  .decl { text-align: center; margin: 10pt 0; line-height: 1.5; }
+  .date { text-align: center; margin-top: 26pt; }
+  p.sign-space { height: 58pt; line-height: 58pt; mso-line-height-rule: exactly; margin: 0; font-size: 10pt; }
+  .sign-name { text-align: center; font-weight: bold; margin: 0; }
+  .sign-sub { text-align: center; font-size: 9pt; margin: 0; }
+  .MsoHeader, .MsoFooter { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- CABEÇALHO -->
+<div style="mso-element:header" id="h1">
+  <div class="MsoHeader">
+    <table width="100%" style="border-collapse:collapse; border:none; margin:0; padding:0;">
+      <tr>
+        ${logoCell}
+        <td style="border:none; padding:0 0 0 10pt; vertical-align:middle;">
+          <p style="margin:0; color:#969696; font-weight:bold; font-size:16pt; line-height:18pt; mso-line-height-rule:exactly; font-family:Arial,sans-serif;">
+            I.R COMÉRCIO E<br>MATERIAIS ELÉTRICOS LTDA
+          </p>
+        </td>
+      </tr>
+    </table>
+    <p class="MsoHeader" style="margin:0;padding:0;font-size:1pt;">&nbsp;</p>
+  </div>
+</div>
+
+<!-- CONTEÚDO PRINCIPAL -->
+<div class="Section1">
+  <h3>AO ${esc(up(current.nome_orgao))}</h3>
+  <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
+  <h3>PREGÃO ELETRÔNICO ${esc(up(current.numero_pregao))}${current.uasg?` UASG ${esc(up(current.uasg))}`:''}</h3>
+  ${groupsHTML}
+  
+  <p><b>BANCO:</b> ${esc(up(current.banco_pagamento||'—'))}</p>
+  <p><b>AGÊNCIA:</b> ${esc(bank.agencia||'')}</p>
+  <p><b>CONTA CORRENTE:</b> ${esc(bank.conta_corrente||'')}</p>
+  <p><b>VALIDADE DA PROPOSTA:</b> ${esc(up(current.validade_proposta||''))}</p>
+  <p><b>PRAZO DE ENTREGA:</b> ${esc(up(current.prazo_entrega||''))}</p>
+  <p><b>PRAZO DE PAGAMENTO:</b> ${esc(up(current.prazo_pagamento||''))}</p>
+  <p class="decl">Declaramos que nos preços cotados estão incluídas todas as despesas tais como frete (CIF), impostos, taxas, seguros, tributos e demais encargos de qualquer natureza incidentes sobre o objeto do Pregão.</p>
+  <p class="decl">Declaramos que somos Optantes pelo Simples Nacional</p>
+  <p class="decl">Declaramos que o objeto fornecido não é remanufaturado ou recondicionado</p>
+  <p class="date">SERRA/ES, ${dt.getDate()} DE ${MESES[dt.getMonth()]} DE ${dt.getFullYear()}</p>
+  <p class="sign-space">&nbsp;</p>
+  <p class="sign-name">ROSEMEIRE BICALHO DE LIMA GRAVINO</p>
+  <p class="sign-sub">MG-10.078.568 / CPF: 045.160.616-78</p>
+  <p class="sign-sub">DIRETORA</p>
+</div>
+
+<!-- RODAPÉ -->
+<div style="mso-element:footer" id="f1">
+  <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
+    RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
+    TELEFONE: (27) 3209-4291 / (27) 99802-3083 (Whatsapp) / (27) 99726-3058<br>
+    CNPJ: 33.149.502/0001-38<br>
+    E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
+  </p>
+  <p class="MsoFooter" style="margin:0;padding:0;font-size:1pt;">&nbsp;</p>
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+    const filename = `${safeFilename(fileBase(current))}.doc`;
+    triggerDownload(blob, filename);
+    toastSuccess('Documento Word gerado');
+  }catch(e){
+    toastError(e.message || 'Falha ao gerar documento.');
+  }finally{
+    pdfBusy = false;
+  }
+}
+
+async function startApp(){
+  if(booted) return;
+  booted = true;
+  updateMonthDisplay();
+  await loadOpcoes();
+  await Promise.all([loadList(), loadStats()]);
+  setInterval(()=>{ Promise.all([loadList(), loadStats()]); }, 30000);
+}
+
+if (DEVELOPMENT_MODE) {
+  sessionToken = 'dev-mode';
+  startApp();
+} else {
+  verificarAutenticacao();
+}
+
+})();
