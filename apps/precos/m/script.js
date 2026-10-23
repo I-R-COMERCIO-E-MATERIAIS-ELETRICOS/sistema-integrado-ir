@@ -7,7 +7,7 @@ const MODULE_SESSION_KEY = 'tabelaPrecosSession';
 const PAGE_SIZE = 20;
 
 let sessionToken = null;
-let currentUserName = null; // Variável adicionada para corrigir o erro
+let currentUserName = null;
 let records = [];
 let currentPage = 1;
 let hasMorePages = false;
@@ -40,7 +40,7 @@ function verificarAutenticacao() {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 sessionToken = parsed.token || parsed.sessionToken || null;
-                currentUserName = parsed.name || parsed.nome || parsed.fullName || null; // Pega o nome
+                currentUserName = parsed.name || parsed.nome || parsed.fullName || null;
             }
         } catch (e) {}
     }
@@ -233,13 +233,9 @@ function openForm(id = null) {
         $('modalCodigo').value = p.codigo || '';
         $('modalDescricao').value = p.descricao || '';
         $('modalPreco').value = p.preco || '';
-        $('modalAtualizadoPor').value = p.atualizado_por || '';
-        $('modalUltimaAtualizacao').value = p.ultima_atualizacao ? new Date(p.ultima_atualizacao).toLocaleString('pt-BR') : '';
     } else {
         $('formTitle').textContent = 'Novo Preço';
         $('btnSubmitForm').textContent = 'Salvar';
-        $('modalAtualizadoPor').value = (currentUserName || 'SISTEMA').toUpperCase();
-        $('modalUltimaAtualizacao').value = new Date().toLocaleString('pt-BR');
     }
 
     // Reset tabs
@@ -264,7 +260,7 @@ $('recordForm').addEventListener('submit', async e => {
 
     const body = {
         marca, codigo, descricao, preco,
-        atualizado_por: $('modalAtualizadoPor').value,
+        atualizado_por: (currentUserName || 'SISTEMA').toUpperCase(),
         ultima_atualizacao: new Date().toISOString()
     };
 
