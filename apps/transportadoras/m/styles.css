@@ -55,25 +55,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .search-bar input::placeholder { color: var(--text-secondary); }
 
-/* DASHBOARD 2x2 */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px; flex-shrink: 0;
-}
-.stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex; flex-direction: column; justify-content: center;
-}
-.stat-value { font-size: 1.25rem; font-weight: 800; line-height: 1.2; color: var(--text-primary); }
-.stat-success .stat-value { color: #16A34A; }
-.stat-warning .stat-value { color: #EA580C; }
-.stat-info .stat-value { color: #2563EB; }
-.stat-label { font-size: .68rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-
 /* LISTA */
 .list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 
