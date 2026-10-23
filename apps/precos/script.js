@@ -20,7 +20,6 @@ const PRECO_TABS = ['produto', 'valores'];
 
 document.addEventListener('DOMContentLoaded', function () { verificarAutenticacao(); });
 
-// ─── AUTENTICAÇÃO ─────────────────────────────────────────────────────────────
 function verificarAutenticacao() {
     var urlParams = new URLSearchParams(window.location.search);
     var tokenFromUrl = urlParams.get('sessionToken');
@@ -64,7 +63,6 @@ function mostrarTelaAcessoNegado(mensagem) {
         '</div>';
 }
 
-// ─── INICIALIZAÇÃO ────────────────────────────────────────────────────────────
 function inicializarApp() {
     carregarTudo();
 
@@ -122,19 +120,6 @@ async function verificarConexao() {
     }
 }
 
-function formatDateTime(value) {
-    if (!value) return '';
-    var d = new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    var dia = String(d.getDate()).padStart(2, '0');
-    var mes = String(d.getMonth() + 1).padStart(2, '0');
-    var ano = d.getFullYear();
-    var hh = String(d.getHours()).padStart(2, '0');
-    var mm = String(d.getMinutes()).padStart(2, '0');
-    return dia + '/' + mes + '/' + ano + ' ' + hh + ':' + mm;
-}
-
-// ─── SINCRONIZAR ─────────────────────────────────────────────────────────────
 window.sincronizarDados = async function () {
     var btn = document.querySelector('.sync-btn');
     if (btn) { btn.classList.add('spinning'); btn.style.pointerEvents = 'none'; }
@@ -148,7 +133,6 @@ window.sincronizarDados = async function () {
     }
 };
 
-// ─── MARCAS ─────────────────────────────────────────────────────────────────
 async function atualizarMarcasDisponiveis() {
     try {
         var response = await fetchWithTimeout(
@@ -212,7 +196,6 @@ async function carregarTudo() {
     }
 }
 
-// ─── CARREGAR PREÇOS ─────────────────────────────────────────────────────────
 async function loadPrecos(page) {
     page = page || 1;
     if (state.isLoading) return;
@@ -293,7 +276,6 @@ function normalizePreco(p) {
     };
 }
 
-// ─── BUSCA COM DEBOUNCE ──────────────────────────────────────────────────────
 var searchDebounceTimer = null;
 window.filterPrecos = function () {
     var input = document.getElementById('search');
@@ -302,7 +284,6 @@ window.filterPrecos = function () {
     searchDebounceTimer = setTimeout(function () { loadPrecos(1); }, 300);
 };
 
-// ─── RENDER TABELA ───────────────────────────────────────────────────────────
 function renderPrecos() {
     var container = document.getElementById('precosTableBody');
     if (!container) return;
@@ -338,7 +319,6 @@ function escHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// ─── PAGINAÇÃO ───────────────────────────────────────────────────────────────
 function renderPaginacao() {
     var existing = document.getElementById('paginacaoContainer');
     if (existing) existing.remove();
@@ -385,7 +365,6 @@ function renderPaginacao() {
     tableCard.appendChild(div);
 }
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
 window.toggleForm = function () { showFormModal(null); };
 
 function showFormModal(editingId) {
@@ -399,16 +378,6 @@ function showFormModal(editingId) {
     var codigoAtual = preco ? escHtml(preco.codigo || '') : '';
     var precoAtual = preco ? parseFloat(preco.preco).toFixed(2) : '';
     var descAtual = preco ? escHtml(preco.descricao || '') : '';
-    var atualizadoPor = preco ? escHtml(preco.atualizado_por || '') : '';
-    var ultimaAtualizacao = preco ? escHtml(preco.ultima_atualizacao || preco.timestamp || '') : '';
-
-    var sessionData = {};
-    try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); } catch (_) {}
-    var nomeSessao = sessionData.name || sessionData.nome || sessionData.fullName || '';
-    var primeiroNome = (String(nomeSessao).trim().split(/\s+/)[0] || String(atualizadoPor).trim().split(/\s+/)[0] || '').toUpperCase();
-
-    var atualizadoPorValue = ultimaAtualizacao ? (primeiroNome || atualizadoPor) : '';
-    var ultimaAtualizacaoValue = ultimaAtualizacao ? formatDateTime(ultimaAtualizacao) : '';
 
     document.body.insertAdjacentHTML('beforeend',
         '<div class="modal-overlay" id="formModal" style="display:flex;">' +
@@ -427,8 +396,6 @@ function showFormModal(editingId) {
         '<div class="form-grid">' +
         '<div class="form-group"><label for="modalMarca">Marca *</label><input type="text" id="modalMarca" value="' + marcaAtual + '" required autocomplete="off"></div>' +
         '<div class="form-group"><label for="modalCodigo">Código *</label><input type="text" id="modalCodigo" value="' + codigoAtual + '" required autocomplete="off"></div>' +
-        '<div class="form-group"><label for="modalAtualizadoPor">Atualizado por</label><input type="text" id="modalAtualizadoPor" value="' + escHtml(atualizadoPorValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
-        '<div class="form-group"><label for="modalUltimaAtualizacao">Última Atualização</label><input type="text" id="modalUltimaAtualizacao" value="' + escHtml(ultimaAtualizacaoValue) + '" readonly tabindex="-1" style="cursor:not-allowed;background:var(--input-bg);"></div>' +
         '<div class="form-group"><label for="modalDescricao">Descrição *</label><input type="text" id="modalDescricao" value="' + descAtual + '" required></div>' +
         '</div>' +
         '</div>' +
@@ -500,7 +467,6 @@ function closeFormModal(showCancelMessage) {
     setTimeout(function () { if (modal.parentNode) modal.parentNode.removeChild(modal); }, 200);
 }
 
-// ─── SUBMIT ──────────────────────────────────────────────────────────────────
 async function handleSubmit(event) {
     event.preventDefault();
 
@@ -526,12 +492,18 @@ async function handleSubmit(event) {
         return;
     }
 
+    // Captura o nome do usuário direto da sessão
+    var sessionData = {};
+    try { sessionData = JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); } catch (_) {}
+    var nomeSessao = sessionData.name || sessionData.nome || sessionData.fullName || 'SISTEMA';
+    var primeiroNome = String(nomeSessao).trim().split(/\s+/)[0].toUpperCase();
+
     var formData = {
         marca: marcaVal,
         codigo: codigoVal,
         preco: precoVal,
         descricao: descricaoVal,
-        atualizado_por: (document.getElementById('modalAtualizadoPor')?.value || '').trim(),
+        atualizado_por: primeiroNome,
         ultima_atualizacao: new Date().toISOString()
     };
 
@@ -581,7 +553,6 @@ async function handleSubmit(event) {
     }
 }
 
-// ─── EDITAR / EXCLUIR ────────────────────────────────────────────────────────
 window.editPreco = function (id) {
     if (!id) return;
     showFormModal(id);
@@ -660,7 +631,6 @@ async function confirmDelete(id) {
     }
 }
 
-// ─── TEMPO RELATIVO ──────────────────────────────────────────────────────────
 function getTimeAgo(timestamp) {
     if (!timestamp) return 'Sem data';
     var past = new Date(timestamp);
@@ -674,7 +644,6 @@ function getTimeAgo(timestamp) {
     return past.toLocaleDateString('pt-BR');
 }
 
-// ─── TOAST ───────────────────────────────────────────────────────────────────
 function showToast(message, type) {
     type = type || 'success';
     document.querySelectorAll('.floating-message').forEach(function (m) { m.remove(); });
