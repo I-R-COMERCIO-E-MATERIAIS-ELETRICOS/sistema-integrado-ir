@@ -743,6 +743,7 @@ function renderSingleTable(t, tIdx){
     ? ''
     : `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
 
+  // FORÇA O GRID NO HTML GERADO
   return `
     <div class="grupo-tabela" data-gidx="${tIdx}">
       <div class="grupo-header">
@@ -762,7 +763,7 @@ function renderSingleTable(t, tIdx){
           </button>
         </div>
       </div>
-      <div class="items-cards">
+      <div class="items-cards" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; gap: 16px !important;">
         ${cardsHTML || '<div class="items-empty">Nenhum item neste grupo.</div>'}
       </div>
       <div class="totals-bar">
@@ -785,7 +786,8 @@ function itemCardHTML(it, tIdx, idx){
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
 
-  return `<div class="${cls.join(' ')}" data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}">
+  // FORÇA O FLEX COLUMN NOS CARDS
+  return `<div class="${cls.join(' ')}" style="display: flex !important; flex-direction: column !important; width: 100% !important;" data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}">
     <div class="item-card-top">
       <div class="checkbox-wrapper">
         <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${tIdx}-${idx}" ${sel?'checked':''}>
@@ -810,7 +812,7 @@ function itemCardHTML(it, tIdx, idx){
       <textarea data-k="descricao" rows="2" placeholder="Descrição do item">${esc(it.descricao??'')}</textarea>
     </div>
 
-    <div class="item-fields">
+    <div class="item-fields" style="display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px 10px !important;">
       <div class="item-field"><label>Qtd</label>
         <input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}"></div>
       <div class="item-field"><label>Und</label>
@@ -1272,7 +1274,7 @@ function applyFilters(){
     if(marca && marcaTr !== marca) show = false;
     if(itens === 'ganhos' && !sel) show = false;
     if(itens === 'nao-ganhos' && sel) show = false;
-    card.style.display = show ? '' : 'none';
+    card.style.display = show ? 'flex' : 'none';
   });
 }
 
@@ -1707,8 +1709,6 @@ async function gerarDocWord(){
     const logo    = assets && assets.logo;
     const logoWpt = Math.round(40 * 2.8346);
     const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
-    
-    // Garante que o topo tenha espaço suficiente para o cabeçalho
     const topMargin = Math.max(120, Math.round(20 + logoHpt + 30));
 
     const groupsHTML = groups.map(g => {
@@ -1718,16 +1718,12 @@ async function gerarDocWord(){
         <td>${esc(up(it.marca))}</td><td>${esc(up(it.modelo))}</td>
         <td>${money(vUnt)}</td><td>${money(vTot)}</td>
       </tr>`).join('');
-      
-      const title = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
+      const title      = g.titulo ? `<p class="group-title">${esc(up(g.titulo))}</p>` : '';
       const totalLabel = g.titulo ? `TOTAL ${esc(up(g.titulo))}` : 'TOTAL';
-      
-      // O total agora é a última linha (TR) da tabela, sem bordas laterais para ficar limpo
       const totalRow = `<tr>
         <td colspan="7" style="text-align:right; font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${totalLabel}:</td>
         <td style="font-weight:bold; border-top:2px solid #444; border-bottom:none; border-left:none; border-right:none; background-color:#f9f9f9; padding: 6pt 4pt;">${money(g.total)}</td>
       </tr>`;
-
       return `${title}<table class="dados">
         <thead><tr><th>ITEM</th><th>QTD</th><th>UND</th><th>DESCRIÇÃO</th><th>MARCA</th><th>MODELO</th><th>PREÇO UNIT.</th><th>PREÇO TOTAL</th></tr></thead>
         <tbody>${rows}${totalRow}</tbody>
@@ -1747,36 +1743,16 @@ async function gerarDocWord(){
       lang="pt-BR">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="ProgId" content="Word.Document">
-<meta name="Generator" content="Microsoft Word 15">
-<meta name="Originator" content="Microsoft Word 15">
 <title>${esc(safeFilename(fileBase(current)))}</title>
-<!--[if gte mso 9]><xml>
-  <w:WordDocument>
-    <w:View>Print</w:View>
-    <w:Zoom>100</w:Zoom>
-    <w:DoNotOptimizeForBrowser/>
-  </w:WordDocument>
-</xml><![endif]-->
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
 <style>
-  @page Section1 {
-    size: 595.3pt 841.9pt;
-    margin: ${topMargin}pt 26pt 70pt 26pt;
-    mso-header-margin: 20pt;
-    mso-footer-margin: 22pt;
-    mso-header: h1;
-    mso-footer: f1;
-  }
+  @page Section1 { size: 595.3pt 841.9pt; margin: ${topMargin}pt 26pt 70pt 26pt; mso-header-margin: 20pt; mso-footer-margin: 22pt; mso-header: h1; mso-footer: f1; }
   div.Section1 { page: Section1; }
   body { font: 10pt Arial, sans-serif; color: #111; }
   h3 { margin: 6pt 0; font-size: 11pt; text-align: left; }
   p { margin: 4pt 0; }
   table.dados { width: 100%; border-collapse: collapse; margin: 12pt 0; font-size: 8pt; }
-  table.dados th, table.dados td {
-    border: 1px solid #444; padding: 4pt 3pt;
-    vertical-align: middle; text-align: center;
-    word-wrap: break-word;
-  }
+  table.dados th, table.dados td { border: 1px solid #444; padding: 4pt 3pt; vertical-align: middle; text-align: center; word-wrap: break-word; }
   table.dados td.desc { text-align: left; }
   table.dados th { background: #f0f0f0; white-space: nowrap; }
   .group-title { font-weight: bold; font-size: 10pt; margin: 14pt 0 2pt; text-transform: uppercase; }
@@ -1786,12 +1762,10 @@ async function gerarDocWord(){
   p.sign-space { height: 58pt; line-height: 58pt; mso-line-height-rule: exactly; margin: 0; font-size: 10pt; }
   .sign-name { text-align: center; font-weight: bold; margin: 0; }
   .sign-sub { text-align: center; font-size: 9pt; margin: 0; }
-  .MsoHeader, .MsoFooter { margin: 0; font-family: Arial, sans-serif; }
 </style>
 </head>
 <body>
 
-<!-- CABEÇALHO NO TOPO DO BODY -->
 <div style="mso-element:header" id="h1">
   <div class="MsoHeader">
     <table width="100%" style="border-collapse:collapse; border:none; margin:0; padding:0;">
@@ -1807,7 +1781,6 @@ async function gerarDocWord(){
   </div>
 </div>
 
-<!-- CONTEÚDO -->
 <div class="Section1">
   <h3>AO ${esc(up(current.nome_orgao))}</h3>
   <h3>COMISSÃO PERMANENTE DE LICITAÇÃO</h3>
@@ -1830,7 +1803,6 @@ async function gerarDocWord(){
   <p class="sign-sub">DIRETORA</p>
 </div>
 
-<!-- RODAPÉ -->
 <div style="mso-element:footer" id="f1">
   <p class="MsoFooter" style="text-align:center;font-size:8pt;color:#777;line-height:1.25;">
     RUA TADORNA Nº 472, SALA 102, BAIRRO NOVO HORIZONTE, CEP: 29.163-318, SERRA/ES<br>
@@ -1839,19 +1811,14 @@ async function gerarDocWord(){
     E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM
   </p>
 </div>
-
 </body>
 </html>`;
 
     const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
-    const filename = `${safeFilename(fileBase(current))}.doc`;
-    triggerDownload(blob, filename);
+    triggerDownload(blob, `${safeFilename(fileBase(current))}.doc`);
     toastSuccess('Documento Word gerado');
-  }catch(e){
-    toastError(e.message || 'Falha ao gerar documento.');
-  }finally{
-    pdfBusy = false;
-  }
+  }catch(e){ toastError(e.message || 'Falha ao gerar documento.'); }
+  finally{ pdfBusy = false; }
 }
 
 async function startApp(){
