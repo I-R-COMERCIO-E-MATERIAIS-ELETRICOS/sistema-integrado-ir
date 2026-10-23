@@ -52,7 +52,9 @@ body {
 
 .table-card { padding: 0; overflow: hidden; }
 
-/* HEADER & DASHBOARD */
+/* =========================================================
+   HEADER & DASHBOARD
+   ========================================================= */
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .header-left { display: flex; align-items: center; gap: 1rem; }
 h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; display: flex; align-items: center; margin: 0; }
@@ -90,7 +92,9 @@ h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; dis
 @keyframes pulseOutline { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 82, 29, 0.15); } 50% { box-shadow: 0 0 0 7px rgba(255, 82, 29, 0.4); } }
 .stat-card.pulse { border-color: var(--primary); animation: pulseOutline 1.6s ease-in-out infinite; }
 
-/* SEARCH BAR & FILTROS */
+/* =========================================================
+   SEARCH BAR & FILTROS
+   ========================================================= */
 .search-bar-wrapper { margin-bottom: 0.5rem; }
 .search-bar {
   background: var(--bg-card); padding: 0.65rem 1rem;
@@ -130,7 +134,9 @@ h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; dis
 .icon-btn { background: transparent; border: none; color: #4b5563; cursor: pointer; padding: 0.5rem; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
 .icon-btn:hover { background: var(--input-bg); color: var(--text-primary); }
 
-/* TABELA DE REGISTROS PRINCIPAL */
+/* =========================================================
+   TABELA DE REGISTROS PRINCIPAL
+   ========================================================= */
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
 thead { background: var(--th-bg); }
 th { padding: 14px 16px; text-align: left; font-weight: 600; color: var(--th-color); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--th-border); }
@@ -173,7 +179,9 @@ tbody tr.row-cancelado { background: rgba(239, 68, 68, 0.08) !important; border-
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-ellipsis { color: var(--text-secondary); padding: 0 0.25rem; align-self: center; }
 
-/* MODAIS */
+/* =========================================================
+   MODAIS
+   ========================================================= */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; opacity: 0; animation: fadeIn 0.2s ease forwards; padding: 16px; }
 .modal-overlay.open { display: flex; }
 @keyframes fadeIn { to { opacity: 1; } }
@@ -290,6 +298,17 @@ button.cancel-close { background: #dc2626; color: #fff; }
 .col-num { width: 6.5%; }
 .col-pct { width: 4.5%; }
 .col-actions { width: 5%; text-align: center; }
+
+/* CORES FIXAS DAS COLUNAS */
+.items-table td.col-bg-amarelo,
+.items-table td.col-bg-amarelo input {
+  background-color: #fef9c3 !important; /* Amarelo */
+}
+
+.items-table td.col-bg-laranja,
+.items-table td.col-bg-laranja input {
+  background-color: #fed7aa !important; /* Laranja */
+}
 
 .row-warn { background: #fef2f2 !important; }
 .row-color-amarelo { background: #fef9c3 !important; }
