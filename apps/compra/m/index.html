@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F4F5F7">
+    <meta name="color-scheme" content="light only">
+    <title>Ordens de Compra</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/compra/m/styles.css">
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script>
+        const PORTAL_URL = window.location.origin;
+        const DEVELOPMENT_MODE = false;
+    </script>
+</head>
+<body>
+
+<div class="search-bar">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="search" id="searchInput" placeholder="Pesquisar..." autocomplete="off">
+</div>
+
+<div class="filters">
+  <select id="filterResponsavel" class="filter-select">
+    <option value="">Responsável</option>
+  </select>
+  <select id="filterStatus" class="filter-select">
+    <option value="">Todos os Status</option>
+    <option value="aberta">Aberta</option>
+    <option value="fechada">Fechada</option>
+  </select>
+</div>
+
+<div class="month-nav">
+  <button type="button" id="monthPrev" class="month-arrow" aria-label="Mês anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <span id="currentMonth">Carregando...</span>
+  <button type="button" id="monthNext" class="month-arrow" aria-label="Próximo mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+</div>
+
+<div class="dashboard-grid">
+  <div class="stat-card">
+    <div class="stat-value" id="totalOrdens">0</div>
+    <div class="stat-label">Total</div>
+  </div>
+  <div class="stat-card stat-success">
+    <div class="stat-value" id="totalFechadas">0</div>
+    <div class="stat-label">Fechadas</div>
+  </div>
+  <div class="stat-card stat-warning">
+    <div class="stat-value" id="totalAbertas">0</div>
+    <div class="stat-label">Abertas</div>
+  </div>
+  <div class="stat-card stat-info">
+    <div class="stat-value" id="valorTotal">R$ 0,00</div>
+    <div class="stat-label">Total Mês</div>
+  </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="empty-state" id="emptyState" hidden>
+  <div class="empty-icon">🛒</div>
+  <div class="empty-title">Nenhuma ordem encontrada</div>
+  <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
+</div>
+
+<div class="fab-group">
+  <div class="icons-row">
+    <button class="icon-btn" id="duplicateBtn" type="button" aria-label="Duplicar ordem" title="Duplicar ordem">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="8" width="13" height="13" rx="2"/>
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+      </svg>
+    </button>
+  </div>
+  <button class="fab-register" id="addBtn" type="button" aria-label="Nova Ordem" title="Nova Ordem">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- MODAL: FORM -->
+<div class="modal" id="formModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="formTitle">Nova Ordem</h2>
+      <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-tab="geral" type="button">Geral</button>
+      <button class="modal-tab" data-tab="fornecedor" type="button">Fornecedor</button>
+      <button class="modal-tab" data-tab="pedido" type="button">Pedido</button>
+      <button class="modal-tab" data-tab="entrega" type="button">Entrega</button>
+      <button class="modal-tab" data-tab="pagamento" type="button">Pagamento</button>
+    </div>
+    <form id="ordemForm" class="modal-body">
+      <input type="hidden" id="editId" value="">
+
+      <section class="tab-pane active" data-pane="geral">
+        <div class="field"><label>Número da Ordem *</label><input type="text" id="numeroOrdem" required></div>
+        <div class="field"><label>Responsável</label><input type="text" id="responsavel" readonly style="background:#E5E7EB;cursor:not-allowed;" tabindex="-1"></div>
+        <div class="field"><label>Data da Ordem *</label><input type="date" id="dataOrdem" required></div>
+      </section>
+
+      <section class="tab-pane" data-pane="fornecedor">
+        <div class="field"><label>Razão Social *</label><input type="text" id="razaoSocial" required></div>
+        <div class="field"><label>Nome Fantasia</label><input type="text" id="nomeFantasia"></div>
+        <div class="field"><label>CNPJ *</label><input type="text" id="cnpj" required></div>
+        <div class="field"><label>Endereço</label><input type="text" id="enderecoFornecedor"></div>
+        <div class="field"><label>Site</label><input type="text" id="site"></div>
+        <div class="field"><label>Contato</label><input type="text" id="contato"></div>
+        <div class="field"><label>Telefone</label><input type="text" id="telefone"></div>
+        <div class="field"><label>E-mail</label><input type="email" id="email"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="pedido">
+        <button type="button" class="btn-add-item" id="btnAddItem">+ Adicionar Item</button>
+        
+        <div class="items-list" id="itemsBody"></div>
+        
+        <div class="field" style="margin-top: 1rem;">
+          <label>Valor Total da Ordem</label>
+          <input type="text" id="valorTotalOrdem" readonly value="R$ 0,00" style="background:#E5E7EB;font-weight:bold;">
+        </div>
+        <div class="field"><label>Frete</label><input type="text" id="frete" value="CIF" placeholder="Ex: CIF, FOB"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="entrega">
+        <div class="field"><label>Local de Entrega</label><input type="text" id="localEntrega" value="RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318"></div>
+        <div class="field"><label>Prazo de Entrega</label><input type="text" id="prazoEntrega" value="IMEDIATO"></div>
+        <div class="field"><label>Transporte</label><input type="text" id="transporte" value="FORNECEDOR"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="pagamento">
+        <div class="field"><label>Forma de Pagamento *</label><input type="text" id="formaPagamento" required placeholder="Ex: Boleto, PIX, Cartão"></div>
+        <div class="field"><label>Dados Bancários</label><input type="text" id="dadosBancarios" placeholder="Banco / Agência / Conta"></div>
+        <div class="field"><label>Prazo de Pagamento *</label><input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias"></div>
+      </section>
+    </form>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSave" type="submit" form="ordemForm">Salvar</button>
+      <button class="btn btn-red" data-close="formModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: VIEW -->
+<div class="modal" id="viewModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Ordem Nº <span id="viewNumero"></span></h2>
+      <button class="modal-close" data-close="viewModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-vtab="vgeral" type="button">Geral</button>
+      <button class="modal-tab" data-vtab="vfornecedor" type="button">Fornecedor</button>
+      <button class="modal-tab" data-vtab="vpedido" type="button">Pedido</button>
+      <button class="modal-tab" data-vtab="ventrega" type="button">Entrega</button>
+      <button class="modal-tab" data-vtab="vpagamento" type="button">Pagamento</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" data-vpane="vgeral" id="vgeral"></div>
+      <div class="tab-pane" data-vpane="vfornecedor" id="vfornecedor"></div>
+      <div class="tab-pane" data-vpane="vpedido" id="vpedido"></div>
+      <div class="tab-pane" data-vpane="ventrega" id="ventrega"></div>
+      <div class="tab-pane" data-vpane="vpagamento" id="vpagamento"></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="viewModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: DELETE -->
+<div class="modal" id="deleteModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="deleteModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg">Tem certeza que deseja excluir esta ordem?</div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="confirmDeleteBtn" type="button">Sim</button>
+      <button class="btn btn-red" data-close="deleteModal" type="button">Não</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DUPLICAR -->
+<div class="modal" id="duplicateModal" aria-hidden="true">
+  <div class="modal-box modal-small" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Duplicar Ordem</h2>
+      <button class="modal-close" data-close="duplicateModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="pane-hint" style="margin-bottom:1rem;">Digite o número da ordem a ser duplicada.</p>
+      <div class="field">
+        <input type="text" id="duplicateInput" placeholder="Ex: 1250" style="text-align:center;font-size:1.2rem;">
+      </div>
+      <div id="duplicateError" style="color:#EF4444;font-size:0.85rem;margin-top:0.5rem;display:none;text-align:center;">Esta ordem não existe.</div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="confirmDuplicateBtn" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="duplicateModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/compra/m/script.js"></script>
+</body>
+</html>
