@@ -1,16 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#F4F5F7">
-    <meta name="color-scheme" content="light only">
-    <title>Tabela de Preços</title>
-    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/precos/m/styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F5F7">
+<meta name="color-scheme" content="light only">
+<title>Licitações</title>
+<link rel="icon" href="/apps/imagens/IR ICONE.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/licitacoes/m/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -18,25 +19,73 @@
   <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </svg>
-  <input type="search" id="searchInput" placeholder="Buscar código, marca ou descrição..." autocomplete="off">
+  <input type="search" id="searchInput" placeholder="Buscar pregão, UASG, vendedor..." autocomplete="off">
 </div>
 
 <div class="filters">
-  <select id="marcaFilter" class="filter-select">
-    <option value="TODAS">Todas as Marcas</option>
+  <select id="statusFilter" class="filter-select">
+    <option value="">Todos os status</option>
+    <option value="disputa">Disputa</option>
+    <option value="ganhos">Ganhos</option>
+    <option value="realizados">Realizados</option>
   </select>
+  <select id="vendedorFilter" class="filter-select">
+    <option value="">Todos os Vendedores</option>
+  </select>
+</div>
+
+<div class="month-nav">
+  <button type="button" id="monthPrev" class="month-arrow" aria-label="Mês anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <span id="currentMonth">Carregando...</span>
+  <button type="button" id="monthNext" class="month-arrow" aria-label="Próximo mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
 </div>
 
 <div class="list" id="list"></div>
 
 <div class="empty-state" id="emptyState" hidden>
-  <div class="empty-icon">🏷️</div>
-  <div class="empty-title">Nenhum preço encontrado</div>
+  <div class="empty-icon">📋</div>
+  <div class="empty-title">Nenhuma licitação encontrada</div>
   <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
 </div>
 
-<div class="fab-group">
+<!-- ══════════════ Página de ITENS ══════════════ -->
+<section class="items-page" id="itemsPage" hidden>
+  <div class="items-head">
+    <div class="items-head-text">
+      <h2 id="itemsTitle">Itens</h2>
+      <p id="itemsSubtitle" class="subtitle"></p>
+    </div>
+    <button class="icon-btn back-btn" id="backItems" type="button" aria-label="Voltar ao início" title="Voltar ao início">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </button>
+  </div>
+
+  <div class="search-bar">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="itemSearch" placeholder="Pesquisar item...">
+  </div>
+  <div class="filters">
+    <select id="filterMarca" class="filter-select"><option value="">Todas as Marcas</option></select>
+    <select id="filterItens" class="filter-select">
+      <option value="">Todos os Itens</option>
+      <option value="ganhos">Ganhos</option>
+      <option value="nao-ganhos">Não Ganhos</option>
+    </select>
+  </div>
+
+  <div id="tablesContainer"></div>
+</section>
+
+<!-- ══════════════ FAB principal (lista) ══════════════ -->
+<div class="fab-group" id="mainFab">
   <div class="icons-row">
+    <button class="icon-btn" id="disputaBtn" type="button" aria-label="Alerta de disputa" title="Alerta de Disputa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </button>
     <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
@@ -45,36 +94,85 @@
       </svg>
     </button>
   </div>
-  <button class="fab-register" id="addBtn" type="button" aria-label="Novo Preço" title="Novo Preço">
+  <button class="fab-register" id="addBtn" type="button" aria-label="Nova Licitação" title="Nova Licitação">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
   </button>
 </div>
 
-<!-- MODAL FORM -->
+<!-- ══════════════ FAB de ITENS (pdf + sync) ══════════════ -->
+<div class="fab-group items-fab" id="itemsFab" hidden>
+  <div class="icons-row">
+    <button class="icon-btn" id="pdfBtn" type="button" aria-label="Gerar documento" title="Gerar documento">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    </button>
+    <button class="icon-btn" id="syncItemsBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: FORM ══════════════ -->
 <div class="modal" id="formModal" aria-hidden="true">
   <div class="modal-box" role="dialog" aria-modal="true">
     <header class="modal-head">
       <div class="modal-head-spacer"></div>
-      <h2 class="modal-head-title" id="formTitle">Novo Preço</h2>
+      <h2 class="modal-head-title" id="formTitle">Nova Licitação</h2>
       <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
     </header>
     <div class="modal-tabs" role="tablist">
-      <button class="modal-tab active" data-tab="produto" type="button">Produto</button>
-      <button class="modal-tab" data-tab="valores" type="button">Valores</button>
+      <button class="modal-tab active" data-tab="info" type="button">Informações</button>
+      <button class="modal-tab" data-tab="orgao" type="button">Órgão</button>
+      <button class="modal-tab" data-tab="req" type="button">Requisitos</button>
+      <button class="modal-tab" data-tab="prazos" type="button">Prazos</button>
     </div>
     <form id="recordForm" class="modal-body">
       <input type="hidden" id="recordId">
 
-      <section class="tab-pane active" data-pane="produto">
-        <div class="field"><label>Marca *</label><input id="modalMarca" type="text" required autocomplete="off"></div>
-        <div class="field"><label>Código *</label><input id="modalCodigo" type="text" required autocomplete="off"></div>
-        <div class="field"><label>Descrição *</label><input id="modalDescricao" type="text" required></div>
+      <section class="tab-pane active" data-pane="info">
+        <div class="field"><label>Data Registro *</label><input id="dataRegistro" type="date" required></div>
+        <div class="field"><label>Vendedor</label><select id="vendedor" required></select></div>
+        <div class="field"><label>Data do Pregão</label><input id="dataPregao" type="date"></div>
+        <div class="field"><label>Horário</label><input id="horarioPregao" type="time"></div>
+        <div class="field"><label>Modalidade</label><select id="modalidade"><option value="ABERTO">ABERTO</option><option value="ABERTO E FECHADO">ABERTO E FECHADO</option></select></div>
+        <div class="field"><label>Número do Pregão *</label><input id="numeroPregao" required></div>
+        <div class="field"><label>Status</label>
+          <select id="statusManual">
+            <option value="">-</option>
+            <option value="suspenso">SUSPENSO</option>
+            <option value="encerrado">ENCERRADO</option>
+            <option value="cancelado">CANCELADO</option>
+          </select>
+        </div>
       </section>
 
-      <section class="tab-pane" data-pane="valores">
-        <div class="field"><label>Preço (R$) *</label><input id="modalPreco" type="number" step="0.01" min="0.01" required></div>
+      <section class="tab-pane" data-pane="orgao">
+        <div class="field"><label>Nome do Órgão *</label><input id="nomeOrgao" required></div>
+        <div class="field"><label>UASG</label><input id="uasg"></div>
+        <div class="field"><label>Cidade</label><input id="cidade"></div>
+        <div class="field"><label>UF</label><select id="uf"><option value="">Selecione</option></select></div>
+        <div class="field"><label>Telefone</label><input id="telefone" type="tel"></div>
+        <div class="field"><label>Email</label><input id="email" type="email"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="req">
+        <p class="pane-hint">Clique nos requisitos aplicáveis.</p>
+        <div id="requirements" class="modules-grid"></div>
+        <div class="field" style="margin-top:1.25rem;">
+          <label>Banco para Pagamento</label>
+          <select id="bancoPagamento">
+            <option value="BANCO DO BRASIL">BANCO DO BRASIL</option>
+            <option value="SICOOB">SICOOB</option>
+            <option value="BRADESCO">BRADESCO</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="tab-pane" data-pane="prazos">
+        <div class="field"><label>Validade da Proposta</label><input id="validadeProposta" value="60 DIAS CORRIDOS"></div>
+        <div class="field"><label>Prazo de Entrega</label><input id="prazoEntrega" value="30 DIAS CORRIDOS"></div>
+        <div class="field"><label>Prazo de Pagamento</label><input id="prazoPagamento" value="30 DIAS CORRIDOS"></div>
       </section>
     </form>
     <footer class="modal-foot">
@@ -84,11 +182,37 @@
   </div>
 </div>
 
-<!-- MODAL DELETE -->
+<!-- ══════════════ MODAL: VIEW ══════════════ -->
+<div class="modal" id="viewModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Pregão <span id="viewNumero"></span></h2>
+      <button class="modal-close" data-close="viewModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-vtab="vinfo" type="button">Informações</button>
+      <button class="modal-tab" data-vtab="vorgao" type="button">Órgão</button>
+      <button class="modal-tab" data-vtab="vreq" type="button">Requisitos</button>
+      <button class="modal-tab" data-vtab="vprazos" type="button">Prazos</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" data-vpane="vinfo" id="vinfo"></div>
+      <div class="tab-pane" data-vpane="vorgao" id="vorgao"></div>
+      <div class="tab-pane" data-vpane="vreq" id="vreq"></div>
+      <div class="tab-pane" data-vpane="vprazos" id="vprazos"></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="viewModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DELETE ══════════════ -->
 <div class="modal" id="deleteModal" aria-hidden="true">
   <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
     <button class="modal-close ir-close" data-close="deleteModal" type="button" aria-label="Fechar">✕</button>
-    <div class="confirm-msg">Tem certeza que deseja excluir este preço?</div>
+    <div class="confirm-msg" id="deleteMsg">Deseja excluir este pregão?</div>
     <div class="confirm-actions">
       <button class="btn btn-green" id="confirmDelete" type="button">Sim</button>
       <button class="btn btn-red" data-close="deleteModal" type="button">Não</button>
@@ -96,9 +220,93 @@
   </div>
 </div>
 
+<!-- ══════════════ MODAL: DISPUTA ══════════════ -->
+<div class="modal" id="disputaModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Alerta de Disputa</h2>
+      <button class="modal-close" data-close="disputaModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div id="disputaBody"><div class="empty-mini">Carregando…</div></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="disputaModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: RANGE ══════════════ -->
+<div class="modal" id="rangeModal" aria-hidden="true">
+  <div class="modal-box modal-small" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Adicionar Intervalo</h2>
+      <button class="modal-close" data-close="rangeModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="pane-hint">Informe os itens ou intervalos em ordem crescente. Ex.: <b>1-5, 12, 100-180</b></p>
+      <div class="field"><input id="rangeInput" placeholder="Ex: 1-5, 12, 100-180"></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="confirmRange" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="rangeModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DOC ══════════════ -->
+<div class="modal" id="docModal" aria-hidden="true">
+  <div class="modal-box modal-small" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Gerar documento</h2>
+      <button class="modal-close" data-close="docModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="pane-hint">Escolha o documento:</p>
+      <div class="doc-choices">
+        <button type="button" class="doc-choice" data-doc="proposta-pdf">PROPOSTA PDF</button>
+        <button type="button" class="doc-choice" data-doc="proposta-docs">PROPOSTA DOCS</button>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="confirmDoc" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="docModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: QUOTE ══════════════ -->
+<div class="modal" id="quoteModal" aria-hidden="true">
+  <div class="modal-box modal-small" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Cotação de Preço</h2>
+      <button class="modal-close" data-close="quoteModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="pane-hint" id="quoteHelper">Modelo de cotação:</p>
+      <div class="quote-options">
+        <button type="button" class="quote-option" data-quote="descricao">DESCRIÇÃO</button>
+        <button type="button" class="quote-option" data-quote="modelo">MODELO</button>
+      </div>
+      <div class="field" style="margin-top:.75rem;">
+        <label>Intervalo de itens</label>
+        <input id="quoteRange" placeholder="Ex: 1-5, 10, 15-20">
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="confirmQuote" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="quoteModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<div class="warning-panel" id="warningPanel" aria-live="polite"></div>
 <div class="toast" id="toast"></div>
 
-<script src="/shared/ir-common.js"></script>
-<script src="/precos/m/script.js"></script>
+<script src="/licitacoes/m/script.js"></script>
 </body>
 </html>
