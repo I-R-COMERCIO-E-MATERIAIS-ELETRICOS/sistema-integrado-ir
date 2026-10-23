@@ -81,12 +81,7 @@ function effectiveStatus(r){
 
 function triggerGlobalLogout(message) {
   const msg = message || 'Sua sessão expirou';
-  try {
-    if (window.IR && typeof IR.denied === 'function') {
-      IR.denied(msg);
-      return;
-    }
-  } catch (e) { }
+  try { if (window.IR && typeof IR.denied === 'function') { IR.denied(msg); return; } } catch (e) { }
   let inIframe = false;
   try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
   if (inIframe) {
@@ -130,23 +125,14 @@ function verificarAutenticacao() {
       }
     } catch (e) {}
   }
-  if (!sessionToken) {
-    triggerGlobalLogout('Sessão expirada');
-    return;
-  }
-  if (window.IR && typeof IR.setToken === 'function') {
-    try { IR.setToken(sessionToken); } catch (e) {}
-  }
+  if (!sessionToken) { triggerGlobalLogout('Sessão expirada'); return; }
+  if (window.IR && typeof IR.setToken === 'function') { try { IR.setToken(sessionToken); } catch (e) {} }
   fetchSessionUser();
   startApp();
 }
 
 const api = async (url, opts = {}) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(opts.headers || {})
-  };
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(opts.headers || {}) };
   if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
   const r = await fetch(url, { ...opts, headers, credentials: 'same-origin' });
   if (!DEVELOPMENT_MODE && (r.status === 401 || r.status === 403)) {
@@ -162,40 +148,15 @@ const api = async (url, opts = {}) => {
   return r.status === 204 ? null : r.json();
 };
 
-function toastSuccess(msg){
-  const t = $('toast');
-  t.className = 'toast success';
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
-}
-function toastError(msg){
-  const t = $('toast');
-  t.className = 'toast error';
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
-}
-function toastWarn(msg){
-  const t = $('toast');
-  t.className = 'toast warn';
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(()=>t.classList.remove('show'), 3200);
-}
+function toastSuccess(msg){ const t=$('toast'); t.className='toast success'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3000); }
+function toastError(msg){ const t=$('toast'); t.className='toast error'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3000); }
+function toastWarn(msg){ const t=$('toast'); t.className='toast warn'; t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3200); }
 
 function open(id){ const el=$(id); if(el) el.classList.add('open'); }
 function close(id){ const el=$(id); if(el) el.classList.remove('open'); }
 
-document.querySelectorAll('[data-close]').forEach(b=>{
-  b.addEventListener('click', ()=>close(b.dataset.close));
-});
-document.querySelectorAll('.modal-overlay').forEach(o=>{
-  o.addEventListener('click', e=>{ if(e.target === o) close(o.id); });
-});
+document.querySelectorAll('[data-close]').forEach(b=>{ b.addEventListener('click', ()=>close(b.dataset.close)); });
+document.querySelectorAll('.modal-overlay').forEach(o=>{ o.addEventListener('click', e=>{ if(e.target === o) close(o.id); }); });
 
 $('uf').innerHTML += states.map(s=>`<option>${s}</option>`).join('');
 $('requirements').innerHTML = reqs.map(r=>`<button type="button" class="requirement" data-req="${r}">${r}</button>`).join('');
@@ -228,9 +189,7 @@ document.querySelectorAll('[data-vtab]').forEach(b=>b.addEventListener('click',(
 
 $('newBtn').addEventListener('click', () => newRecord());
 
-$('search').addEventListener('input', ()=>{
-  clearTimeout(searchTimer); searchTimer=setTimeout(()=>{ page=1; loadList(); },300);
-});
+$('search').addEventListener('input', ()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(()=>{ page=1; loadList(); },300); });
 $('filterVendedor').addEventListener('change', ()=>{ page=1; loadList(); });
 $('filterStatus').addEventListener('change', ()=>{ page=1; loadList(); });
 $('syncBtn').addEventListener('click', ()=>syncNow());
@@ -252,18 +211,12 @@ function updateMonthDisplay(){
 }
 function changeMonth(direction){
   currentMonth.setMonth(currentMonth.getMonth() + direction);
-  page = 1;
-  records = [];
-  updateMonthDisplay();
-  loadList();
-  loadStats();
+  page = 1; records = []; updateMonthDisplay(); loadList(); loadStats();
 }
 $('monthPrev').addEventListener('click', ()=>changeMonth(-1));
 $('monthNext').addEventListener('click', ()=>changeMonth(1));
 
-function monthParams(){
-  return { mes: String(currentMonth.getMonth()), ano: String(currentMonth.getFullYear()) };
-}
+function monthParams(){ return { mes: String(currentMonth.getMonth()), ano: String(currentMonth.getFullYear()) }; }
 
 async function loadStats(){
   try{
@@ -300,8 +253,7 @@ async function loadList(){
     const params = new URLSearchParams();
     params.set('page', String(page));
     const { mes, ano } = monthParams();
-    params.set('mes', mes);
-    params.set('ano', ano);
+    params.set('mes', mes); params.set('ano', ano);
     const s = $('search').value.trim(); if(s) params.set('search', s);
     const v = $('filterVendedor').value.trim(); if(v) params.set('vendedor', v);
     const st = $('filterStatus').value.trim(); if(st) params.set('status', st);
@@ -319,10 +271,8 @@ async function loadList(){
 async function syncNow(){
   const btn=$('syncBtn');
   if(btn){ btn.classList.add('spin'); setTimeout(()=>btn.classList.remove('spin'),1000); }
-  try{
-    await Promise.all([loadList(), loadStats()]);
-    toastSuccess('Dados sincronizados');
-  }catch(e){ toastError('Erro de sincronização'); }
+  try{ await Promise.all([loadList(), loadStats()]); toastSuccess('Dados sincronizados'); }
+  catch(e){ toastError('Erro de sincronização'); }
 }
 
 function renderTable(){
@@ -370,10 +320,7 @@ function renderTable(){
   tbody.querySelectorAll('[data-itens]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); showItems(b.dataset.itens); }));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); confirmDeleteFlow(b.dataset.del); }));
   tbody.querySelectorAll('.ganho-chk').forEach(chk=>{
-    chk.addEventListener('change', async e=>{
-      e.stopPropagation();
-      await toggleGanho(chk.dataset.id, chk.checked, chk);
-    });
+    chk.addEventListener('change', async e=>{ e.stopPropagation(); await toggleGanho(chk.dataset.id, chk.checked, chk); });
     chk.addEventListener('click', e=>e.stopPropagation());
   });
 }
@@ -394,17 +341,13 @@ async function toggleGanho(id, ganho, chkEl){
     if (ganho) toastSuccess(`O ${numP} foi marcado como ganho`);
     else toastSuccess(`Pregão ${numP} atualizado`);
     loadStats();
-  }catch(err){
-    if (chkEl) chkEl.checked = !ganho;
-    toastError(err.message);
-  }
+  }catch(err){ if (chkEl) chkEl.checked = !ganho; toastError(err.message); }
 }
 
 function renderPagination(){
   const el = $('pagination');
   if(pages <= 1){ el.innerHTML=''; return; }
-  const cur = page;
-  const nums = [];
+  const cur = page; const nums = [];
   const add = n => { if(n>=1 && n<=pages && !nums.includes(n)) nums.push(n); };
   add(1); add(cur-1); add(cur); add(cur+1); add(pages);
   nums.sort((a,b)=>a-b);
@@ -430,10 +373,7 @@ async function openDisputaModal(){
   open('disputaOverlay');
   try{
     const list = await api('/api/licitacoes/disputa-hoje');
-    if(!list.length){
-      $('disputaBody').innerHTML = '<tr><td colspan="5" class="empty">Nenhum pregão programado para hoje.</td></tr>';
-      return;
-    }
+    if(!list.length){ $('disputaBody').innerHTML = '<tr><td colspan="5" class="empty">Nenhum pregão programado para hoje.</td></tr>'; return; }
     $('disputaBody').innerHTML = list.map(r=>`
       <tr>
         <td>${esc(fmtDate(r.data_pregao))}</td>
@@ -442,15 +382,11 @@ async function openDisputaModal(){
         <td>${esc(up(r.vendedor)||'—')}</td>
         <td>${esc(up(r.nome_orgao))}</td>
       </tr>`).join('');
-  }catch(e){
-    $('disputaBody').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`;
-  }
+  }catch(e){ $('disputaBody').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`; }
 }
 
 function newRecord(){
-  current = null;
-  activeTab = 0;
-  setTab(0);
+  current = null; activeTab = 0; setTab(0);
   $('recordForm').reset();
   $('recordId').value='';
   $('formTitle').textContent = 'Nova Licitação';
@@ -530,11 +466,8 @@ $('recordForm').addEventListener('submit', async e => {
       { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
     close('formOverlay');
     const numP = up(saved?.numero_pregao || body.numeroPregao);
-    if(id){
-      toastSuccess(`Pregão ${numP} atualizado`);
-    } else {
-      toastSuccess('Licitação salva com sucesso.');
-    }
+    if(id){ toastSuccess(`Pregão ${numP} atualizado`); }
+    else { toastSuccess('Licitação salva com sucesso.'); }
     await Promise.all([loadList(), loadStats()]);
   }catch(err){ toastError(err.message); }
 });
@@ -542,16 +475,14 @@ $('recordForm').addEventListener('submit', async e => {
 function confirmDeleteFlow(id){
   const r = records.find(x=>x.id===id);
   if(!r) return;
-  delId = id;
-  delTableIdx = null;
+  delId = id; delTableIdx = null;
   $('deleteMsg').textContent = `Deseja excluir o pregão ${up(r.numero_pregao)}?`;
   open('deleteOverlay');
 }
 function confirmDeleteTable(tIdx){
   const t = tables[tIdx];
   if(!t) return;
-  delId = null;
-  delTableIdx = tIdx;
+  delId = null; delTableIdx = tIdx;
   const qtd = t.items.length;
   const nome = t.titulo ? `o grupo "${up(t.titulo)}"` : 'a tabela de itens';
   const extra = qtd ? ` (${qtd} ${qtd === 1 ? 'item' : 'itens'})` : '';
@@ -560,14 +491,8 @@ function confirmDeleteTable(tIdx){
 }
 $('confirmDelete').addEventListener('click', async ()=>{
   if(delTableIdx !== null){
-    const tI = delTableIdx;
-    delTableIdx = null;
-    close('deleteOverlay');
-    if(tables[tI]){
-      tables.splice(tI, 1);
-      renderAllTables();
-      scheduleSave();
-    }
+    const tI = delTableIdx; delTableIdx = null; close('deleteOverlay');
+    if(tables[tI]){ tables.splice(tI, 1); renderAllTables(); scheduleSave(); }
     return;
   }
   if(!delId) return;
@@ -575,8 +500,7 @@ $('confirmDelete').addEventListener('click', async ()=>{
   const numP = up(r?.numero_pregao || '');
   try{
     await api(`/api/licitacoes/${delId}`, { method:'DELETE' });
-    close('deleteOverlay');
-    delId = null;
+    close('deleteOverlay'); delId = null;
     toastSuccess(`Pregão ${numP} foi excluído`);
     await Promise.all([loadList(), loadStats()]);
   }catch(e){ toastError(e.message); }
@@ -627,51 +551,30 @@ function normalizeTables(r){
   const gruposList = Array.isArray(r.grupos) ? r.grupos.slice() : [];
   const main = [];
   const byGroup = {};
-
   rawItems.forEach((x,i)=>{
     const g = String(x.grupo || '').trim();
     const it = {
-      item: x.item ?? (i+1),
-      descricao: x.descricao || '',
-      qtd: x.qtd ?? 1,
-      und: x.und || 'UN',
-      marca: x.marca || '',
-      modelo: x.modelo || '',
-      estimadoUnt: x.estimadoUnt ?? '',
-      custoUnt: x.custoUnt ?? '',
-      porcentagem: x.porcentagem ?? 149,
-      selecionado: x.selecionado !== false,
-      cor: x.cor || ''
+      item: x.item ?? (i+1), descricao: x.descricao || '',
+      qtd: x.qtd ?? 1, und: x.und || 'UN', marca: x.marca || '', modelo: x.modelo || '',
+      estimadoUnt: x.estimadoUnt ?? '', custoUnt: x.custoUnt ?? '',
+      porcentagem: x.porcentagem ?? 149, selecionado: x.selecionado !== false, cor: x.cor || ''
     };
     if(!g) main.push(it);
-    else {
-      if(!gruposList.includes(g)) gruposList.push(g);
-      if(!byGroup[g]) byGroup[g] = [];
-      byGroup[g].push(it);
-    }
+    else { if(!gruposList.includes(g)) gruposList.push(g); if(!byGroup[g]) byGroup[g] = []; byGroup[g].push(it); }
   });
-
   const out = [];
   if(main.length) out.push({ titulo:'', items: main });
-  gruposList.forEach(titulo=>{
-    out.push({ titulo, items: byGroup[titulo] || [] });
-  });
+  gruposList.forEach(titulo=>out.push({ titulo, items: byGroup[titulo] || [] }));
   return out;
 }
 
 function flatItems(){
   const all = [];
-  tables.forEach(t=>{
-    t.items.forEach(it=>{
-      all.push({ ...it, grupo: t.titulo });
-    });
-  });
+  tables.forEach(t=>t.items.forEach(it=>all.push({ ...it, grupo: t.titulo })));
   return all;
 }
 
-function groupTitles(){
-  return tables.filter(t=>t.titulo).map(t=>t.titulo);
-}
+function groupTitles(){ return tables.filter(t=>t.titulo).map(t=>t.titulo); }
 
 function showItems(id){
   const r = records.find(x=>x.id===id);
@@ -712,7 +615,6 @@ const INSERT_BAR = at => `
 
 function renderAllTables(){
   const container = $('tablesContainer');
-
   if(tables.length === 0){
     container.innerHTML = INSERT_BAR(0);
     bindInsertButtons();
@@ -720,13 +622,8 @@ function renderAllTables(){
     applyFilters();
     return;
   }
-
   let html = INSERT_BAR(0);
-  tables.forEach((t, tIdx)=>{
-    html += renderSingleTable(t, tIdx);
-    html += INSERT_BAR(tIdx+1);
-  });
-
+  tables.forEach((t, tIdx)=>{ html += renderSingleTable(t, tIdx); html += INSERT_BAR(tIdx+1); });
   container.innerHTML = html;
   bindTableEvents();
   bindInsertButtons();
@@ -737,13 +634,11 @@ function renderAllTables(){
 
 function renderSingleTable(t, tIdx){
   const isMain = !t.titulo;
-  const cardsHTML = t.items.map((it, i)=>itemCardHTML(it, tIdx, i)).join('');
+  const rowsHTML = t.items.map((it, i)=>itemRowHTML(it, tIdx, i)).join('');
   const totais = computeTotals(t.items);
-  const titleHTML = isMain
-    ? ''
-    : `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
+  const titleHTML = isMain ? '' :
+    `<input class="grupo-titulo-input" data-gidx="${tIdx}" value="${esc(t.titulo)}" placeholder="Nome do Grupo">`;
 
-  // FORÇA O GRID NO HTML GERADO
   return `
     <div class="grupo-tabela" data-gidx="${tIdx}">
       <div class="grupo-header">
@@ -763,8 +658,31 @@ function renderSingleTable(t, tIdx){
           </button>
         </div>
       </div>
-      <div class="items-cards" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; gap: 16px !important;">
-        ${cardsHTML || '<div class="items-empty">Nenhum item neste grupo.</div>'}
+      <div class="card table-card items-card">
+        <div class="items-wrap">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th class="col-check">✓</th>
+                <th class="col-item">ITEM</th>
+                <th class="col-desc">DESCRIÇÃO</th>
+                <th class="col-qtd">QTD</th>
+                <th class="col-und">UND</th>
+                <th class="col-marca">MARCA</th>
+                <th class="col-modelo">MODELO</th>
+                <th class="col-num">ESTIM. UNT</th>
+                <th class="col-num">ESTIM. TOTAL</th>
+                <th class="col-num">CUSTO UNT</th>
+                <th class="col-num">CUSTO TOTAL</th>
+                <th class="col-pct">%</th>
+                <th class="col-num">VENDA UNT</th>
+                <th class="col-num">VENDA TOTAL</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>${rowsHTML || '<tr><td colspan="15" class="empty">Nenhum item</td></tr>'}</tbody>
+          </table>
+        </div>
       </div>
       <div class="totals-bar">
         <div class="totals-item"><span>ESTIMADO</span><strong>${money(totais.estimado)}</strong></div>
@@ -774,9 +692,9 @@ function renderSingleTable(t, tIdx){
     </div>`;
 }
 
-function itemCardHTML(it, tIdx, idx){
+function itemRowHTML(it, tIdx, idx){
   const sel = it.selecionado !== false;
-  const cls = ['item-card'];
+  const cls = [];
   if(sel) cls.push('row-ganho-item');
   else if(it.cor && COLORS[it.cor]) cls.push('row-color-'+it.cor);
   const custoTotal = num(it.custoUnt) * num(it.qtd);
@@ -785,70 +703,41 @@ function itemCardHTML(it, tIdx, idx){
   const vendaTotal = vendaUnt * num(it.qtd);
   const warn = vendaUnt > num(it.estimadoUnt) && num(it.estimadoUnt) > 0;
   if(warn) cls.push('row-warn');
-
-  // FORÇA O FLEX COLUMN NOS CARDS
-  return `<div class="${cls.join(' ')}" style="display: flex !important; flex-direction: column !important; width: 100% !important;" data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}">
-    <div class="item-card-top">
+  return `<tr data-tidx="${tIdx}" data-idx="${idx}" data-cor="${esc(it.cor||'')}" class="${cls.join(' ')}">
+    <td style="text-align:center;">
       <div class="checkbox-wrapper">
         <input type="checkbox" class="styled-checkbox item-chk" id="it-chk-${tIdx}-${idx}" ${sel?'checked':''}>
         <label for="it-chk-${tIdx}-${idx}" class="checkbox-label-styled" title="Marcar como ganho"></label>
       </div>
-      <div class="item-card-number">
-        <span class="item-card-number-label">ITEM</span>
-        <input class="itemno" data-k="item" value="${esc(it.item??'')}">
+    </td>
+    <td><input class="itemno" data-k="item" value="${esc(it.item??'')}"></td>
+    <td><textarea class="desc" data-k="descricao" rows="1" placeholder="Descrição">${esc(it.descricao??'')}</textarea></td>
+    <td><input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}"></td>
+    <td><input class="unit" data-k="und" value="${esc(up(it.und??'UN'))}"></td>
+    <td><input data-k="marca" value="${esc(up(it.marca??''))}"></td>
+    <td><input data-k="modelo" value="${esc(up(it.modelo??''))}"></td>
+    <td><input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt!==undefined && it.estimadoUnt!=='' ? fmtNum(it.estimadoUnt) : '')}"></td>
+    <td><input class="num calculated" data-k="estimadoTotal" readonly value="${esc(fmtNum(estimTotal))}"></td>
+    <td><input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt!==undefined && it.custoUnt!=='' ? fmtNum(it.custoUnt) : '')}"></td>
+    <td><input class="num calculated" data-k="custoTotal" readonly value="${esc(fmtNum(custoTotal))}"></td>
+    <td><input class="num" data-k="porcentagem" inputmode="decimal" value="${esc(fmtNum(it.porcentagem??149, 0))}"></td>
+    <td><input class="num calculated" data-k="vendaUnt" readonly value="${esc(fmtNum(vendaUnt))}"></td>
+    <td><input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}"></td>
+    <td>
+      <div class="row-actions">
+        <button type="button" class="row-btn brush" title="Cor"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg></button>
+        <button type="button" class="row-btn del" title="Excluir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
-      <div class="item-card-actions">
-        <button type="button" class="row-btn brush" title="Cor">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg>
-        </button>
-        <button type="button" class="row-btn del" title="Excluir">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <div class="item-field full">
-      <label>Descrição</label>
-      <textarea data-k="descricao" rows="2" placeholder="Descrição do item">${esc(it.descricao??'')}</textarea>
-    </div>
-
-    <div class="item-fields" style="display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px 10px !important;">
-      <div class="item-field"><label>Qtd</label>
-        <input class="num" data-k="qtd" inputmode="decimal" value="${esc(fmtNum(it.qtd??1, 0))}"></div>
-      <div class="item-field"><label>Und</label>
-        <input data-k="und" value="${esc(up(it.und??'UN'))}"></div>
-      <div class="item-field"><label>Marca</label>
-        <input data-k="marca" value="${esc(up(it.marca??''))}"></div>
-      <div class="item-field"><label>Modelo</label>
-        <input data-k="modelo" value="${esc(up(it.modelo??''))}"></div>
-      <div class="item-field"><label>Estim. Unt</label>
-        <input class="num" data-k="estimadoUnt" inputmode="decimal" value="${esc(it.estimadoUnt!==undefined && it.estimadoUnt!=='' ? fmtNum(it.estimadoUnt) : '')}"></div>
-      <div class="item-field"><label>Estim. Total</label>
-        <input class="num calculated" data-k="estimadoTotal" readonly value="${esc(fmtNum(estimTotal))}"></div>
-      <div class="item-field"><label>Custo Unt</label>
-        <input class="num" data-k="custoUnt" inputmode="decimal" value="${esc(it.custoUnt!==undefined && it.custoUnt!=='' ? fmtNum(it.custoUnt) : '')}"></div>
-      <div class="item-field"><label>Custo Total</label>
-        <input class="num calculated" data-k="custoTotal" readonly value="${esc(fmtNum(custoTotal))}"></div>
-      <div class="item-field"><label>%</label>
-        <input class="num" data-k="porcentagem" inputmode="decimal" value="${esc(fmtNum(it.porcentagem??149, 0))}"></div>
-      <div class="item-field"><label>Venda Unt</label>
-        <input class="num calculated" data-k="vendaUnt" readonly value="${esc(fmtNum(vendaUnt))}"></div>
-      <div class="item-field full"><label>Venda Total</label>
-        <input class="num calculated" data-k="vendaTotal" readonly value="${esc(fmtNum(vendaTotal))}"></div>
-    </div>
-  </div>`;
+    </td>
+  </tr>`;
 }
 
 function computeTotals(list){
   let e=0,c=0,v=0;
   list.forEach(x=>{
-    const qtd = num(x.qtd);
-    const cu = num(x.custoUnt);
-    const eu = num(x.estimadoUnt);
+    const qtd = num(x.qtd); const cu = num(x.custoUnt); const eu = num(x.estimadoUnt);
     const pct = num(x.porcentagem ?? 149);
-    e += eu * qtd;
-    c += cu * qtd;
-    v += (cu * pct / 100) * qtd;
+    e += eu * qtd; c += cu * qtd; v += (cu * pct / 100) * qtd;
   });
   return { estimado:e, custo:c, venda:v };
 }
@@ -857,12 +746,10 @@ function bindInsertButtons(){
   document.querySelectorAll('.btn-toggle-table').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const at = parseInt(btn.dataset.insertAt) || 0;
-      const type = btn.dataset.type;
-      insertNewTable(at, type);
+      insertNewTable(at, btn.dataset.type);
     });
   });
 }
-
 function insertNewTable(at, type){
   const titulo = (type === 'grupo') ? ('Grupo ' + nextGroupNumber()) : '';
   tables.splice(at, 0, { titulo, items: [] });
@@ -896,7 +783,6 @@ function bindTableEvents(){
         i.addEventListener('keydown', e=>{ if(e.key === 'Enter') e.stopPropagation(); });
       }
     });
-
     const titleInput = gt.querySelector('.grupo-titulo-input');
     if(titleInput){
       titleInput.addEventListener('input', ()=>{
@@ -906,7 +792,6 @@ function bindTableEvents(){
         scheduleSave();
       });
     }
-
     gt.querySelectorAll('.grupo-icon-btn.del-table').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const tI = parseInt(btn.dataset.gidx);
@@ -914,77 +799,55 @@ function bindTableEvents(){
         confirmDeleteTable(tI);
       });
     });
-
     gt.querySelectorAll('.row-btn.del').forEach(b=>{
       b.addEventListener('click', ()=>{
-        const card = b.closest('.item-card');
-        const tI = parseInt(card.dataset.tidx);
-        const iI = parseInt(card.dataset.idx);
+        const tr = b.closest('tr');
+        const tI = parseInt(tr.dataset.tidx);
+        const iI = parseInt(tr.dataset.idx);
         if(isNaN(tI) || isNaN(iI)) return;
         const before = tables[tI].items.length;
         tables[tI].items.splice(iI, 1);
-        const after = tables[tI].items.length;
-        if(before > 0 && after === 0){
-          tables.splice(tI, 1);
-        }
+        if(before > 0 && tables[tI].items.length === 0) tables.splice(tI, 1);
         renderAllTables();
         scheduleSave();
       });
     });
-
     gt.querySelectorAll('.row-btn.brush').forEach(b=>{
       b.addEventListener('click', (e)=>{ e.stopPropagation(); openColorPop(b); });
     });
-
     gt.querySelectorAll('.item-chk').forEach(chk=>{
       chk.addEventListener('change', ()=>{
-        const card = chk.closest('.item-card');
-        const tI = parseInt(card.dataset.tidx);
-        const iI = parseInt(card.dataset.idx);
+        const tr = chk.closest('tr');
+        const tI = parseInt(tr.dataset.tidx);
+        const iI = parseInt(tr.dataset.idx);
         const ganho = chk.checked;
         if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
           tables[tI].items[iI].selecionado = ganho;
         }
-        card.classList.toggle('row-ganho-item', ganho);
+        tr.classList.toggle('row-ganho-item', ganho);
         if(ganho){
-          [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
+          [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
         } else {
-          const cor = card.dataset.cor || '';
-          if(cor && COLORS[cor]) card.classList.add('row-color-'+cor);
+          const cor = tr.dataset.cor || '';
+          if(cor && COLORS[cor]) tr.classList.add('row-color-'+cor);
         }
         recalcAll();
       });
     });
-
     gt.querySelectorAll('.grupo-icon-btn.add-item').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const gI = parseInt(btn.dataset.gidx);
-        addNewItem(gI);
-      });
+      btn.addEventListener('click', ()=>{ const gI = parseInt(btn.dataset.gidx); addNewItem(gI); });
     });
     gt.querySelectorAll('.grupo-icon-btn.add-range').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const gI = parseInt(btn.dataset.gidx);
-        openRangeModal(gI);
-      });
+      btn.addEventListener('click', ()=>{ const gI = parseInt(btn.dataset.gidx); openRangeModal(gI); });
     });
     gt.querySelectorAll('.grupo-icon-btn.cotacao-group').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const gI = parseInt(btn.dataset.gidx);
-        openQuoteModal(gI);
-      });
+      btn.addEventListener('click', ()=>{ const gI = parseInt(btn.dataset.gidx); openQuoteModal(gI); });
     });
   });
 }
 
-function autoResizeAll(){
-  document.querySelectorAll('.item-card textarea').forEach(ta=>autoResize(ta));
-}
-function autoResize(el){
-  if(!el) return;
-  el.style.height = 'auto';
-  el.style.height = (el.scrollHeight) + 'px';
-}
+function autoResizeAll(){ document.querySelectorAll('.items-table textarea').forEach(ta=>autoResize(ta)); }
+function autoResize(el){ if(!el) return; el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
 
 function cleanPasteHandler(e){
   const raw = (e.clipboardData || window.clipboardData).getData('text') || '';
@@ -1003,21 +866,16 @@ function readTableState(){
   document.querySelectorAll('.grupo-tabela').forEach(gt=>{
     const tIdx = parseInt(gt.dataset.gidx);
     if(isNaN(tIdx) || !tables[tIdx]) return;
-    const cards = [...gt.querySelectorAll('.item-card[data-idx]')];
-    const newItems = cards.map(card=>{
+    const rows = [...gt.querySelectorAll('tbody tr[data-idx]')];
+    const newItems = rows.map(tr=>{
       const o = {};
-      card.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
-      o.item = o.item ?? '';
-      o.descricao = o.descricao ?? '';
-      o.qtd = num(o.qtd);
-      o.und = o.und ?? 'UN';
-      o.marca = o.marca ?? '';
-      o.modelo = o.modelo ?? '';
-      o.estimadoUnt = num(o.estimadoUnt);
-      o.custoUnt = num(o.custoUnt);
+      tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k] = i.value);
+      o.item = o.item ?? ''; o.descricao = o.descricao ?? ''; o.qtd = num(o.qtd);
+      o.und = o.und ?? 'UN'; o.marca = o.marca ?? ''; o.modelo = o.modelo ?? '';
+      o.estimadoUnt = num(o.estimadoUnt); o.custoUnt = num(o.custoUnt);
       o.porcentagem = num(o.porcentagem ?? 149);
-      o.selecionado = card.querySelector('.item-chk').checked;
-      o.cor = card.dataset.cor || '';
+      o.selecionado = tr.querySelector('.item-chk').checked;
+      o.cor = tr.dataset.cor || '';
       return o;
     });
     tables[tIdx].items = newItems;
@@ -1047,23 +905,21 @@ function recalcAll(doSave = true){
     const t = tables[tIdx];
     if(!t) return;
     let e=0,c=0,v=0;
-    gt.querySelectorAll('.item-card[data-idx]').forEach(card=>{
-      const estU = num(card.querySelector('[data-k="estimadoUnt"]').value);
-      const qtd = num(card.querySelector('[data-k="qtd"]').value);
-      const cu = num(card.querySelector('[data-k="custoUnt"]').value);
-      const pct = num(card.querySelector('[data-k="porcentagem"]').value);
-      const estT = estU * qtd;
-      const ct = cu * qtd;
-      const vu = cu * pct / 100;
-      const vt = vu * qtd;
-      card.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
-      card.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
-      card.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
-      card.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
+    gt.querySelectorAll('tbody tr[data-idx]').forEach(tr=>{
+      const estU = num(tr.querySelector('[data-k="estimadoUnt"]').value);
+      const qtd = num(tr.querySelector('[data-k="qtd"]').value);
+      const cu = num(tr.querySelector('[data-k="custoUnt"]').value);
+      const pct = num(tr.querySelector('[data-k="porcentagem"]').value);
+      const estT = estU * qtd; const ct = cu * qtd;
+      const vu = cu * pct / 100; const vt = vu * qtd;
+      tr.querySelector('[data-k="estimadoTotal"]').value = fmtNum(estT);
+      tr.querySelector('[data-k="custoTotal"]').value = fmtNum(ct);
+      tr.querySelector('[data-k="vendaUnt"]').value = fmtNum(vu);
+      tr.querySelector('[data-k="vendaTotal"]').value = fmtNum(vt);
       const warn = vu > estU && estU > 0;
-      card.classList.toggle('row-warn', warn);
+      tr.classList.toggle('row-warn', warn);
       if(warn){
-        const itemN = card.querySelector('[data-k="item"]').value;
+        const itemN = tr.querySelector('[data-k="item"]').value;
         warnings.push(`O item ${itemN || '?'} possui valor unitário de venda superior ao estimado unitário.`);
       }
       e += estT; c += ct; v += vt;
@@ -1080,10 +936,7 @@ function recalcAll(doSave = true){
   if(doSave) scheduleSave();
 }
 
-function scheduleSave(){
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(persistItems, 700);
-}
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(persistItems, 700); }
 
 async function persistItems(){
   if(!current) return;
@@ -1095,29 +948,23 @@ async function persistItems(){
       vendedorId: current.vendedor_id, vendedor: current.vendedor,
       numeroPregao: current.numero_pregao, uasg: current.uasg, nomeOrgao: current.nome_orgao,
       cidade: current.cidade, uf: current.uf, telefone: current.telefone, email: current.email,
-      dataRegistro: current.data_registro,
-      dataPregao: current.data_pregao, horarioPregao: current.horario_pregao,
-      modalidade: current.modalidade,
+      dataRegistro: current.data_registro, dataPregao: current.data_pregao,
+      horarioPregao: current.horario_pregao, modalidade: current.modalidade,
       bancoPagamento: current.banco_pagamento, requisitos: current.requisitos || {},
-      status: current.status || '',
-      validadeProposta: current.validade_proposta,
+      status: current.status || '', validadeProposta: current.validade_proposta,
       prazoEntrega: current.prazo_entrega, prazoPagamento: current.prazo_pagamento,
-      items: allItems,
-      grupos: groupTitles()
+      items: allItems, grupos: groupTitles()
     };
     await api(`/api/licitacoes/${current.id}`, { method:'PUT', body: JSON.stringify(body) });
     lastSnapshot = cur;
-    current.items = allItems;
-    current.grupos = groupTitles();
+    current.items = allItems; current.grupos = groupTitles();
     const idx = records.findIndex(r=>r.id===current.id);
     if(idx !== -1) records[idx] = { ...records[idx], items: allItems, grupos: current.grupos };
     toastSuccess('Dados Atualizados.');
   }catch(e){ toastError('Falha ao salvar: '+e.message); }
 }
 
-function snapshotAll(){
-  return JSON.stringify(flatItems()) + '|' + JSON.stringify(groupTitles());
-}
+function snapshotAll(){ return JSON.stringify(flatItems()) + '|' + JSON.stringify(groupTitles()); }
 
 function openColorPop(btn){
   closeColorPop();
@@ -1132,20 +979,14 @@ function openColorPop(btn){
     b.title = c.charAt(0).toUpperCase()+c.slice(1);
     b.addEventListener('click', e => {
       e.stopPropagation();
-      const card = btn.closest('.item-card');
-      const tI = parseInt(card.dataset.tidx);
-      const iI = parseInt(card.dataset.idx);
-      [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
-      const chk = card.querySelector('.item-chk');
-      card.dataset.cor = c;
-      if(!chk.checked){
-        card.classList.add('row-color-'+c);
-      }
-      if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
-        tables[tI].items[iI].cor = c;
-      }
-      closeColorPop();
-      scheduleSave();
+      const tr = btn.closest('tr');
+      const tI = parseInt(tr.dataset.tidx); const iI = parseInt(tr.dataset.idx);
+      [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
+      const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = c;
+      if(!chk.checked) tr.classList.add('row-color-'+c);
+      if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = c;
+      closeColorPop(); scheduleSave();
     });
     pop.appendChild(b);
   });
@@ -1155,24 +996,18 @@ function openColorPop(btn){
   clr.style.borderRadius = '4px'; clr.textContent = '×'; clr.title = 'Limpar';
   clr.addEventListener('click', e => {
     e.stopPropagation();
-    const card = btn.closest('.item-card');
-    const tI = parseInt(card.dataset.tidx);
-    const iI = parseInt(card.dataset.idx);
-    [...card.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>card.classList.remove(x));
-    card.dataset.cor = '';
-    if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]){
-      tables[tI].items[iI].cor = '';
-    }
-    closeColorPop();
-    scheduleSave();
+    const tr = btn.closest('tr');
+    const tI = parseInt(tr.dataset.tidx); const iI = parseInt(tr.dataset.idx);
+    [...tr.classList].filter(x=>x.startsWith('row-color-')).forEach(x=>tr.classList.remove(x));
+    tr.dataset.cor = '';
+    if(!isNaN(tI) && !isNaN(iI) && tables[tI] && tables[tI].items[iI]) tables[tI].items[iI].cor = '';
+    closeColorPop(); scheduleSave();
   });
   pop.appendChild(clr);
   document.body.appendChild(pop);
   colorPop = pop;
 }
-function closeColorPop(){
-  if(colorPop){ colorPop.remove(); colorPop = null; }
-}
+function closeColorPop(){ if(colorPop){ colorPop.remove(); colorPop = null; } }
 document.addEventListener('click', e=>{
   if(colorPop && !colorPop.contains(e.target) && !e.target.closest('.row-btn.brush')) closeColorPop();
 });
@@ -1192,8 +1027,7 @@ function addNewItem(tIdx){
   const next = Math.max(0, ...t.items.map(x=>num(x.item))) + 1;
   t.items.push({ item: next, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
   t.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderAllTables();
-  scheduleSave();
+  renderAllTables(); scheduleSave();
 }
 
 let pendingRangeTIdx = 0;
@@ -1210,9 +1044,7 @@ $('confirmRange').addEventListener('click', ()=>{
   close('rangeOverlay');
   addItemRangeToTable(pendingRangeTIdx, values);
 });
-$('rangeInput').addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); }
-});
+$('rangeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); $('confirmRange').click(); } });
 
 function parseRangeOrdered(raw){
   const values = [];
@@ -1224,18 +1056,11 @@ function parseRangeOrdered(raw){
       if(b < a){ toastError(`Intervalo em ordem decrescente: ${p}`); return null; }
       if(b - a > 1000){ toastError('Intervalo muito grande (máx. 1001 itens).'); return null; }
       for(let n=a; n<=b; n++) values.push(n);
-    } else if(/^\d+$/.test(p)){
-      values.push(Number(p));
-    } else {
-      toastError(`Intervalo inválido: ${p}`);
-      return null;
-    }
+    } else if(/^\d+$/.test(p)){ values.push(Number(p)); }
+    else { toastError(`Intervalo inválido: ${p}`); return null; }
   }
   for(let i=1; i<values.length; i++){
-    if(values[i] <= values[i-1]){
-      toastError('Intervalos devem estar em ordem crescente e sem repetições.');
-      return null;
-    }
+    if(values[i] <= values[i-1]){ toastError('Intervalos devem estar em ordem crescente e sem repetições.'); return null; }
   }
   return values;
 }
@@ -1245,16 +1070,10 @@ function addItemRangeToTable(tIdx, nums){
   if(!t) return;
   const existing = new Set(t.items.map(x=>String(num(x.item))));
   const dups = nums.filter(n=>existing.has(String(n)));
-  if(dups.length){
-    toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':''));
-    return;
-  }
-  nums.forEach(n=>{
-    t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' });
-  });
+  if(dups.length){ toastError('Itens já existentes: '+ dups.slice(0,10).join(', ')+(dups.length>10?'...':'')); return; }
+  nums.forEach(n=>t.items.push({ item:n, qtd:1, und:'UN', porcentagem:149, selecionado:false, cor:'' }));
   t.items.sort((a,b)=>num(a.item)-num(b.item));
-  renderAllTables();
-  scheduleSave();
+  renderAllTables(); scheduleSave();
 }
 
 $('itemSearch').addEventListener('input', applyFilters);
@@ -1264,24 +1083,24 @@ function applyFilters(){
   const q = $('itemSearch').value.toLowerCase().trim();
   const marca = $('filterMarca').value.trim();
   const itens = $('filterItens').value;
-  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
-    const desc = (card.querySelector('[data-k="descricao"]').value||'').toLowerCase();
-    const itemN = (card.querySelector('[data-k="item"]').value||'').toLowerCase();
-    const marcaTr = (card.querySelector('[data-k="marca"]').value||'').toUpperCase();
-    const sel = card.querySelector('.item-chk').checked;
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
+    const desc = (tr.querySelector('[data-k="descricao"]').value||'').toLowerCase();
+    const itemN = (tr.querySelector('[data-k="item"]').value||'').toLowerCase();
+    const marcaTr = (tr.querySelector('[data-k="marca"]').value||'').toUpperCase();
+    const sel = tr.querySelector('.item-chk').checked;
     let show = true;
     if(q && !(desc.includes(q) || itemN.includes(q))) show = false;
     if(marca && marcaTr !== marca) show = false;
     if(itens === 'ganhos' && !sel) show = false;
     if(itens === 'nao-ganhos' && sel) show = false;
-    card.style.display = show ? 'flex' : 'none';
+    tr.style.display = show ? '' : 'none';
   });
 }
 
 function updateMarcaFilter(){
   const marcas = new Set();
-  document.querySelectorAll('.item-card[data-idx]').forEach(card=>{
-    const m = (card.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
+  document.querySelectorAll('.items-table tbody tr[data-idx]').forEach(tr=>{
+    const m = (tr.querySelector('[data-k="marca"]').value||'').trim().toUpperCase();
     if(m) marcas.add(m);
   });
   const sel = $('filterMarca'); const old = sel.value;
@@ -1336,12 +1155,12 @@ $('confirmQuote').addEventListener('click', ()=>{
 
   t.items.forEach((x, i)=>{
     if(!values.includes(num(x.item))) return;
-    const card = document.querySelector(`.item-card[data-tidx="${quoteTIdx}"][data-idx="${i}"]`);
-    if(card){
-      [...card.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>card.classList.remove(c));
-      const chk = card.querySelector('.item-chk');
-      card.dataset.cor = 'amarelo';
-      if(!chk.checked) card.classList.add('row-color-amarelo');
+    const tr = document.querySelector(`.items-table tbody tr[data-tidx="${quoteTIdx}"][data-idx="${i}"]`);
+    if(tr){
+      [...tr.classList].filter(c=>c.startsWith('row-color-')).forEach(c=>tr.classList.remove(c));
+      const chk = tr.querySelector('.item-chk');
+      tr.dataset.cor = 'amarelo';
+      if(!chk.checked) tr.classList.add('row-color-amarelo');
     }
     x.cor = 'amarelo';
     selected.push(x);
@@ -1351,20 +1170,15 @@ $('confirmQuote').addEventListener('click', ()=>{
     toastError('Nenhum item encontrado no intervalo informado para esta tabela.');
     return;
   }
-
   selected.sort((a,b)=>num(a.item)-num(b.item));
 
   const hr = new Date().getHours();
   const greeting = hr < 12 ? 'Bom dia' : (hr < 18 ? 'Boa tarde' : 'Boa noite');
-
   const linhas = selected.map((x,i)=>{
     const seq = i+1;
     const alvo = quoteMode === 'modelo' ? up(x.modelo||'') : up(x.descricao||'');
-    const qtd = num(x.qtd);
-    const und = up(x.und||'');
-    return `${seq} - ${alvo}\n${qtd} ${und}`;
+    return `${seq} - ${alvo}\n${num(x.qtd)} ${up(x.und||'')}`;
   }).join('\n\n');
-
   const msg = `${greeting}, tudo bem?\n\nGostaria de solicitar um orçamento para os seguintes itens:\n\n${linhas}\n\nPoderia realizar este processo, por gentileza?`;
 
   navigator.clipboard.writeText(msg)
@@ -1395,58 +1209,25 @@ $('confirmDoc').addEventListener('click', ()=>{
 });
 
 function safeFilename(name){
-  return String(name || 'PROPOSTA')
-    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
-    .replace(/\s+/g, ' ')
-    .replace(/[.\s]+$/g, '')
-    .trim()
-    .slice(0, 180) || 'PROPOSTA';
+  return String(name || 'PROPOSTA').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ').replace(/[.\s]+$/g, '').trim().slice(0, 180) || 'PROPOSTA';
 }
-
 function triggerDownload(blob, filename){
   const safe = safeFilename(filename);
-  if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
-    try { window.navigator.msSaveOrOpenBlob(blob, safe); return; } catch (e) {}
-  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = safe;
-  a.rel = 'noopener';
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  let clicked = false;
-  try { a.click(); clicked = true; } catch (e) { clicked = false; }
-  if (!clicked) {
-    try { window.location.href = url; } catch (e) {}
-  }
-  setTimeout(()=>{
-    try { a.remove(); } catch (e) {}
-    try { URL.revokeObjectURL(url); } catch (e) {}
-  }, 4000);
+  a.href = url; a.download = safe; a.rel = 'noopener';
+  a.style.display = 'none'; document.body.appendChild(a);
+  try { a.click(); } catch (e) { try { window.location.href = url; } catch (e) {} }
+  setTimeout(()=>{ try { a.remove(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} }, 4000);
 }
-
 function fileBase(r){
   const numP = up(r.numero_pregao || '');
   const uasg = (r.uasg||'').trim();
   return uasg ? `PROPOSTA ${numP} (${up(uasg)})` : `PROPOSTA ${numP}`;
 }
-
-async function loadBanksIfNeeded(){
-  if(banks && banks.length) return;
-  try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; }
-}
-
-function loadImg(src){
-  return new Promise(res=>{
-    const i = new Image();
-    i.crossOrigin = 'anonymous';
-    i.onload = ()=>res(i);
-    i.onerror = ()=>res(null);
-    i.src = src;
-  });
-}
-
+async function loadBanksIfNeeded(){ if(banks && banks.length) return; try{ banks = await api('/api/licitacoes-bancos'); }catch{ banks = []; } }
+function loadImg(src){ return new Promise(res=>{ const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = ()=>res(i); i.onerror = ()=>res(null); i.src = src; }); }
 function imgToData(img, maxW, alpha){
   if(!img || !img.width) return null;
   try{
@@ -1460,13 +1241,10 @@ function imgToData(img, maxW, alpha){
     return { url: c.toDataURL('image/png'), w: c.width, h: c.height };
   }catch{ return null; }
 }
-
 function preloadAssets(){
   if(!assetsPromise){
     assetsPromise = (async ()=>{
-      const [logoImg, signImg] = await Promise.all([
-        loadImg(LOGO_SRC), loadImg(SIGN_SRC), loadBanksIfNeeded()
-      ]);
+      const [logoImg, signImg] = await Promise.all([loadImg(LOGO_SRC), loadImg(SIGN_SRC), loadBanksIfNeeded()]);
       const out = { logo: imgToData(logoImg, 420, 0.35), sign: imgToData(signImg, 520, 1) };
       if(!out.logo && !out.sign) assetsPromise = null;
       return out;
@@ -1482,11 +1260,8 @@ async function gerarPdf(){
   try{
     if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('Biblioteca PDF não disponível. Recarregue a página.');
     await runPdf();
-  }catch(e){
-    toastError(e.message || 'Falha ao gerar PDF.');
-  }finally{
-    pdfBusy = false;
-  }
+  }catch(e){ toastError(e.message || 'Falha ao gerar PDF.'); }
+  finally{ pdfBusy = false; }
 }
 
 function hardWrap(doc, text, w){
@@ -1515,7 +1290,7 @@ function propostaDados(){
   });
   const groups = [...groupsMap.entries()].map(([titulo, items]) => {
     const linhas = items.map(it => {
-      const cu  = num(it.custoUnt);
+      const cu = num(it.custoUnt);
       const pct = num(it.porcentagem ?? 149);
       const vUnt = cu * pct / 100;
       const vTot = vUnt * num(it.qtd);
@@ -1550,7 +1325,6 @@ async function runPdf(){
   doc.setTextColor(0,0,0);
 
   let y = 5 + lh + 8;
-
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
   doc.text(`AO ${up(current.nome_orgao)}`, margin, y); y += 5;
   doc.text('COMISSÃO PERMANENTE DE LICITAÇÃO', margin, y); y += 5;
@@ -1567,8 +1341,7 @@ async function runPdf(){
     { w: tw*0.12, t:'PREÇO UNIT.', a:'center' },
     { w: tw*0.12, t:'PREÇO TOTAL', a:'center' }
   ];
-  const LH = 3.6;
-  const HLH = 3.3;
+  const LH = 3.6; const HLH = 3.3;
 
   const drawHead = () => {
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
@@ -1590,16 +1363,13 @@ async function runPdf(){
 
   groups.forEach((g, gIdx) => {
     if(gIdx > 0) y += 6;
-
     if(g.titulo){
       if(y + 20 > limitY){ doc.addPage(); y = 15; }
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
       doc.text(up(g.titulo), margin, y);
       y += 5;
     }
-
     drawHead();
-
     g.linhas.forEach(({ it, vUnt, vTot }, idx) => {
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
       const cells = [
@@ -1608,7 +1378,7 @@ async function runPdf(){
         money(vUnt), money(vTot)
       ];
       const wrapped = cells.map((t,i) => hardWrap(doc, t, cols[i].w - 3));
-      const needed  = Math.max(7, Math.max(...wrapped.map(w=>w.length)) * LH + 3);
+      const needed = Math.max(7, Math.max(...wrapped.map(w=>w.length)) * LH + 3);
 
       if(y + needed > limitY){
         doc.addPage(); y = 15;
@@ -1632,7 +1402,6 @@ async function runPdf(){
       y += needed;
     });
 
-    // ── Total em CADA tabela (com ou sem grupo) ──
     y += 5;
     if(y + 10 > limitY){ doc.addPage(); y = 20; }
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
@@ -1705,8 +1474,7 @@ async function gerarDocWord(){
     const [assets] = await Promise.all([preloadAssets(), loadBanksIfNeeded()]);
     const { groups, total, bank } = propostaDados();
     const dt = new Date();
-
-    const logo    = assets && assets.logo;
+    const logo = assets && assets.logo;
     const logoWpt = Math.round(40 * 2.8346);
     const logoHpt = logo ? Math.round((logo.h / logo.w) * logoWpt) : 34;
     const topMargin = Math.max(120, Math.round(20 + logoHpt + 30));
@@ -1737,10 +1505,7 @@ async function gerarDocWord(){
       : '';
 
     const html = `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40"
-      lang="pt-BR">
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40" lang="pt-BR">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>${esc(safeFilename(fileBase(current)))}</title>
