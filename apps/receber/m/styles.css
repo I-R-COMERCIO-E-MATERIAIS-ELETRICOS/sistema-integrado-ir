@@ -159,6 +159,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
 .card-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.card-cell.full { grid-column: 1 / -1; }
 .cell-label { font-size: .62rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; line-height: 1.2; }
 .cell-value { font-size: .82rem; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
 .cell-value.valor { font-weight: 800; color: #16A34A; }
@@ -313,10 +314,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .calendar-month.current { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* Overdue Table (Vencidos Modal) */
-#vencidosModalBody table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-#vencidosModalBody th, #vencidosModalBody td { padding: 8px 4px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+#vencidosModalBody table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
+#vencidosModalBody th, #vencidosModalBody td { padding: 8px 4px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: normal; word-break: break-word; }
 #vencidosModalBody th { background: var(--input-bg); font-weight: 700; }
-#vencidosModalBody tr td:nth-child(2) { white-space: normal; word-break: break-word; }
+#vencidosModalBody th:nth-child(1), #vencidosModalBody td:nth-child(1) { width: 20%; }
+#vencidosModalBody th:nth-child(2), #vencidosModalBody td:nth-child(2) { width: 35%; }
+#vencidosModalBody th:nth-child(3), #vencidosModalBody td:nth-child(3) { width: 20%; }
+#vencidosModalBody th:nth-child(4), #vencidosModalBody td:nth-child(4) { width: 25%; }
 
 /* Breakpoints progressivos */
 @media (min-width: 769px) {
