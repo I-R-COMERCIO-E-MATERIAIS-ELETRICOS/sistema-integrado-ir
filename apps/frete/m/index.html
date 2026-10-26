@@ -199,4 +199,81 @@
 <div class="modal" id="datePickerModal" aria-hidden="true">
   <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
     <button class="modal-close ir-close" data-close="datePickerModal" type="button" aria-label="Fechar">✕</button>
-    <div class="confirm-msg" id="datePickerMsg">Informe a data
+    <div class="confirm-msg" id="datePickerMsg">Informe a data de entrega</div>
+    <input type="date" id="datePickerInput" class="date-picker-input">
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="datePickerConfirm" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="datePickerModal" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DELETE -->
+<div class="modal" id="deleteModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="deleteModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="deleteMsg">Deseja excluir?</div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="confirmDeleteBtn" type="button">Sim</button>
+      <button class="btn btn-red" data-close="deleteModal" type="button">Não</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ALERTA FORA DO PRAZO -->
+<div class="modal" id="alertModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Fora do Prazo</h2>
+      <button class="modal-close" data-close="alertModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body" id="alertModalBody"></div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="alertModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: CALENDÁRIO -->
+<div class="modal" id="calendarModal" aria-hidden="true">
+  <div class="modal-box modal-calendar" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Selecionar Mês</h2>
+      <button class="modal-close" data-close="calendarModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="calendar-header">
+      <button type="button" id="calendarPrevYear" class="calendar-year-nav" aria-label="Ano anterior">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h3 id="calendarYear">2026</h3>
+      <button type="button" id="calendarNextYear" class="calendar-year-nav" aria-label="Próximo ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="calendar-months" id="calendarMonths"></div>
+  </div>
+</div>
+
+<!-- MODAL: ANÁLISE COMPARATIVA -->
+<div class="modal" id="dashboardModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Análise Comparativa</h2>
+      <button class="modal-close" data-close="dashboardModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body" id="dashboardModalBody"></div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="dashboardModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/frete/m/script.js"></script>
+</body>
+</html>
