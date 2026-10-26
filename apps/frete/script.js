@@ -1097,10 +1097,11 @@ window.addEventListener('beforeunload', () => { sessionStorage.removeItem('alert
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODAL DASHBOARD COMPARATIVO — "Análise Comparativa"
-// 1 paginador único (só no topo) que alterna entre os 3 comparativos originais:
-//   0 → Mês        (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
-//   1 → Ano        (2 cards: total do ano, total ano passado)
+// Paginador ÚNICO (só no topo) alternando entre 3 comparativos originais:
+//   0 → Mês        (3 cards)
+//   1 → Ano        (2 cards)
 //   2 → Mês a Mês  (tabela 12 meses × 2 anos)
+// A tabela usa wrapper .cmp-tabela-wrap { overflow: hidden } → SEM scroll.
 // ═══════════════════════════════════════════════════════════════════════════
 let cmpPagina = 0;
 const CMP_TOTAL = 3;
@@ -1177,7 +1178,6 @@ function renderDashboardComparativo() {
             <div class="cmp-linha"><span>Frete</span>${variacao(m.frete, base.frete, true)}</div>` : ''}
         </div>`;
 
-    // ─── CÁLCULO DOS 3 COMPARATIVOS ─────────────────────────────────────────
     // 1) MÊS
     const mesRef = new Date(anoAtual, mesAtual, 1);
     const mesRefIdx = mesRef.getMonth();
@@ -1250,8 +1250,9 @@ function renderDashboardComparativo() {
         </tr>`;
     }).join('');
 
+    // ⚠ Wrapper sem overflow-x:auto → sem scroll horizontal possível
     const tabelaHtml = `
-        <div style="overflow-x:auto;">
+        <div class="cmp-tabela-wrap">
             <table class="cmp-tabela">
                 <thead><tr>
                     <th style="text-align:left;">Mês</th>
@@ -1285,7 +1286,7 @@ function renderDashboardComparativo() {
         conteudo = tabelaHtml;
     }
 
-    // ─── PAGINADOR ÚNICO (só no topo) ───────────────────────────────────────
+    // ─── PAGINADOR (SOMENTE NO TOPO) ────────────────────────────────────────
     const paginador = `
         <div class="cmp-pag">
             <button type="button" class="cmp-pag-btn" onclick="cmpNav(-1)" ${cmpPagina === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
