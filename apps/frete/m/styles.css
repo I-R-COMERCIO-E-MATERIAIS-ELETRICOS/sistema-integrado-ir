@@ -372,7 +372,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .info-value { font-size: .9rem; color: var(--text-primary); word-break: break-word; }
 .info-value.empty { color: var(--text-secondary); font-style: italic; }
 
-/* Análise Comparativa (mobile) */
+/* ═══════════════════════════════════════════════════════════════════════
+   ANÁLISE COMPARATIVA (mobile)
+   Paginação ‹ Mês › / ‹ Ano › / ‹ Mês a Mês › (só no topo).
+   Tabela fluida SEM min-width — sem scroll horizontal no modal.
+   ═══════════════════════════════════════════════════════════════════════ */
 .cmp-pag {
   display: flex; align-items: center; justify-content: center;
   gap: 0.75rem; padding: 0.4rem 0; margin: 0.4rem 0 0.7rem 0;
@@ -404,13 +408,82 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .cmp-ruim   { color: #DC2626; font-weight: 600; }
 .cmp-neutro { color: var(--text-secondary); }
 
-.cmp-tabela { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 540px; }
-.cmp-tabela td, .cmp-tabela th { text-align: center; padding: 8px 6px; white-space: nowrap; border-bottom: 1px solid var(--border-color); }
-.cmp-tabela th { background: var(--input-bg); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; }
+/* Tabela Mês a Mês — fluida, sem scroll horizontal */
+.cmp-tabela {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.cmp-tabela th, .cmp-tabela td {
+  text-align: center;
+  padding: 6px 3px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  border-bottom: 1px solid var(--border-color);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+  line-height: 1.25;
+}
+.cmp-tabela th {
+  background: var(--input-bg);
+  font-weight: 700;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+.cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 17%; }
+.cmp-tabela th:nth-child(2), .cmp-tabela td:nth-child(2) { width: 8%; }
+.cmp-tabela th:nth-child(3), .cmp-tabela td:nth-child(3) { width: 17%; }
+.cmp-tabela th:nth-child(4), .cmp-tabela td:nth-child(4) { width: 16%; }
+.cmp-tabela th:nth-child(5), .cmp-tabela td:nth-child(5) { width: 11%; }
+.cmp-tabela th:nth-child(6), .cmp-tabela td:nth-child(6) { width: 17%; }
+.cmp-tabela th:nth-child(7), .cmp-tabela td:nth-child(7) { width: 14%; }
 .cmp-tabela tfoot td { font-weight: 700; border-top: 2px solid var(--border-color); }
 .cmp-melhor-mes { background: rgba(34, 197, 94, 0.14) !important; }
 .cmp-pior-mes   { background: rgba(239, 68, 68, 0.12) !important; }
 .cmp-mes-atual  { background: rgba(255, 82, 29, 0.08); }
+
+/* Ajustes extra para telas bem estreitas */
+@media (max-width: 420px) {
+  .modal-body { padding: 12px; }
+  .cmp-pag { gap: 0.6rem; padding: 0.3rem 0; margin: 0.3rem 0 0.6rem 0; }
+  .cmp-pag-btn { width: 32px; height: 32px; font-size: 1.1rem; }
+  .cmp-pag-info { font-size: 0.78rem; min-width: 90px; padding: 4px 8px; }
+  .cmp-card { padding: 10px; }
+  .cmp-card-titulo { font-size: 0.88rem; }
+  .cmp-card-sub { font-size: 0.74rem; margin-bottom: 0.55rem; }
+  .cmp-linha { font-size: 0.8rem; padding: 3px 0; }
+  .cmp-vs { font-size: 0.75rem; }
+  .modal-head-title { font-size: 0.95rem; }
+
+  /* Esconde Notas (col 2) e Frete/Fat (col 5) para liberar largura */
+  .cmp-tabela { font-size: 0.66rem; }
+  .cmp-tabela th, .cmp-tabela td { padding: 5px 3px; }
+  .cmp-tabela th { font-size: 0.58rem; }
+  .cmp-tabela th:nth-child(2),
+  .cmp-tabela td:nth-child(2),
+  .cmp-tabela th:nth-child(5),
+  .cmp-tabela td:nth-child(5) { display: none; }
+  .cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 15%; }
+  .cmp-tabela th:nth-child(3), .cmp-tabela td:nth-child(3) { width: 26%; }
+  .cmp-tabela th:nth-child(4), .cmp-tabela td:nth-child(4) { width: 22%; }
+  .cmp-tabela th:nth-child(6), .cmp-tabela td:nth-child(6) { width: 26%; }
+  .cmp-tabela th:nth-child(7), .cmp-tabela td:nth-child(7) { width: 11%; }
+}
+
+@media (max-width: 340px) {
+  .modal-body { padding: 10px; }
+  .cmp-pag { gap: 0.5rem; }
+  .cmp-pag-btn { width: 30px; height: 30px; font-size: 1rem; }
+  .cmp-pag-info { font-size: 0.74rem; min-width: 80px; padding: 3px 6px; }
+  .cmp-card { padding: 8px; border-radius: 10px; }
+  .cmp-card-titulo { font-size: 0.82rem; }
+  .cmp-card-sub { font-size: 0.7rem; }
+  .cmp-linha { font-size: 0.76rem; }
+  .cmp-tabela { font-size: 0.62rem; }
+  .cmp-tabela th { font-size: 0.54rem; }
+}
 
 /* TOAST (topo) */
 .toast {
@@ -439,40 +512,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .field input, .field select { min-height: 40px; font-size: .88rem; }
   .modal-foot { padding: 10px 12px; }
   .modal-foot .btn { height: 40px; font-size: .85rem; }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   RESPONSIVIDADE EXTRA DO MODAL "ANÁLISE COMPARATIVA" (mobile)
-   Ajusta o conteúdo do comparativo em telas bem estreitas
-   ═══════════════════════════════════════════════════════════════════════ */
-@media (max-width: 420px) {
-  .modal-body { padding: 12px; }
-  .cmp-pag { gap: 0.6rem; padding: 0.3rem 0; margin: 0.3rem 0 0.6rem 0; }
-  .cmp-pag-btn { width: 32px; height: 32px; font-size: 1.1rem; }
-  .cmp-pag-info { font-size: 0.78rem; min-width: 90px; padding: 4px 8px; }
-  .cmp-card { padding: 10px; }
-  .cmp-card-titulo { font-size: 0.88rem; }
-  .cmp-card-sub { font-size: 0.74rem; margin-bottom: 0.55rem; }
-  .cmp-linha { font-size: 0.8rem; padding: 3px 0; }
-  .cmp-vs { font-size: 0.75rem; }
-  .cmp-tabela { font-size: 0.74rem; min-width: 500px; }
-  .cmp-tabela th, .cmp-tabela td { padding: 6px 5px; }
-  .cmp-tabela th { font-size: 0.68rem; }
-  .modal-head-title { font-size: 0.95rem; }
-}
-
-@media (max-width: 340px) {
-  .modal-body { padding: 10px; }
-  .cmp-pag { gap: 0.5rem; }
-  .cmp-pag-btn { width: 30px; height: 30px; font-size: 1rem; }
-  .cmp-pag-info { font-size: 0.74rem; min-width: 80px; padding: 3px 6px; }
-  .cmp-card { padding: 8px; border-radius: 10px; }
-  .cmp-card-titulo { font-size: 0.82rem; }
-  .cmp-card-sub { font-size: 0.7rem; }
-  .cmp-linha { font-size: 0.76rem; }
-  .cmp-tabela { font-size: 0.7rem; min-width: 460px; }
-  .cmp-tabela th, .cmp-tabela td { padding: 5px 4px; }
-  .cmp-tabela th { font-size: 0.62rem; }
 }
 
 @media (min-width: 769px) {
