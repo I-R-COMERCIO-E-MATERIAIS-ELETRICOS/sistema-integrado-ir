@@ -649,11 +649,11 @@ $('syncBtn').addEventListener('click', async () => {
 
 /* ═══════════════════════════════════════════════════════════════════════
    ANÁLISE COMPARATIVA (mobile)
-   Paginador ÚNICO (só no topo) com 3 páginas — cada página é um dos 3
-   comparativos originais:
-     0 → Mês        (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
-     1 → Ano        (2 cards: total do ano, total ano passado)
+   Paginador ÚNICO (só no topo) com 3 páginas:
+     0 → Mês        (3 cards)
+     1 → Ano        (2 cards)
      2 → Mês a Mês  (tabela 12 meses × 2 anos)
+   A tabela usa .cmp-tabela-wrap { overflow: hidden } → SEM scroll horizontal.
    ═══════════════════════════════════════════════════════════════════════ */
 let cmpPagina = 0;
 const CMP_TOTAL = 3;
@@ -716,7 +716,6 @@ function renderComparativo() {
         <div class="cmp-linha"><span>Frete</span>${variacao(m.frete, base.frete, true)}</div>` : ''}
     </div>`;
 
-  // ─── CÁLCULO DOS 3 COMPARATIVOS ─────────────────────
   // 1) MÊS
   const mesRef = new Date(anoAtual, mesAtual, 1);
   const mIdx = mesRef.getMonth(), aRef = mesRef.getFullYear();
@@ -766,8 +765,9 @@ function renderComparativo() {
     </tr>`;
   }).join('');
 
+  // Wrapper sem overflow-x:auto → sem scroll horizontal possível
   const htmlTabela = `
-    <div style="overflow-x:auto;">
+    <div class="cmp-tabela-wrap">
       <table class="cmp-tabela">
         <thead><tr>
           <th style="text-align:left;">Mês</th>
@@ -793,7 +793,7 @@ function renderComparativo() {
   else if (cmpPagina === 1) conteudo = `<div class="cmp-grid">${htmlAno}</div>`;
   else conteudo = htmlTabela;
 
-  // ─── PAGINADOR ÚNICO (só no topo) ───────────────────
+  // ─── PAGINADOR (SÓ NO TOPO) ─────────────────────────
   const paginador = `
     <div class="cmp-pag">
       <button type="button" class="cmp-pag-btn" onclick="cmpNav(-1)" ${cmpPagina === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
