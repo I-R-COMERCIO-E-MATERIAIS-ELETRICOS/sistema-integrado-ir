@@ -373,11 +373,25 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .info-value.empty { color: var(--text-secondary); font-style: italic; }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ANÁLISE COMPARATIVA (mobile) — compacta, cabeçalho preto
+   ANÁLISE COMPARATIVA (mobile) — compacta, flexível, sem scroll
    ═══════════════════════════════════════════════════════════════════════ */
+#dashboardModal .modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 94vh;
+}
+#dashboardModal .modal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px;
+}
+
 .cmp-pag {
   display: flex; align-items: center; justify-content: center;
-  gap: 0.75rem; padding: 0.25rem 0; margin: 0.25rem 0 0.5rem 0;
+  gap: 0.5rem; padding: 0.1rem 0; margin: 0.1rem 0 0.5rem 0;
+  flex-shrink: 0;
 }
 .cmp-pag-btn {
   background: var(--bg-card); color: var(--text-primary);
@@ -392,24 +406,32 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .cmp-secao { margin: 0.4rem 0 0.5rem; font-size: 1rem; color: var(--text-primary); }
 .cmp-ajuda { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.9rem; }
-.cmp-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem; }
+.cmp-grid { 
+  flex: 1;
+  display: flex; flex-direction: column; gap: 8px; 
+  margin-bottom: 0;
+  overflow: hidden;
+}
 .cmp-card {
   border: 1px solid var(--border-color); border-radius: 12px;
-  padding: 12px; background: var(--bg-card);
+  padding: 10px; background: var(--bg-card);
 }
-.cmp-card-titulo { font-weight: 700; font-size: 0.92rem; }
-.cmp-card-sub { color: var(--text-secondary); font-size: 0.78rem; margin-bottom: 0.7rem; }
-.cmp-linha { display: flex; justify-content: space-between; gap: 0.6rem; padding: 4px 0; font-size: 0.84rem; }
-.cmp-sep { border-top: 1px dashed var(--border-color); margin: 0.6rem 0; }
-.cmp-vs { font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; }
+.cmp-card-titulo { font-weight: 700; font-size: 0.9rem; }
+.cmp-card-sub { color: var(--text-secondary); font-size: 0.76rem; margin-bottom: 0.5rem; }
+.cmp-linha { display: flex; justify-content: space-between; gap: 0.6rem; padding: 2px 0; font-size: 0.8rem; }
+.cmp-sep { border-top: 1px dashed var(--border-color); margin: 0.4rem 0; }
+.cmp-vs { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; }
 .cmp-bom    { color: #16A34A; font-weight: 600; }
 .cmp-ruim   { color: #DC2626; font-weight: 600; }
 .cmp-neutro { color: var(--text-secondary); }
 
-/* WRAPPER — sem scroll horizontal */
+/* WRAPPER — esconde transbordo */
 .cmp-tabela-wrap {
+  flex: 1;
   width: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
 }
@@ -417,27 +439,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* TABELA COMPACTA */
 .cmp-tabela {
   width: 100%;
+  height: 100%;
   max-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-size: 0.65rem;
 }
 .cmp-tabela th, .cmp-tabela td {
-  padding: 4px 2px; /* Ainda mais compacto no mobile */
+  padding: 1px 2px;
   text-align: center;
   white-space: normal;
   overflow-wrap: break-word;
   border-bottom: 1px solid var(--border-color);
   font-variant-numeric: tabular-nums;
   vertical-align: middle;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 /* Cabeçalho PRETO */
 .cmp-tabela th {
   background: #000000 !important;
   color: #FFFFFF !important;
   font-weight: 600;
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid #000000 !important;
@@ -456,11 +479,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .cmp-pior-mes   { background: rgba(239, 68, 68, 0.12) !important; }
 .cmp-mes-atual  { background: rgba(255, 82, 29, 0.08); }
 
-/* Ajustes extra para telas pequenas */
+/* Ajustes extra para telas minúsculas */
 @media (max-width: 420px) {
-  .cmp-tabela { font-size: 0.66rem; }
-  .cmp-tabela th, .cmp-tabela td { padding: 3px 1px; }
-  .cmp-tabela th { font-size: 0.6rem; }
+  .cmp-tabela { font-size: 0.6rem; }
+  .cmp-tabela th, .cmp-tabela td { padding: 1px 1px; }
+  .cmp-tabela th { font-size: 0.55rem; }
 }
 
 /* TOAST */
