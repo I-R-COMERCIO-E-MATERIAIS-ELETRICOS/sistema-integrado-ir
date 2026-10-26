@@ -47,6 +47,8 @@ module.exports = function (supabase, supabaseAdmin) {
         { id: 'receber',        name: 'Contas a Receber',         url: '/receber',        available: true },
         { id: 'pagar',          name: 'Contas a Pagar',           url: '/pagar',          available: true },
         { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
+        // ─── novo módulo (oculto no mobile) ───
+        { id: 'lampada',        name: 'Lâmpada',                  url: '/lampada',        available: true, mobileHidden: true }
     ];
 
     const APPS_ROOT = path.join(__dirname, '..');
@@ -91,7 +93,8 @@ module.exports = function (supabase, supabaseAdmin) {
             modules: MODULES.filter(m => m.available).map(m => ({
                 id: m.id, name: m.name, url: m.url,
                 allowed: m.adminOnly ? !!is_admin : allowedIds.includes(m.id),
-                mobile: temMobile(m.id)
+                mobile: temMobile(m.id),
+                mobileHidden: !!m.mobileHidden
             }))
         });
     });
