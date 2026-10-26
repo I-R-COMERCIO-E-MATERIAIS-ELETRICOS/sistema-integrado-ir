@@ -7,7 +7,6 @@ const MODULE_SESSION_KEY = 'receberSession';
 const SESSION_KEY = 'irUserSession';
 const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const SPECIAL_STATUS = ['DEVOLUCAO','DEVOLVIDA','SIMPLES REMESSA','REMESSA DE AMOSTRA','CANCELADA','ESPECIAL'];
-const FORM_TABS = ['geral', 'valores', 'parcelas', 'obs'];
 
 let contas = [];
 let todasContasRaw = [];
@@ -53,7 +52,7 @@ function pertenceAoPeriodo(conta, mes, ano) {
   return mesEmissao === mes && anoEmissao === ano;
 }
 
-/* ─── TOAST ─────────────────────────────────────────── */
+/* ─── TOAST (TOPO) ─────────────────────────────────── */
 function toastSuccess(m) { toast(m, 'success'); }
 function toastError(m)   { toast(m, 'error'); }
 function toast(m, type = 'success') {
@@ -123,7 +122,6 @@ document.querySelectorAll('.modal-tab[data-tab]').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.modal-tab[data-tab]').forEach(x => x.classList.toggle('active', x === t));
     document.querySelectorAll('.tab-pane[data-pane]').forEach(p => p.classList.toggle('active', p.dataset.pane === t.dataset.tab));
-    window._formTabIndex = FORM_TABS.indexOf(t.dataset.tab);
   });
 });
 document.querySelectorAll('.modal-tab[data-vtab]').forEach(t => {
@@ -443,7 +441,6 @@ function openForm(id, focusParcelas = false, focusValores = false) {
   
   document.querySelectorAll('.modal-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
   document.querySelectorAll('.tab-pane[data-pane]').forEach(p => p.classList.toggle('active', p.dataset.pane === tabId));
-  window._formTabIndex = FORM_TABS.indexOf(tabId);
 
   open('formModal');
 }
