@@ -24,6 +24,17 @@ const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const up = s => String(s??'').toUpperCase();
 const fmtMoney = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+/* ─── TOAST LOCAL — padrão MOBILE dos outros módulos (topo da tela) ─── */
+function notificar(message, type = 'success') {
+  const t = $('toast');
+  if (!t) return;
+  t.className = `toast ${type}`;
+  t.textContent = message;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
 /* ─── AUTH ─────────────────────────────────────────── */
 function verificarAutenticacao() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -76,24 +87,13 @@ const api = async (url, opts = {}) => {
   return r.status === 204 ? null : r.json();
 };
 
-/* ─── HELPERS ──────────────────────────────────────── */
-function notificar(message, type = 'success') {
-  if (window.IR && typeof IR.toast === 'function') return IR.toast(message, type);
-  const t = $('toast');
-  t.className = `toast ${type}`;
-  t.textContent = message;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
-}
-
+/* ─── UI HELPERS ──────────────────────────────────── */
 function open(id) { const el = $(id); if (el) { el.classList.add('show'); el.setAttribute('aria-hidden', 'false'); } }
 function close(id) { const el = $(id); if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); } }
 
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => close(b.dataset.close)));
 document.querySelectorAll('.modal').forEach(o => o.addEventListener('click', e => { if (e.target === o) close(o.id); }));
 
-/* Tabs */
 document.querySelectorAll('.modal-tab[data-tab]').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.modal-tab[data-tab]').forEach(x => x.classList.toggle('active', x === t));
@@ -111,7 +111,6 @@ document.querySelectorAll('.modal-tab[data-vtab]').forEach(t => {
 async function iniciarApp() {
   await Promise.all([carregarGrupos(), carregarEstoque()]);
 
-  // Sincronização instantânea
   if (estoqueBC) {
     estoqueBC.onmessage = (e) => {
       if (e.data && e.data.type === 'estoque-changed') carregarEstoque(true);
@@ -174,7 +173,7 @@ function preencherFiltroMarcas() {
   if (cur) sel.value = cur;
 }
 
-/* ─── FILTERS ──────────────────────────────────────── */
+/* ─── FILTROS ──────────────────────────────────────── */
 $('searchInput').addEventListener('input', () => {
   filtros.search = $('searchInput').value.toLowerCase().trim();
   renderList();
@@ -194,7 +193,7 @@ function getFilteredItems() {
   });
 }
 
-/* ─── RENDER LIST ──────────────────────────────────── */
+/* ─── RENDER ───────────────────────────────────────── */
 function renderList() {
   const wrap = $('list');
   const empty = $('emptyState');
@@ -246,7 +245,7 @@ function updateTotals(items) {
   $('totalValor').textContent = fmtMoney(v);
 }
 
-/* ─── FORM (Novo / Editar) ─────────────────────────── */
+/* ─── FORM ─────────────────────────────────────────── */
 function openFormModal(id) {
   editingId = id || null;
   const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
@@ -256,11 +255,9 @@ function openFormModal(id) {
   $('btnSave').textContent = item ? 'Atualizar' : 'Salvar';
   $('editId').value = id || '';
 
-  // Código só aparece na edição
   $('codigoField').hidden = !item;
   if (item) $('fCodigo').value = item.codigo || '';
 
-  // Grupo
   const grupoSel = $('fGrupo');
   grupoSel.innerHTML = '<option value="">Selecione...</option>' +
     grupos.map(g => `<option value="${esc(g.abreviacao)}">${esc(g.nome)} (${esc(g.abreviacao)})</option>`).join('');
@@ -326,7 +323,7 @@ $('itemForm').addEventListener('submit', async e => {
   }
 });
 
-/* ─── MOVIMENTAÇÃO (Entrada / Saída) ──────────────── */
+/* ─── MOVIMENTAÇÃO ────────────────────────────────── */
 function openMovModal(id, tipo) {
   const item = allItems.find(i => String(i.id) === String(id));
   if (!item) return notificar('Item não encontrado', 'error');
@@ -394,7 +391,7 @@ $('grupoForm').addEventListener('submit', async e => {
   btn.disabled = true; btn.textContent = 'Aguarde...';
 
   try {
-    const data = await api(`${API_BASE}/grupos`, {
+    await api(`${API_BASE}/grupos`, {
       method: 'POST',
       body: JSON.stringify({ nome, abreviacao })
     });
@@ -462,7 +459,6 @@ $('syncBtn').addEventListener('click', async () => {
   }
 });
 
-/* ─── FAB NOVO ITEM ───────────────────────────────── */
 $('addBtn').addEventListener('click', () => openFormModal(null));
 
 /* ─── PDFs ────────────────────────────────────────── */
