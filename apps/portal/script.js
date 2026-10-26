@@ -159,7 +159,7 @@ function agendarAvisoExpediente() {
             const el = document.createElement('div');
             el.id = 'avisoExpediente';
             el.className = 'aviso-expediente';
-            el.textContent = 'Faltam 15 minutos para o fim do expediente, salve suas atividades';
+            el.textContent = 'Faltam poucos minutos para o fim do expediente, salve suas atividades';
             document.body.appendChild(el);
         }
 
