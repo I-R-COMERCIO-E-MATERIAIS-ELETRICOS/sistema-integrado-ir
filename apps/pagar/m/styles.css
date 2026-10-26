@@ -135,6 +135,7 @@ body.mobile-pagar-app .conta-card {
   border:1px solid var(--border); border-left:4px solid transparent;
   border-radius:var(--radius); box-shadow:var(--shadow-sm);
   padding:12px 14px; gap:10px; width:100%; min-width:0; cursor:pointer;
+  position:relative;
 }
 body.mobile-pagar-app .conta-card.row-pago { border-left-color:#16A34A; background:#f0fdf4; }
 body.mobile-pagar-app .conta-card.row-vencido { border-left-color:#EF4444; }
@@ -186,6 +187,7 @@ body.mobile-pagar-app .card-actions .action-btn.delete { background:#EF4444!impo
 body.mobile-pagar-app .card-alert-icon {
   width:28px!important; height:28px!important; border-radius:6px!important;
   color:#EF4444!important; display:flex!important; align-items:center!important; justify-content:center!important; flex-shrink:0;
+  position:absolute; top:8px; right:8px;
 }
 body.mobile-pagar-app .card-alert-icon svg { width:18px!important; height:18px!important; }
 body.mobile-pagar-app .card-alert-icon:active { background:rgba(239,68,68,.1)!important; }
@@ -205,7 +207,7 @@ body.mobile-pagar-app .fab-group {
 }
 body.mobile-pagar-app .icons-row { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
 body.mobile-pagar-app .icon-btn {
-  width:50px!important; height:50px!important; padding:0!important;
+  width:56px!important; height:56px!important; padding:0!important;
   display:inline-flex!important; align-items:center!important; justify-content:center!important;
   background:var(--bg-card)!important; border:1px solid var(--border)!important; border-radius:50%!important;
   color:var(--text-secondary)!important; box-shadow:var(--shadow-md)!important;
@@ -297,6 +299,23 @@ body.mobile-pagar-app .modal-confirm { max-width:400px; padding:2.2rem 1.6rem 1.
 body.mobile-pagar-app .confirm-msg { font-size:1rem; font-weight:700; margin:.4rem 0 1rem; line-height:1.4; }
 body.mobile-pagar-app .confirm-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px; }
 body.mobile-pagar-app .confirm-actions button { min-width:100px!important; height:42px!important; border-radius:var(--radius-sm)!important; font-weight:700!important; color:#fff!important; }
+
+/* X no canto do modal de confirmação (Simples / Parcelado) */
+body.mobile-pagar-app .modal-confirm .modal-close.modal-close-confirm {
+  position:absolute!important;
+  top:6px!important; right:6px!important;
+  width:40px!important; height:40px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  border-radius:8px!important;
+  font-size:1.2rem!important;
+  color:#dc2626!important;
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+}
+body.mobile-pagar-app .modal-confirm .modal-close.modal-close-confirm:active {
+  background:rgba(220,38,38,.08)!important;
+}
 
 /* Calendar */
 body.mobile-pagar-app .modal-calendar { max-width:420px; }
