@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F4F5F7">
+    <meta name="color-scheme" content="light only">
+    <title>Controle de Frete</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/frete/m/styles.css">
+    <script>const PORTAL_URL = window.location.origin;</script>
+</head>
+<body>
+
+<div class="search-bar">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="search" id="searchInput" placeholder="NF, órgão, destino, doc..." autocomplete="off">
+</div>
+
+<div class="filters">
+  <select id="filterTransportadora" class="filter-select"><option value="">Transportadora</option></select>
+  <select id="filterVendedor" class="filter-select"><option value="">Vendedor</option></select>
+  <select id="filterStatus" class="filter-select"><option value="">Status</option></select>
+</div>
+
+<div class="month-nav">
+  <button type="button" id="monthPrev" class="month-arrow" aria-label="Mês anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button type="button" id="calendarBtn" class="month-display" aria-label="Selecionar mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    <span id="currentMonth">Carregando...</span>
+  </button>
+  <button type="button" id="monthNext" class="month-arrow" aria-label="Próximo mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+</div>
+
+<div class="dashboard-grid">
+  <div class="stat-card stat-success">
+    <div class="stat-value" id="statEntregues">0</div>
+    <div class="stat-label">Entregues</div>
+  </div>
+  <div class="stat-card stat-danger" id="cardForaPrazo">
+    <div class="stat-value" id="statForaPrazo">0</div>
+    <div class="stat-label">Fora do Prazo</div>
+  </div>
+  <div class="stat-card stat-info">
+    <div class="stat-value" id="statTransito">0</div>
+    <div class="stat-label">Em Trânsito</div>
+  </div>
+  <div class="stat-card stat-money">
+    <div class="stat-value" id="statValorTotal">R$ 0,00</div>
+    <div class="stat-label">Faturado</div>
+  </div>
+  <div class="stat-card stat-money full">
+    <div class="stat-value" id="statFrete">R$ 0,00</div>
+    <div class="stat-label">Frete</div>
+  </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="empty-state" id="emptyState" hidden>
+  <div class="empty-icon">🚚</div>
+  <div class="empty-title">Nenhum frete encontrado</div>
+  <div class="empty-desc">Toque em <b>+</b> para registrar.</div>
+</div>
+
+<div class="fab-group">
+  <div class="icons-row">
+    <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="cmpBtn" type="button" aria-label="Análise Comparativa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="3" x2="3" y2="21"/><line x1="3" y1="21" x2="21" y2="21"/>
+        <rect x="6" y="12" width="3" height="6" rx="0.5"/>
+        <rect x="11" y="8" width="3" height="10" rx="0.5"/>
+        <rect x="16" y="4" width="3" height="14" rx="0.5"/>
+      </svg>
+    </button>
+  </div>
+  <button class="fab-register" id="addBtn" type="button" aria-label="Novo Frete">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- MODAL: FORM -->
+<div class="modal" id="formModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="formTitle">Novo Frete</h2>
+      <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-tab="nota" type="button">Nota</button>
+      <button class="modal-tab" data-tab="orgao" type="button">Órgão</button>
+      <button class="modal-tab" data-tab="transporte" type="button">Transporte</button>
+      <button class="modal-tab" data-tab="obs" type="button">Observações</button>
+    </div>
+    <form id="freteForm" class="modal-body">
+      <input type="hidden" id="editId" value="">
+      <input type="hidden" id="observacoesData" value="[]">
+
+      <section class="tab-pane active" data-pane="nota">
+        <div class="field"><label>Número da NF *</label><input type="text" id="numero_nf" required></div>
+        <div class="field"><label>Data de Emissão</label><input type="date" id="data_emissao"></div>
+        <div class="field"><label>Documento</label><input type="text" id="documento" placeholder="2025NE0000"></div>
+        <div class="field"><label>Valor da Nota (R$)</label><input type="number" id="valor_nf" step="0.01" min="0"></div>
+        <div class="field">
+          <label>Tipo de NF</label>
+          <select id="tipo_nf">
+            <option value="ENVIO">Envio</option>
+            <option value="CANCELADA">Cancelada</option>
+            <option value="REMESSA_AMOSTRA">Remessa de Amostra</option>
+            <option value="SIMPLES_REMESSA">Simples Remessa</option>
+            <option value="DEVOLUCAO">Devolução</option>
+            <option value="DEVOLVIDA">Devolvida</option>
+          </select>
+        </div>
+        <div class="field"><label>Vendedor Responsável</label><select id="vendedor"><option value="">Selecione...</option></select></div>
+      </section>
+
+      <section class="tab-pane" data-pane="orgao">
+        <div class="field"><label>Nome do Órgão *</label><input type="text" id="nome_orgao" required></div>
+        <div class="field"><label>Contato do Órgão</label><input type="text" id="contato_orgao"></div>
+        <div class="field"><label>Cidade-UF (Destino)</label><input type="text" id="cidade_destino" placeholder="Ex: São Paulo-SP"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="transporte">
+        <div class="field"><label>Transportadora</label><select id="transportadora"><option value="">Selecione...</option></select></div>
+        <div class="field"><label>Valor do Frete (R$)</label><input type="number" id="valor_frete" step="0.01" min="0"></div>
+        <div class="field"><label>Data da Coleta *</label><input type="date" id="data_coleta" required></div>
+        <div class="field"><label>Previsão de Entrega</label><input type="date" id="previsao_entrega"></div>
+        <div class="field"><label>Data de Entrega</label><input type="date" id="data_entrega"></div>
+        <div class="field"><label>Cotação</label><input type="text" id="cotacao" placeholder="Ex: 123"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="obs">
+        <div class="observacoes-list" id="observacoesList"></div>
+        <div class="nova-observacao">
+          <textarea id="novaObservacao" rows="3" placeholder="Digite sua observação aqui..."></textarea>
+          <button type="button" class="btn-add-obs" id="btnAddObs">Adicionar Observação</button>
+        </div>
+      </section>
+    </form>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSave" type="submit" form="freteForm">Salvar</button>
+      <button class="btn btn-red" data-close="formModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: VIEW -->
+<div class="modal" id="viewModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Detalhes</h2>
+      <button class="modal-close" data-close="viewModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-vtab="vnota" type="button">Nota</button>
+      <button class="modal-tab" data-vtab="vorgao" type="button">Órgão</button>
+      <button class="modal-tab" data-vtab="vtransporte" type="button">Transporte</button>
+      <button class="modal-tab" data-vtab="vobs" type="button">Observações</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" data-vpane="vnota" id="vnota"></div>
+      <div class="tab-pane" data-vpane="vorgao" id="vorgao"></div>
+      <div class="tab-pane" data-vpane="vtransporte" id="vtransporte"></div>
+      <div class="tab-pane" data-vpane="vobs" id="vobs"></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="viewModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: DATE PICKER -->
+<div class="modal" id="datePickerModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="datePickerModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="datePickerMsg">Informe a data
