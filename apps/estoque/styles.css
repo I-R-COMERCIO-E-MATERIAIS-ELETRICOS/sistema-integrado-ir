@@ -55,7 +55,6 @@ h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; dis
 }
 .btn-new-order-header:hover { background: #2563EB; transform: translateY(-1px); }
 
-/* SEARCH BAR */
 .search-bar-wrapper { margin-bottom: 0.5rem; }
 .search-bar {
     background: var(--bg-card); padding: 0.5rem 1rem;
@@ -98,8 +97,6 @@ h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; dis
 .sync-btn:hover { color: var(--text-primary) !important; background: rgba(128,128,128,0.1) !important; transform: rotate(180deg) !important; }
 .sync-btn.spinning { animation: spin 0.6s linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Botão de documento não gira */
 .sync-btn.doc-btn:hover { transform: none !important; }
 
 /* TABLE */
@@ -115,7 +112,6 @@ tbody tr { background: var(--bg-card); transition: background 0.2s ease; cursor:
 tbody tr:nth-child(even) { background: var(--table-stripe); }
 tbody tr:hover { background: var(--table-hover); }
 
-/* Célula de ID: selecionável, sem abrir modal */
 .id-cell { cursor: text; user-select: text; white-space: nowrap; }
 .id-cell strong { user-select: text; }
 
@@ -166,7 +162,6 @@ button.save, button[type="submit"] { background: var(--btn-save); }
 button.secondary { background: #6B7280; }
 button.small { padding: 8px 12px; font-size: 0.85rem; }
 
-/* MINI BUTTON (+) ao lado do grupo — CINZA */
 .input-with-btn { display: flex; gap: 8px; align-items: stretch; }
 .input-with-btn select { flex: 1; }
 .btn-plus {
@@ -232,10 +227,10 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
     border-bottom: 2px solid var(--border-color);
     overflow-x: auto; flex-wrap: wrap;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-.tabs-nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+.tabs-nav::-webkit-scrollbar { display: none; }
 
 .tab-btn {
     background: transparent; border: none; padding: 12px 20px;
@@ -249,7 +244,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .tab-content.active { display: block; }
 @keyframes fadeInTab { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ─── VISUALIZAÇÃO (info-section) ─── */
+/* ─── VISUALIZAÇÃO ─── */
 .info-section { margin-bottom: 1.5rem; }
 .info-section h4 {
     color: var(--primary); margin-bottom: 0.75rem; font-size: 1.1rem;
@@ -275,10 +270,39 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .access-denied h1 { font-size: 2rem; margin-bottom: 1rem; }
 .access-denied a { display: inline-block; background: var(--btn-register); color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; }
 
+/* ═══════════════════════════════════════════════════════════════
+   TOAST — padrão global de mensagens do sistema
+   Canto INFERIOR DIREITO · verde/vermelho/amarelo/azul
+   (fallback do IR.toast em ui-refined.css)
+   ═══════════════════════════════════════════════════════════════ */
+.floating-message {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    z-index: 9999999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid;
+    animation: slideInBottom 0.3s ease;
+    min-width: 300px;
+    max-width: 90vw;
+    line-height: 1.4;
+}
+.floating-message.success { background: #10B981; color: #FFFFFF; border-color: #059669; }
+.floating-message.error   { background: #EF4444; color: #FFFFFF; border-color: #DC2626; }
+.floating-message.warning { background: #F59E0B; color: #111111; border-color: #D97706; }
+.floating-message.info    { background: #3B82F6; color: #FFFFFF; border-color: #2563EB; }
+@keyframes slideInBottom { from { opacity: 0; transform: translateY(100px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideOutBottom { to { opacity: 0; transform: translateY(100px); } }
+
 @media (max-width: 768px) {
     .container { padding: 1rem 1rem 5rem 1rem; }
     h1 { font-size: 1.5rem; }
     .form-grid { grid-template-columns: 1fr; }
     .modal-content { padding: 1.5rem; }
     .actions-cell { min-width: auto; }
+    .floating-message { left: 12px; right: 12px; bottom: 12px; min-width: 0; }
 }
