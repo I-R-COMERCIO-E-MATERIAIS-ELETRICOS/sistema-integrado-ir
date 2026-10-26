@@ -259,7 +259,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .modal-tab { padding: 12px 14px; font-size: .84rem; font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid transparent; white-space: nowrap; background: transparent; }
 .modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
-.modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px; }
+.modal-body { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 14px; }
 .tab-pane { display: none; flex-direction: column; gap: 12px; }
 .tab-pane.active { display: flex; }
 
@@ -373,9 +373,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .info-value.empty { color: var(--text-secondary); font-style: italic; }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ANÁLISE COMPARATIVA (mobile)
-   Paginação ‹ Mês › / ‹ Ano › / ‹ Mês a Mês › (só no topo).
-   Tabela fluida SEM min-width — sem scroll horizontal no modal.
+   ANÁLISE COMPARATIVA (mobile) — tabela 100% fluida, SEM SCROLL
    ═══════════════════════════════════════════════════════════════════════ */
 .cmp-pag {
   display: flex; align-items: center; justify-content: center;
@@ -408,37 +406,52 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .cmp-ruim   { color: #DC2626; font-weight: 600; }
 .cmp-neutro { color: var(--text-secondary); }
 
-/* Tabela Mês a Mês — fluida, sem scroll horizontal */
+/* WRAPPER — sem overflow-x:auto (impede scroll horizontal) */
+.cmp-tabela-wrap {
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* TABELA — fluida, sem min-width, fontes auto-escaláveis com clamp() */
 .cmp-tabela {
   width: 100%;
+  max-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-size: clamp(0.5rem, 1.9vw, 0.75rem);
+  overflow: hidden;
 }
 .cmp-tabela th, .cmp-tabela td {
+  padding: 0.3em 0.15em;
+  font-size: inherit;
   text-align: center;
-  padding: 6px 3px;
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: normal;
   border-bottom: 1px solid var(--border-color);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   vertical-align: middle;
-  line-height: 1.25;
+  line-height: 1.1;
 }
 .cmp-tabela th {
   background: var(--input-bg);
   font-weight: 700;
-  font-size: 0.6rem;
+  font-size: 0.82em;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
 }
-.cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 17%; }
+/* Larguras percentuais — soma 100% */
+.cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 15%; }
 .cmp-tabela th:nth-child(2), .cmp-tabela td:nth-child(2) { width: 8%; }
-.cmp-tabela th:nth-child(3), .cmp-tabela td:nth-child(3) { width: 17%; }
+.cmp-tabela th:nth-child(3), .cmp-tabela td:nth-child(3) { width: 18%; }
 .cmp-tabela th:nth-child(4), .cmp-tabela td:nth-child(4) { width: 16%; }
-.cmp-tabela th:nth-child(5), .cmp-tabela td:nth-child(5) { width: 11%; }
-.cmp-tabela th:nth-child(6), .cmp-tabela td:nth-child(6) { width: 17%; }
-.cmp-tabela th:nth-child(7), .cmp-tabela td:nth-child(7) { width: 14%; }
+.cmp-tabela th:nth-child(5), .cmp-tabela td:nth-child(5) { width: 10%; }
+.cmp-tabela th:nth-child(6), .cmp-tabela td:nth-child(6) { width: 18%; }
+.cmp-tabela th:nth-child(7), .cmp-tabela td:nth-child(7) { width: 15%; }
 .cmp-tabela tfoot td { font-weight: 700; border-top: 2px solid var(--border-color); }
 .cmp-melhor-mes { background: rgba(34, 197, 94, 0.14) !important; }
 .cmp-pior-mes   { background: rgba(239, 68, 68, 0.12) !important; }
@@ -446,7 +459,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* Ajustes extra para telas bem estreitas */
 @media (max-width: 420px) {
-  .modal-body { padding: 12px; }
+  .modal-body { padding: 10px; }
   .cmp-pag { gap: 0.6rem; padding: 0.3rem 0; margin: 0.3rem 0 0.6rem 0; }
   .cmp-pag-btn { width: 32px; height: 32px; font-size: 1.1rem; }
   .cmp-pag-info { font-size: 0.78rem; min-width: 90px; padding: 4px 8px; }
@@ -456,24 +469,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .cmp-linha { font-size: 0.8rem; padding: 3px 0; }
   .cmp-vs { font-size: 0.75rem; }
   .modal-head-title { font-size: 0.95rem; }
-
-  /* Esconde Notas (col 2) e Frete/Fat (col 5) para liberar largura */
-  .cmp-tabela { font-size: 0.66rem; }
-  .cmp-tabela th, .cmp-tabela td { padding: 5px 3px; }
-  .cmp-tabela th { font-size: 0.58rem; }
-  .cmp-tabela th:nth-child(2),
-  .cmp-tabela td:nth-child(2),
-  .cmp-tabela th:nth-child(5),
-  .cmp-tabela td:nth-child(5) { display: none; }
-  .cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 15%; }
-  .cmp-tabela th:nth-child(3), .cmp-tabela td:nth-child(3) { width: 26%; }
-  .cmp-tabela th:nth-child(4), .cmp-tabela td:nth-child(4) { width: 22%; }
-  .cmp-tabela th:nth-child(6), .cmp-tabela td:nth-child(6) { width: 26%; }
-  .cmp-tabela th:nth-child(7), .cmp-tabela td:nth-child(7) { width: 11%; }
+  .cmp-tabela th, .cmp-tabela td { padding: 0.28em 0.1em; }
 }
 
 @media (max-width: 340px) {
-  .modal-body { padding: 10px; }
+  .modal-body { padding: 8px; }
   .cmp-pag { gap: 0.5rem; }
   .cmp-pag-btn { width: 30px; height: 30px; font-size: 1rem; }
   .cmp-pag-info { font-size: 0.74rem; min-width: 80px; padding: 3px 6px; }
@@ -481,8 +481,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .cmp-card-titulo { font-size: 0.82rem; }
   .cmp-card-sub { font-size: 0.7rem; }
   .cmp-linha { font-size: 0.76rem; }
-  .cmp-tabela { font-size: 0.62rem; }
-  .cmp-tabela th { font-size: 0.54rem; }
+  .cmp-tabela th, .cmp-tabela td { padding: 0.25em 0.08em; }
 }
 
 /* TOAST (topo) */
