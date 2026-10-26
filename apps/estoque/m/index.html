@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F4F5F7">
+    <meta name="color-scheme" content="light only">
+    <title>Estoque</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/estoque/m/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script>const PORTAL_URL = window.location.origin;</script>
+</head>
+<body>
+
+<div class="search-bar">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="search" id="searchInput" placeholder="ID, descrição, marca ou modelo..." autocomplete="off">
+</div>
+
+<div class="filters">
+  <select id="filterMarca" class="filter-select">
+    <option value="">Todas as Marcas</option>
+  </select>
+  <select id="filterGrupo" class="filter-select">
+    <option value="">Todos os Grupos</option>
+  </select>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="empty-state" id="emptyState" hidden>
+  <div class="empty-icon">📦</div>
+  <div class="empty-title">Nenhum item encontrado</div>
+  <div class="empty-desc">Toque em <b>+</b> para cadastrar.</div>
+</div>
+
+<div class="totals-bar">
+  <div class="totals-item">
+    <span>QUANTIDADE TOTAL</span>
+    <strong id="totalQtd">0</strong>
+  </div>
+  <div class="totals-item">
+    <span>VALOR TOTAL</span>
+    <strong id="totalValor">R$ 0,00</strong>
+  </div>
+</div>
+
+<div class="fab-group">
+  <div class="icons-row">
+    <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar" title="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="pdfEstoqueBtn" type="button" aria-label="PDF Estoque" title="PDF do Estoque">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="pdfMovBtn" type="button" aria-label="PDF Movimentações" title="PDF Movimentações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      </svg>
+    </button>
+  </div>
+  <button class="fab-register" id="addBtn" type="button" aria-label="Novo Item" title="Novo Item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- MODAL: FORM -->
+<div class="modal" id="formModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="formTitle">Novo Item</h2>
+      <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-tab="produto" type="button">Produto</button>
+      <button class="modal-tab" data-tab="fornecedor" type="button">Fornecedor</button>
+      <button class="modal-tab" data-tab="valores" type="button">Valores</button>
+    </div>
+    <form id="itemForm" class="modal-body">
+      <input type="hidden" id="editId" value="">
+
+      <section class="tab-pane active" data-pane="produto">
+        <div class="field" id="codigoField" hidden>
+          <label>ID (Código)</label>
+          <input type="text" id="fCodigo" readonly>
+        </div>
+        <div class="field"><label>Descrição *</label><input type="text" id="fDescricao" maxlength="255" required></div>
+        <div class="field">
+          <label>Grupo *</label>
+          <div class="input-with-btn">
+            <select id="fGrupo" required><option value="">Selecione...</option></select>
+            <button type="button" class="btn-plus" id="btnNovoGrupo" title="Novo grupo">+</button>
+          </div>
+        </div>
+        <div class="field"><label>NCM</label><input type="text" id="fNcm" maxlength="20"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="fornecedor">
+        <div class="field"><label>Marca</label><input type="text" id="fMarca" maxlength="100"></div>
+        <div class="field"><label>Modelo</label><input type="text" id="fModelo" maxlength="100"></div>
+      </section>
+
+      <section class="tab-pane" data-pane="valores">
+        <div class="field"><label>Valor Unitário (R$)</label><input type="number" step="0.01" min="0" id="fValor" value="0.00"></div>
+        <div class="field"><label>Quantidade</label><input type="number" id="fQtd" value="0"></div>
+      </section>
+    </form>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSave" type="submit" form="itemForm">Salvar</button>
+      <button class="btn btn-red" data-close="formModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: VIEW -->
+<div class="modal" id="viewModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="viewTitle">Item</h2>
+      <button class="modal-close" data-close="viewModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-vtab="vproduto" type="button">Produto</button>
+      <button class="modal-tab" data-vtab="vfornecedor" type="button">Fornecedor</button>
+      <button class="modal-tab" data-vtab="vvalores" type="button">Valores</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" data-vpane="vproduto" id="vproduto"></div>
+      <div class="tab-pane" data-vpane="vfornecedor" id="vfornecedor"></div>
+      <div class="tab-pane" data-vpane="vvalores" id="vvalores"></div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="viewModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: MOVIMENTAÇÃO -->
+<div class="modal" id="movModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="movModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="movMsg">Movimentação</div>
+    <div class="mov-info" id="movInfo"></div>
+    <div class="field" style="text-align:left;">
+      <label>Quantidade *</label>
+      <input type="number" min="1" id="fMovQtd" value="1" style="text-align:center;font-size:1.2rem;font-weight:700;">
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="btnConfirmarMov" type="button">Confirmar</button>
+      <button class="btn btn-red" data-close="movModal" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO GRUPO -->
+<div class="modal" id="grupoModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Novo Grupo</h2>
+      <button class="modal-close" data-close="grupoModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <form id="grupoForm" class="modal-body">
+      <div class="field"><label>Nome do Grupo *</label><input type="text" id="gNome" maxlength="100" required></div>
+      <div class="field"><label>Abreviação (4 letras) *</label><input type="text" id="gAbrev" maxlength="4" required style="text-transform:uppercase;"></div>
+    </form>
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSaveGrupo" type="submit" form="grupoForm">Criar Grupo</button>
+      <button class="btn btn-red" data-close="grupoModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/estoque/m/script.js"></script>
+</body>
+</html>
