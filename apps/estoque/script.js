@@ -1,11 +1,27 @@
 /* ============================================================================
- * apps/estoque/script.js — FRONTEND
+ * apps/estoque/script.js — FRONTEND (desktop)
+ * ──────────────────────────────────────────────────────────────────────────
+ * Mensagens: padrão global IR.toast() → .ir-toast (ui-refined.css)
+ *            → canto INFERIOR DIREITO, verde/vermelho
+ *            fallback: .floating-message (styles.css) → mesmo padrão visual
+ * Sincronização: BroadcastChannel + localStorage + visibilitychange + focus
  * ========================================================================== */
 
 const API_BASE = '/api/estoque';
 const SESSION_KEY = 'irUserSession';
 const MODULE_SESSION_KEY = 'estoqueSession';
 const PORTAL_URL = window.location.origin;
+
+const estoqueBC = (typeof BroadcastChannel !== 'undefined')
+    ? new BroadcastChannel('estoque-updates')
+    : null;
+
+function broadcastEstoque() {
+    if (estoqueBC) {
+        try { estoqueBC.postMessage({ type: 'estoque-changed', ts: Date.now() }); } catch (e) {}
+    }
+    try { localStorage.setItem('estoque:lastUpdate', String(Date.now())); } catch (e) {}
+}
 
 let allItems = [];
 let grupos = [];
@@ -73,15 +89,28 @@ function formatCurrency(v) {
     return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+/**
+ * Notificação padronizada — canto INFERIOR DIREITO, verde/vermelho.
+ * 1ª opção: IR.toast() → cria .ir-toast (ui-refined.css)
+ * 2ª opção (fallback): .floating-message (styles.css) — mesmo visual
+ */
 function notificar(message, type = 'success') {
+    if (window.IR && typeof IR.toast === 'function') {
+        try {
+            IR.toast(message, type);
+            return;
+        } catch (e) {
+            console.warn('IR.toast falhou; usando fallback .floating-message', e);
+        }
+    }
     document.querySelectorAll('.floating-message').forEach(msg => msg.remove());
     const messageDiv = document.createElement('div');
     messageDiv.className = `floating-message ${type}`;
     messageDiv.textContent = message;
     document.body.appendChild(messageDiv);
-    setTimeout(() => { 
-        messageDiv.style.animation = 'slideOutBottom 0.3s ease forwards'; 
-        setTimeout(() => messageDiv.remove(), 300); 
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOutBottom 0.3s ease forwards';
+        setTimeout(() => messageDiv.remove(), 300);
     }, 3000);
 }
 
@@ -129,13 +158,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tr) openViewModal(tr.dataset.id);
         });
     }
+
     carregarGrupos();
     carregarEstoque();
 
-    // Atualização automática a cada 5s
-    setInterval(() => {
-        carregarEstoque(true); 
-    }, 5000);
+    if (estoqueBC) {
+        estoqueBC.onmessage = (e) => {
+            if (e.data && e.data.type === 'estoque-changed') carregarEstoque(true);
+        };
+    }
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'estoque:lastUpdate') carregarEstoque(true);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') carregarEstoque(true);
+    });
+    window.addEventListener('focus', () => carregarEstoque(true));
+
+    setInterval(() => { carregarEstoque(true); }, 2000);
 });
 
 // ─── Carregamento ───────────────────────────────────────────────────────────
@@ -149,12 +189,10 @@ async function carregarGrupos() {
 async function carregarEstoque(silent = false) {
     try {
         const novaLista = await api(API_BASE);
-        
         if (JSON.stringify(novaLista) !== JSON.stringify(allItems)) {
             allItems = novaLista;
             preencherFiltroMarcas();
             renderTable();
-            if (!silent) console.log('Estoque atualizado em tempo real.');
         }
     } catch (e) {
         if (!silent) {
@@ -259,7 +297,7 @@ function updateTotals(items) {
     if (vEl) vEl.textContent = formatCurrency(totalValor);
 }
 
-// ─── Modal de Visualização (Abas e Navegação) ───────────────────────────────
+// ─── Modal de Visualização ──────────────────────────────────────────────────
 async function openViewModal(id) {
     const item = allItems.find(i => String(i.id) === String(id));
     if (!item) return;
@@ -272,13 +310,11 @@ async function openViewModal(id) {
                 <h2 class="modal-title">Visualizar Item</h2>
                 <button type="button" class="close-modal" onclick="this.closest('.modal-overlay').remove()">✕</button>
             </div>
-            
             <div class="tabs-nav">
                 <button class="tab-btn active" onclick="switchViewTab(0)">Produto</button>
                 <button class="tab-btn" onclick="switchViewTab(1)">Fornecedor</button>
                 <button class="tab-btn" onclick="switchViewTab(2)">Valores</button>
             </div>
-
             <div class="tab-content active" id="tab-v-produto">
                 <div class="info-section">
                     <h4>Dados do Produto</h4>
@@ -288,7 +324,6 @@ async function openViewModal(id) {
                     <div class="info-row"><span class="info-label">NCM:</span><span class="info-value">${escapeHtml(item.ncm || '-')}</span></div>
                 </div>
             </div>
-
             <div class="tab-content" id="tab-v-fornecedor">
                 <div class="info-section">
                     <h4>Dados do Fornecedor</h4>
@@ -296,7 +331,6 @@ async function openViewModal(id) {
                     <div class="info-row"><span class="info-label">Modelo:</span><span class="info-value">${escapeHtml(item.modelo || '-')}</span></div>
                 </div>
             </div>
-
             <div class="tab-content" id="tab-v-valores">
                 <div class="info-section">
                     <h4>Estoque e Valores</h4>
@@ -304,9 +338,7 @@ async function openViewModal(id) {
                     <div class="info-row"><span class="info-label">Quantidade em Estoque:</span><span class="info-value">${Number(item.quantidade) || 0}</span></div>
                     <div class="info-row"><span class="info-label">Valor Total em Estoque:</span><span class="info-value">${formatCurrency((item.valor_unitario || 0) * (item.quantidade || 0))}</span></div>
                 </div>
-                <!-- Auditoria removida -->
             </div>
-
             <div class="modal-actions" style="justify-content: space-between;">
                 <div>
                     <button type="button" id="btnViewPrev" onclick="prevViewTab()" class="secondary" style="display:none; margin-right: 0.5rem;">Anterior</button>
@@ -336,11 +368,11 @@ function prevViewTab() { if (currentViewTabIndex > 0) switchViewTab(currentViewT
 function updateViewNavButtons() {
     const prev = document.getElementById('btnViewPrev');
     const next = document.getElementById('btnViewNext');
-    if(prev) prev.style.display = currentViewTabIndex === 0 ? 'none' : 'inline-block';
-    if(next) next.style.display = currentViewTabIndex === viewTabs.length - 1 ? 'none' : 'inline-block';
+    if (prev) prev.style.display = currentViewTabIndex === 0 ? 'none' : 'inline-block';
+    if (next) next.style.display = currentViewTabIndex === viewTabs.length - 1 ? 'none' : 'inline-block';
 }
 
-// ─── Formulário de Item (Abas e Navegação) ──────────────────────────────────
+// ─── Formulário de Item ────────────────────────────────────────────────────
 function openFormModal(id) {
     editingId = id || null;
     const item = id ? allItems.find(i => String(i.id) === String(id)) : null;
@@ -358,8 +390,6 @@ function openFormModal(id) {
                     <button type="button" class="tab-btn" onclick="switchFormTab(1)">Fornecedor</button>
                     <button type="button" class="tab-btn" onclick="switchFormTab(2)">Valores</button>
                 </div>
-
-                <!-- ABA PRODUTO -->
                 <div class="tab-content active" id="tab-produto">
                     <div class="form-grid">
                         ${item ? `
@@ -367,12 +397,10 @@ function openFormModal(id) {
                             <label>ID (Código)</label>
                             <input type="text" value="${escapeHtml(item.codigo)}" readonly style="background:#eef1f5;cursor:not-allowed;">
                         </div>` : ''}
-                        
                         <div class="form-group">
                             <label>Descrição *</label>
                             <input type="text" id="fDescricao" required maxlength="255" value="${item ? escapeHtml(item.descricao) : ''}">
                         </div>
-                        
                         <div class="form-group">
                             <label>Grupo *</label>
                             ${item ? `
@@ -389,15 +417,12 @@ function openFormModal(id) {
                             </div>
                             `}
                         </div>
-                        
                         <div class="form-group full-width">
                             <label>NCM</label>
                             <input type="text" id="fNcm" maxlength="20" value="${item ? escapeHtml(item.ncm || '') : ''}">
                         </div>
                     </div>
                 </div>
-
-                <!-- ABA FORNECEDOR -->
                 <div class="tab-content" id="tab-fornecedor">
                     <div class="form-grid">
                         <div class="form-group">
@@ -410,8 +435,6 @@ function openFormModal(id) {
                         </div>
                     </div>
                 </div>
-
-                <!-- ABA VALORES -->
                 <div class="tab-content" id="tab-valores">
                     <div class="form-grid">
                         <div class="form-group">
@@ -424,7 +447,6 @@ function openFormModal(id) {
                         </div>
                     </div>
                 </div>
-
                 <div class="modal-actions" style="justify-content: space-between;">
                     <div>
                         <button type="button" id="btnFormPrev" onclick="prevFormTab()" class="secondary" style="display:none; margin-right: 0.5rem;">Anterior</button>
@@ -458,8 +480,8 @@ function prevFormTab() { if (currentFormTabIndex > 0) switchFormTab(currentFormT
 function updateFormNavButtons() {
     const prev = document.getElementById('btnFormPrev');
     const next = document.getElementById('btnFormNext');
-    if(prev) prev.style.display = currentFormTabIndex === 0 ? 'none' : 'inline-block';
-    if(next) next.style.display = currentFormTabIndex === formTabs.length - 1 ? 'none' : 'inline-block';
+    if (prev) prev.style.display = currentFormTabIndex === 0 ? 'none' : 'inline-block';
+    if (next) next.style.display = currentFormTabIndex === formTabs.length - 1 ? 'none' : 'inline-block';
 }
 
 async function salvarItem(e, overlay) {
@@ -487,8 +509,8 @@ async function salvarItem(e, overlay) {
                 body: JSON.stringify({ descricao, grupo, valor_unitario: valor, quantidade: qtd, marca, modelo, ncm })
             });
         }
-
         fecharModal(overlay);
+        broadcastEstoque();
         notificar(editingId ? 'Item atualizado com sucesso!' : 'Item criado com sucesso!', 'success');
         await carregarEstoque();
     } catch (err) {
@@ -532,7 +554,7 @@ function openMovModal(id, tipo) {
         fecharModal(overlay);
         notificar('Operação cancelada', 'error');
     };
-    
+
     overlay.querySelector('#btnConfirmarMov').onclick = async () => {
         const qtd = parseInt(input.value, 10);
         if (!qtd || qtd <= 0) return notificar('Informe uma quantidade válida', 'error');
@@ -543,6 +565,7 @@ function openMovModal(id, tipo) {
                 body: JSON.stringify({ tipo, quantidade: qtd })
             });
             fecharModal(overlay);
+            broadcastEstoque();
             notificar(`${tipoLabel} registrada com sucesso!`, 'success');
             await carregarEstoque();
         } catch (err) {
@@ -551,7 +574,7 @@ function openMovModal(id, tipo) {
     };
 }
 
-// ─── Modal de novo grupo ────────────────────────────────────────────────────
+// ─── Modal de novo grupo ───────────────────────────────────────────────────
 function abrirModalNovoGrupo() {
     const html = `
         <div class="modal-content" style="max-width:460px;">
@@ -585,11 +608,10 @@ function abrirModalNovoGrupo() {
         if (abreviacao.length !== 4) return notificar('A abreviação deve ter 4 letras', 'error');
 
         try {
-            const data = await api(`${API_BASE}/grupos`, {
+            await api(`${API_BASE}/grupos`, {
                 method: 'POST',
                 body: JSON.stringify({ nome, abreviacao })
             });
-
             fecharModal(overlay);
             await carregarGrupos();
             notificar('Grupo criado com sucesso!', 'success');
@@ -599,13 +621,14 @@ function abrirModalNovoGrupo() {
     });
 }
 
-// ─── Sincronização ──────────────────────────────────────────────────────────
+// ─── Sincronização ─────────────────────────────────────────────────────────
 async function sincronizarDados(btn) {
     if (btn) {
         btn.classList.add('spinning');
         setTimeout(() => btn.classList.remove('spinning'), 1000);
     }
     await Promise.all([carregarGrupos(), carregarEstoque()]);
+    broadcastEstoque();
     notificar('Dados sincronizados com sucesso!', 'success');
 }
 
@@ -621,18 +644,16 @@ function gerarPDFEstoque() {
         const items = getFilteredItems();
         if (items.length === 0) return notificar('Nenhum item para gerar PDF', 'error');
 
-        // Título e Subtítulo
         doc.setFontSize(16);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text('Relatório de Estoque', 14, 16);
-        
+
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.setTextColor(100, 100, 100);
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
 
-        // Agrupar itens
         const grouped = {};
         items.forEach(i => {
             const g = i.grupo || 'SEM GRUPO';
@@ -644,11 +665,7 @@ function gerarPDFEstoque() {
         let isFirstPage = true;
 
         for (const [grupo, lista] of Object.entries(grouped)) {
-            if (!isFirstPage && currentY > 160) {
-                doc.addPage();
-                currentY = 20;
-            }
-
+            if (!isFirstPage && currentY > 160) { doc.addPage(); currentY = 20; }
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(0, 0, 0);
@@ -674,7 +691,6 @@ function gerarPDFEstoque() {
             });
 
             currentY = doc.lastAutoTable.finalY + 8;
-            
             doc.setFont(undefined, 'bold');
             doc.setFontSize(10);
             doc.text(`VALOR TOTAL DO GRUPO: ${formatCurrency(totalGrupo)}`, 14, currentY);
@@ -682,8 +698,7 @@ function gerarPDFEstoque() {
             isFirstPage = false;
         }
 
-        const nomeMesAno = getMesAnoAtual();
-        doc.save(`${nomeMesAno}-ESTOQUE.pdf`);
+        doc.save(`${getMesAnoAtual()}-ESTOQUE.pdf`);
         notificar('PDF gerado com sucesso!', 'success');
     } catch (err) {
         console.error(err);
@@ -696,28 +711,25 @@ async function gerarPDFMovimentacoes() {
     try {
         notificar('Gerando relatório de movimentações...', 'info');
         const movs = await api(`${API_BASE}/movimentacoes/todas`);
-        
+
         if (!movs || movs.length === 0) return notificar('Nenhuma movimentação registrada', 'error');
 
         const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
         if (!jsPDFConstructor) throw new Error('Biblioteca jsPDF não encontrada.');
         const doc = new jsPDFConstructor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-        // Título e Subtítulo
         doc.setFontSize(16);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text('Relatório de Movimentações', 14, 16);
-        
+
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.setTextColor(100, 100, 100);
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
 
-        // Nomes dos meses para agrupamento
         const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 
-        // Agrupar por Mês/Ano
         const grouped = {};
         movs.forEach(m => {
             const date = new Date(m.created_at || m.ultima_atualizacao);
@@ -730,11 +742,7 @@ async function gerarPDFMovimentacoes() {
         let isFirstPage = true;
 
         for (const [mesAno, lista] of Object.entries(grouped)) {
-            if (!isFirstPage && currentY > 160) {
-                doc.addPage();
-                currentY = 20;
-            }
-
+            if (!isFirstPage && currentY > 160) { doc.addPage(); currentY = 20; }
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(0, 0, 0);
@@ -765,8 +773,7 @@ async function gerarPDFMovimentacoes() {
             isFirstPage = false;
         }
 
-        const nomeMesAno = getMesAnoAtual();
-        doc.save(`${nomeMesAno}-MOVIMENTAÇÕES.pdf`);
+        doc.save(`${getMesAnoAtual()}-MOVIMENTAÇÕES.pdf`);
         notificar('Relatório de movimentações gerado!', 'success');
     } catch (err) {
         console.error(err);
