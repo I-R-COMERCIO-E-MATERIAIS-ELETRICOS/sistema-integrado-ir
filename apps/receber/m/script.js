@@ -304,7 +304,7 @@ function renderList(lista = filtered()) {
           <div class="card-cell"><span class="cell-label">Banco</span><span class="cell-value">${esc(up(c.banco) || '—')}</span></div>
           <div class="card-cell"><span class="cell-label">Valor NF</span><span class="cell-value valor">R$ ${esc((parseFloat(c.valor) || 0).toFixed(2).replace('.', ','))}</span></div>
           <div class="card-cell"><span class="cell-label">Valor Pago</span><span class="cell-value" style="color:#16A34A">${valorPagoTotal > 0 ? 'R$ ' + valorPagoTotal.toFixed(2).replace('.', ',') : '—'}</span></div>
-          <div class="card-cell"><span class="cell-label">Dt. Pagamento</span><span class="cell-value">${dataPgto}</span></div>
+          <div class="card-cell full"><span class="cell-label">Dt. Pagamento</span><span class="cell-value">${dataPgto}</span></div>
         </div>
         <div class="card-actions">
           <button type="button" class="action-btn edit" data-edit="${esc(c.id)}">Editar</button>
