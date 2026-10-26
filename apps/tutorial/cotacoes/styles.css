@@ -1,0 +1,536 @@
+/* ═══════════ REPLICA (COTAÇÕES DE FRETE) ═══════════ */
+.replica-cotacoes {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: #F8F9FA;
+    color: #1A1A1A;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow-y: auto;
+    line-height: 1.6;
+}
+.replica-cotacoes * { box-sizing: border-box; }
+
+.replica-cotacoes .container {
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem 4rem;
+}
+.replica-cotacoes h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+.replica-cotacoes .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+}
+.replica-cotacoes .header-left { display: flex; align-items: center; }
+
+.replica-cotacoes .btn-new-order-header {
+    background: #3B82F6;
+    color: #fff;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    border: none;
+    cursor: pointer;
+}
+
+/* SEARCH */
+.replica-cotacoes .search-bar-wrapper { margin-bottom: 0.5rem; }
+.replica-cotacoes .search-bar {
+    background: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid #E5E7EB;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica-cotacoes .search-icon { color: #6B7280; flex-shrink: 0; }
+.replica-cotacoes .search-bar input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+    color: #1A1A1A;
+    font-size: 0.9rem;
+    min-width: 150px;
+    outline: none;
+}
+.replica-cotacoes .search-bar-filters { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.replica-cotacoes .filter-dropdown-inline { position: relative; min-width: 160px; }
+.replica-cotacoes .filter-dropdown-inline select {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    background: #F9FAFB;
+    color: #1A1A1A;
+    font-size: 0.85rem;
+    font-weight: 500;
+    appearance: none;
+    height: 38px;
+    font-family: inherit;
+}
+.replica-cotacoes .filter-dropdown-inline .dropdown-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6B7280;
+}
+
+.replica-cotacoes .month-navigation-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #F9FAFB;
+    padding: 0.35rem;
+    border-radius: 6px;
+    border: 1px solid #E5E7EB;
+    height: 38px;
+    min-width: 200px;
+}
+.replica-cotacoes .month-nav-arrow {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-cotacoes .month-display-inline {
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+}
+.replica-cotacoes .calendar-btn,
+.replica-cotacoes .sync-btn {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25rem;
+}
+
+/* TABLE */
+.replica-cotacoes .card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.replica-cotacoes .table-card { padding: 0; overflow: hidden; }
+.replica-cotacoes table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.replica-cotacoes thead { background: #000; }
+.replica-cotacoes th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #0A0A0A;
+}
+.replica-cotacoes td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    font-size: 0.9rem;
+    color: #1A1A1A;
+}
+.replica-cotacoes tbody tr:nth-child(even) { background: #FAFAFA; }
+.replica-cotacoes tbody tr.row-fechada {
+    background: rgba(22, 163, 74, 0.12) !important;
+    border-left: 3px solid #16A34A;
+}
+.replica-cotacoes .col-checkbox { width: 5%; text-align: center; }
+.replica-cotacoes .col-codigo { width: 8%; }
+.replica-cotacoes .col-data { width: 10%; }
+.replica-cotacoes .col-transportadora { width: 20%; }
+.replica-cotacoes .col-destino { width: 12%; }
+.replica-cotacoes .col-documento { width: 12%; }
+.replica-cotacoes .col-valor { width: 10%; }
+.replica-cotacoes .col-alerta { width: 5%; text-align: center; }
+.replica-cotacoes .col-acoes { width: 18%; }
+
+.replica-cotacoes .checkbox-wrapper { display: inline-flex; align-items: center; justify-content: center; position: relative; }
+.replica-cotacoes .styled-checkbox { position: absolute; opacity: 0; cursor: pointer; width: 40px; height: 40px; margin: 0; }
+.replica-cotacoes .checkbox-label-styled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #F9FAFB;
+}
+.replica-cotacoes .styled-checkbox:checked + .checkbox-label-styled { background: #16A34A; border-color: #16A34A; }
+.replica-cotacoes .styled-checkbox:checked + .checkbox-label-styled::after { content: '✓'; color: white; font-size: 1rem; font-weight: 700; }
+
+.replica-cotacoes .actions-cell {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    white-space: nowrap;
+}
+.replica-cotacoes .action-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    font-weight: 600;
+    border: none;
+    color: white;
+    cursor: pointer;
+    min-width: 70px;
+}
+.replica-cotacoes .action-btn.edit { background: #6B7280; }
+.replica-cotacoes .action-btn.delete { background: #EF4444; }
+.replica-cotacoes .action-btn.alert-icon {
+    background: transparent;
+    color: #EF4444;
+    border: none;
+    padding: 6px 10px;
+    margin: 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+.replica-cotacoes .action-btn.alert-icon svg { stroke: #EF4444; width: 20px; height: 20px; }
+
+/* ═══════════ MODAIS ═══════════ */
+.replica-cotacoes .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 5;
+}
+.replica-cotacoes .modal-overlay.show { display: flex; }
+.replica-cotacoes .modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 1600px;
+    width: 98%;
+    max-height: 95vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #E5E7EB;
+}
+.replica-cotacoes .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #E5E7EB;
+}
+.replica-cotacoes .modal-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.replica-cotacoes .close-modal {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #dc2626;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* TABS */
+.replica-cotacoes .tabs-container { margin-bottom: 1.5rem; }
+.replica-cotacoes .tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid #E5E7EB;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.replica-cotacoes .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+    color: #6B7280;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    border-radius: 0;
+    font-family: inherit;
+}
+.replica-cotacoes .tab-btn.active { color: #ff521d; border-bottom-color: #ff521d; }
+.replica-cotacoes .tab-content { display: none; }
+.replica-cotacoes .tab-content.active { display: block; }
+
+/* FORMS */
+.replica-cotacoes .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 1rem;
+}
+.replica-cotacoes .form-group { margin-bottom: 1rem; min-width: 0; }
+.replica-cotacoes label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #1A1A1A;
+    font-size: 0.9rem;
+}
+.replica-cotacoes input,
+.replica-cotacoes select,
+.replica-cotacoes textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    color: #1A1A1A;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+}
+
+/* OBSERVAÇÕES */
+.replica-cotacoes .observacoes-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.replica-cotacoes .observacoes-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    background: #F9FAFB;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+.replica-cotacoes .observacao-item {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+.replica-cotacoes .observacao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.replica-cotacoes .observacao-data {
+    font-size: 0.75rem;
+    color: #6B7280;
+    font-weight: 600;
+}
+.replica-cotacoes .observacao-texto {
+    color: #1A1A1A;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+}
+.replica-cotacoes .btn-remove-obs {
+    background: transparent;
+    border: none;
+    color: #EF4444;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+.replica-cotacoes .nova-observacao {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.replica-cotacoes .btn-add-obs {
+    align-self: flex-start;
+    background: #3B82F6;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* MODAL ACTIONS */
+.replica-cotacoes .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #E5E7EB;
+    flex-wrap: wrap;
+}
+.replica-cotacoes .modal-actions button {
+    margin: 0;
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-cotacoes .modal-actions .secondary { background: #6B7280; color: #fff; }
+.replica-cotacoes .modal-actions .save { background: #22C55E; color: #fff; order: 1; }
+.replica-cotacoes .modal-actions .cancel-close { background: #dc2626; color: #fff; order: 2; }
+.replica-cotacoes .modal-actions .tab-prev,
+.replica-cotacoes .modal-actions .tab-next { order: 0; }
+
+/* MODAL CONFIRMAÇÃO */
+.replica-cotacoes .modal-content.ir-modal-confirm {
+    max-width: 460px;
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+}
+.replica-cotacoes .ir-modal-confirm .ir-close { position: absolute; top: 1rem; right: 1rem; }
+.replica-cotacoes .ir-modal-confirm .ir-confirm-msg {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 1rem 0 2rem;
+    color: #1A1A1A;
+}
+.replica-cotacoes .ir-modal-confirm .ir-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica-cotacoes .ir-modal-confirm .ir-confirm-actions button {
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.replica-cotacoes .ir-modal-confirm .ir-btn-green { background: #22C55E; }
+.replica-cotacoes .ir-modal-confirm .ir-btn-red { background: #DC2626; }
+
+/* INFO SECTION */
+.replica-cotacoes .info-section { margin-bottom: 1.5rem; }
+.replica-cotacoes .info-section h4 {
+    color: #ff521d;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #E5E7EB;
+}
+.replica-cotacoes .info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+}
+.replica-cotacoes .info-label { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.replica-cotacoes .info-value { color: #1A1A1A; }
+
+/* ═══════════ MODAL CALENDÁRIO ═══════════ */
+.replica-cotacoes .calendar-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+.replica-cotacoes .calendar-modal.show { display: flex; }
+.replica-cotacoes .calendar-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #E5E7EB;
+    max-width: 400px;
+    width: 90%;
+}
+.replica-cotacoes .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.replica-cotacoes .calendar-header h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #1A1A1A;
+}
+.replica-cotacoes .calendar-year-nav {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-cotacoes .calendar-months {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+.replica-cotacoes .calendar-month {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1A1A1A;
+}

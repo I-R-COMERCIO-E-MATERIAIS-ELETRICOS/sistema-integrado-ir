@@ -1,0 +1,102 @@
+/* ═══════════ REPLICA (USUÁRIOS) ═══════════ */
+.replica {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: #F4F5F7; color: #111; width: 100%; height: 100%; position: relative;
+}
+.replica .container { max-width: 1600px; padding: 2rem 3rem 5rem 3rem; margin: 0 auto; }
+.replica h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; margin: 0; }
+.replica .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; }
+.replica .header-left { display: flex; align-items: center; }
+.replica .btn-new-order-header {
+    background: #3B82F6; color: #fff; padding: 0.65rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+    font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+}
+.replica .search-bar-wrapper { margin-bottom: 0.5rem; }
+.replica .search-bar {
+    background: #fff; padding: 0.5rem 1rem; border-radius: 12px 12px 0 0; border: 1px solid #E1E4E8;
+    border-bottom: none; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+}
+.replica .search-icon { color: #5B6470; }
+.replica .search-bar input { flex: 1; border: none; background: transparent; padding: 0.5rem; font-size: 0.9rem; color: #111; min-width: 150px; outline: none; }
+.replica .search-select { background: #F7F8FA; color: #111; border: 1px solid #E1E4E8; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; max-width: 220px; }
+.replica .icon-btn { background: transparent; padding: 0.5rem; border-radius: 6px; color: #5B6470; display: inline-flex; align-items: center; justify-content: center; }
+.replica .card { background: #fff; border: 1px solid #E1E4E8; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+.replica .table-card { padding: 0; }
+.replica table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.replica thead { background: #000; }
+.replica th { padding: 14px 16px; text-align: left; font-weight: 600; color: #fff; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #0A0A0A; }
+.replica td { padding: 14px 16px; border-bottom: 1px solid rgba(128, 128, 128, 0.1); font-size: 0.9rem; color: #111; text-transform: uppercase; vertical-align: middle; }
+.replica tbody tr:nth-child(even) { background: #FAFAFA; }
+.replica .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.replica .badge.ativo { background: rgba(34, 197, 94, 0.12); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.3); }
+.replica .action-btn { padding: 7px 14px; font-size: 0.82rem; margin: 0 3px; min-width: 70px; border-radius: 6px; font-weight: 500; color: #fff; border: none; }
+.replica .action-btn.edit { background: #6B7280; }
+.replica .action-btn.delete { background: #EF4444; }
+
+/* ─── MODAL REPLICA ─── */
+.replica .replica-modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; padding: 1rem; z-index: 5;
+}
+.replica .replica-modal.show { display: flex; }
+.replica .modal-content { background: #fff; border-radius: 16px; padding: 2rem; max-width: 780px; width: 100%; max-height: 100%; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); border: 1px solid #E1E4E8; }
+.replica .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(128, 128, 128, 0.2); }
+.replica .modal-title { font-size: 1.4rem; font-weight: 700; margin: 0; }
+.replica .close-modal { background: transparent; font-size: 1.4rem; color: #DC2626; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.replica .tabs-nav { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid #E1E4E8; }
+.replica .tab-btn { background: transparent; border: none; padding: 0.85rem 1.5rem; cursor: pointer; font-size: 0.92rem; font-weight: 600; color: #5B6470; border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 0; }
+.replica .tab-btn.active { color: #FF521D; border-bottom-color: #FF521D; }
+.replica .tab-content { display: none; }
+.replica .tab-content.active { display: block; }
+.replica .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; }
+.replica .form-grid .full { grid-column: 1 / -1; }
+.replica .form-group { margin-bottom: 0.5rem; }
+.replica label { display: block; margin-bottom: 6px; font-weight: 500; color: #5B6470; font-size: 0.85rem; }
+.replica input, .replica select { width: 100%; padding: 12px 16px; border: 1px solid rgba(128, 128, 128, 0.2); border-radius: 8px; background: #F7F8FA; color: #111; font-size: 0.95rem; font-family: inherit; outline: none; }
+.replica .modules-preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
+.replica .module-card { padding: 14px 18px; border-radius: 10px; border: 1.5px solid #E1E4E8; background: #F7F8FA; font-size: 0.92rem; font-weight: 600; text-align: center; color: #111; }
+.replica .module-card.selected { background: rgba(34, 197, 94, 0.12); color: #16A34A; border-color: rgba(34, 197, 94, 0.4); }
+.replica .status-preview { padding: 14px 18px; border-radius: 10px; border: 1.5px solid rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.12); color: #16A34A; font-size: 0.92rem; font-weight: 600; text-align: center; }
+.replica .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(128, 128, 128, 0.2); flex-wrap: wrap; }
+.replica .modal-actions button { padding: 12px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; color: #fff; min-width: 110px; }
+.replica .modal-actions .secondary { background: #6B7280; }
+.replica .modal-actions .save { background: #22C55E; order: 1; }
+.replica .modal-actions .cancel-close { background: #DC2626; order: 2; }
+.replica .modal-actions .tab-prev, .replica .modal-actions .tab-next { order: 0; }
+
+/* ─── MODAL DE CONFIRMAÇÃO (exclusão) ─── */
+.replica .modal-content.modal-confirm {
+    max-width: 460px;
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+}
+.replica .modal-confirm .close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+.replica .modal-confirm .confirm-msg {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 1rem 0 2rem;
+    color: #111;
+}
+.replica .modal-confirm .confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica .modal-confirm .confirm-actions button {
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.replica .modal-confirm .confirm-actions .save { background: #22C55E; }
+.replica .modal-confirm .confirm-actions .cancel-close { background: #DC2626; }

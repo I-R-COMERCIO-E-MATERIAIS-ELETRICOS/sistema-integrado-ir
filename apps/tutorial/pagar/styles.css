@@ -1,0 +1,561 @@
+/* ═══════════ REPLICA (CONTAS A PAGAR) ═══════════ */
+.replica-pagar {
+    --primary: #FF521D;
+    --bg-secondary: #F8F9FA;
+    --bg-card: #FFFFFF;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+    --input-bg: #F9FAFB;
+    --success-color: #22C55E;
+    --danger-color: #EF4444;
+    --btn-register: #3B82F6;
+    --btn-delete: #EF4444;
+    --btn-edit: #6B7280;
+    --btn-save: #22C55E;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow-y: auto;
+    line-height: 1.6;
+}
+.replica-pagar * { box-sizing: border-box; }
+
+.replica-pagar .container {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem 4rem;
+}
+.replica-pagar h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+.replica-pagar .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+}
+.replica-pagar .header-left { display: flex; align-items: center; }
+
+.replica-pagar .btn-new-order-header {
+    background: var(--btn-register);
+    color: #fff;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    border: none;
+    cursor: pointer;
+}
+
+/* DASHBOARD */
+.replica-pagar .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.replica-pagar .stat-card {
+    background: var(--bg-card);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.replica-pagar .stat-icon {
+    width: 48px; height: 48px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.replica-pagar .stat-icon-default { background: rgba(107, 114, 128, 0.1); }
+.replica-pagar .stat-icon-success { background: rgba(34, 197, 94, 0.1); color: #22C55E; }
+.replica-pagar .stat-icon-warning { background: rgba(255, 82, 29, 0.1); color: #FF521D; }
+.replica-pagar .stat-icon-danger { background: rgba(239, 68, 68, 0.1); color: #EF4444; }
+.replica-pagar .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; margin-bottom: 0.25rem; color: var(--text-primary); }
+.replica-pagar .stat-value-success { color: #22C55E; }
+.replica-pagar .stat-value-warning { color: #FF521D; }
+.replica-pagar .stat-value-danger { color: #EF4444; }
+.replica-pagar .stat-label { font-size: 0.875rem; color: var(--text-secondary); font-weight: 500; }
+.replica-pagar .stat-card-danger { border-color: rgba(239, 68, 68, 0.2); }
+
+/* SEARCH */
+.replica-pagar .search-bar-wrapper { margin-bottom: 0.5rem; }
+.replica-pagar .search-bar {
+    background: var(--bg-card);
+    padding: 0.75rem 1rem;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica-pagar .search-icon { color: var(--text-secondary); flex-shrink: 0; }
+.replica-pagar .search-bar input {
+    flex: 1; border: none; background: transparent; padding: 0.5rem;
+    color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
+    min-width: 150px; outline: none;
+}
+.replica-pagar .search-bar-filters { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.replica-pagar .filter-dropdown-inline { position: relative; min-width: 160px; }
+.replica-pagar .filter-dropdown-inline select {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    appearance: none;
+    height: 38px;
+    font-family: inherit;
+}
+.replica-pagar .filter-dropdown-inline .dropdown-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-secondary);
+}
+.replica-pagar .month-navigation-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--input-bg);
+    padding: 0.35rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    height: 38px;
+    min-width: 200px;
+}
+.replica-pagar .month-nav-arrow {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pagar .month-display-inline {
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+}
+.replica-pagar .calendar-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25rem;
+}
+
+/* TABLE */
+.replica-pagar .card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.replica-pagar .table-card { padding: 0; overflow: hidden; }
+.replica-pagar table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.replica-pagar thead { background: #000; }
+.replica-pagar th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #0A0A0A;
+}
+.replica-pagar td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+.replica-pagar tbody tr:nth-child(even) { background: #FAFAFA; }
+.replica-pagar .actions-cell { white-space: nowrap; min-width: 180px; }
+
+.replica-pagar .badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.replica-pagar .badge.pago { background: rgba(34, 197, 94, 0.1); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.2); }
+.replica-pagar .badge.vencido { background: rgba(239, 68, 68, 0.1); color: #DC2626; border: 1px solid rgba(239, 68, 68, 0.2); }
+.replica-pagar .badge.pendente { background: rgba(245, 158, 11, 0.1); color: #D97706; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+.replica-pagar .check-btn {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    background: var(--input-bg);
+    color: transparent;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pagar .check-btn.checked { background: var(--success-color); border-color: var(--success-color); color: white; }
+.replica-pagar .check-btn.checked::after { content: '✓'; }
+
+.replica-pagar .action-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    margin: 0 4px;
+    min-width: 70px;
+    border-radius: 6px;
+    font-weight: 600;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pagar .action-btn.edit { background: var(--btn-edit); }
+.replica-pagar .action-btn.delete { background: var(--btn-delete); }
+.replica-pagar .action-btn.alert-icon {
+    background: transparent;
+    color: #EF4444;
+    border: none;
+    padding: 6px 10px;
+    margin: 0;
+    min-width: 0;
+}
+.replica-pagar .action-btn.alert-icon svg { stroke: #EF4444; width: 20px; height: 20px; }
+
+/* ═══════════ MODAIS ═══════════ */
+.replica-pagar .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 5;
+}
+.replica-pagar .modal-overlay.show { display: flex; }
+.replica-pagar .modal-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 900px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+.replica-pagar .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+.replica-pagar .modal-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.replica-pagar .close-modal {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #dc2626;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* TABS */
+.replica-pagar .tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.replica-pagar .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    border-radius: 0;
+    font-family: inherit;
+}
+.replica-pagar .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.replica-pagar .tab-content { display: none; }
+.replica-pagar .tab-content.active { display: block; }
+
+/* FORMS */
+.replica-pagar .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.replica-pagar .form-group { margin-bottom: 0.5rem; min-width: 0; }
+.replica-pagar label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+.replica-pagar input,
+.replica-pagar select,
+.replica-pagar textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+}
+
+/* OBSERVAÇÕES */
+.replica-pagar .observacoes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    min-height: 80px;
+}
+.replica-pagar .observacoes-list:empty::before {
+    content: 'Nenhuma observação registrada';
+    display: block;
+    text-align: center;
+    padding: 16px;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.82rem;
+}
+.replica-pagar .nova-observacao { display: flex; flex-direction: column; gap: 0.75rem; }
+.replica-pagar .btn-add-obs {
+    align-self: flex-start;
+    background: var(--btn-register);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+/* PARCELAS PREVIEW */
+.replica-pagar .parcelas-preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.replica-pagar .parcelas-preview h4 { margin: 0 0 1rem; color: var(--text-primary); font-size: 1rem; }
+.replica-pagar .parcela-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+.replica-pagar .parcela-item:last-child { margin-bottom: 0; }
+.replica-pagar .parcela-numero { font-weight: 600; color: var(--text-primary); }
+.replica-pagar .parcela-data { color: var(--text-secondary); font-size: 0.9rem; }
+.replica-pagar .parcela-valor { font-weight: 600; color: var(--primary); }
+
+/* MODAL ACTIONS */
+.replica-pagar .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--border-color);
+    flex-wrap: wrap;
+}
+.replica-pagar .modal-actions button {
+    margin: 0;
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pagar .modal-actions .secondary { background: #6B7280; color: #fff; }
+.replica-pagar .modal-actions .save { background: var(--btn-save); color: #fff; order: 1; }
+.replica-pagar .modal-actions .cancel-close { background: #dc2626; color: #fff; order: 2; }
+.replica-pagar .modal-actions .tab-prev,
+.replica-pagar .modal-actions .tab-next { order: 0; }
+
+/* MODAL CONFIRM */
+.replica-pagar .modal-content.ir-modal-confirm {
+    max-width: 460px;
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+}
+.replica-pagar .ir-modal-confirm .ir-close { position: absolute; top: 1rem; right: 1rem; }
+.replica-pagar .ir-confirm-msg {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 1rem 0 2rem;
+    color: var(--text-primary);
+}
+.replica-pagar .ir-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica-pagar .ir-confirm-actions button {
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.replica-pagar .ir-btn-green { background: #22C55E; }
+.replica-pagar .ir-btn-red { background: #DC2626; }
+.replica-pagar .ir-btn-blue { background: #3B82F6; }
+
+/* INFO SECTION (view) */
+.replica-pagar .info-section { margin-bottom: 1.5rem; }
+.replica-pagar .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.replica-pagar .info-row:last-child { border-bottom: none; }
+.replica-pagar .info-label { font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; min-width: 160px; flex-shrink: 0; }
+.replica-pagar .info-value { color: var(--text-primary); font-size: 0.9rem; }
+
+/* ALERT MODAL */
+.replica-pagar .alert-modal { max-width: 800px; }
+
+/* CALENDÁRIO */
+.replica-pagar .calendar-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    max-width: 400px;
+    width: 90%;
+}
+.replica-pagar .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.replica-pagar .calendar-header h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+.replica-pagar .calendar-year-nav {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pagar .calendar-months {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+.replica-pagar .calendar-month {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+.replica-pagar .calendar-month.current {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}

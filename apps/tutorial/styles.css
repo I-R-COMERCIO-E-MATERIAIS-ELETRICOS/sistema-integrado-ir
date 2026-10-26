@@ -1,0 +1,121 @@
+:root {
+    --primary: #ff521d;
+    --bg-secondary: #F4F5F7;
+    --bg-card: #FFFFFF;
+    --text-primary: #111111;
+    --text-secondary: #5B6470;
+    --border-color: #E1E4E8;
+    color-scheme: light only;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ═══════════ DASHBOARD DE MÓDULOS ═══════════ */
+.tutorial-dashboard {
+    padding: 2rem 3rem 4rem 3rem;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.dash-header h1 { font-size: 2rem; font-weight: 700; color: #000; letter-spacing: -0.5px; margin: 0; }
+.dash-subtitle { color: var(--text-secondary); margin-top: 0.35rem; font-size: 0.95rem; }
+
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.dash-card {
+    background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; cursor: pointer;
+    transition: all 0.2s ease; position: relative; overflow: hidden; text-align: left;
+}
+.dash-card:hover { border-color: #9CA3AF; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+.dash-card-icon { width: 42px; height: 42px; border-radius: 10px; background: #F3F4F6; color: #4B5563; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dash-card-icon svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; }
+.dash-card-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.dash-card-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; flex: 1; }
+
+/* ═══════════ TUTORIAL INTERATIVO (PALCO) ═══════════ */
+.stage-wrapper {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+    background: #E9EBEE;
+    z-index: 1;
+}
+
+.stage {
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+    background: #F4F5F7;
+    overflow: auto;
+}
+.stage * { pointer-events: none !important; }
+
+/* ─── SPOTLIGHT ─── */
+.spotlight {
+    position: fixed;
+    pointer-events: none;
+    border-radius: 6px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+    z-index: 100;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+    outline: 3px solid #FFD93D;
+    outline-offset: 2px;
+    opacity: 0;
+}
+
+/* ─── NARRAÇÃO (BLOCO FLUTUANTE) ─── */
+.narration {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    background: #0A0A0A;
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+    z-index: 101;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    width: 480px;
+    max-width: calc(100vw - 48px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.narration-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.narration-step { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #FFD93D; }
+.narration-text { font-size: 0.95rem; line-height: 1.6; color: #E5E7EB; margin-bottom: 1.25rem; }
+.narration-actions { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+
+.nav-btn {
+    padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; transition: all 0.15s ease; color: #fff;
+}
+.nav-btn.prev { background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.2); flex: 1; }
+.nav-btn.prev:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.nav-btn.next { background: var(--primary); border: 1px solid var(--primary); flex: 1; }
+.nav-btn.next:hover:not(:disabled) { background: #E8451A; }
+.nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }

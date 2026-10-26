@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial - Ordem de Compra</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+    <div class="stage-wrapper">
+        <div class="stage" id="stage"></div>
+    </div>
+
+    <div class="spotlight" id="spotlight" aria-hidden="true"></div>
+
+    <div class="narration">
+        <div class="narration-inner">
+            <div class="narration-header">
+                <span class="narration-step" id="narrationStep">Passo 1</span>
+            </div>
+            <div class="narration-text" id="narrationText"></div>
+            <div class="narration-actions">
+                <button type="button" class="nav-btn prev" id="btnPrev">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Anterior
+                </button>
+                <button type="button" class="nav-btn next" id="btnNext">
+                    Próximo
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./script.js"></script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+/* ═══════════ REPLICA (PEDIDO DE FATURAMENTO) ═══════════ */
+.replica-pedidos {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: #F8F9FA;
+    color: #1A1A1A;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow-y: auto;
+    line-height: 1.6;
+}
+.replica-pedidos * { box-sizing: border-box; }
+
+.replica-pedidos .container {
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem 4rem;
+}
+.replica-pedidos h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+.replica-pedidos .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+}
+.replica-pedidos .header-left { display: flex; align-items: center; }
+
+.replica-pedidos .btn-new-order-header {
+    background: #3B82F6;
+    color: #fff;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    border: none;
+    cursor: pointer;
+}
+
+/* DASHBOARD */
+.replica-pedidos .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.replica-pedidos .stat-card {
+    background: #fff;
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.replica-pedidos .stat-icon {
+    width: 48px; height: 48px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.replica-pedidos .stat-icon-default { background: rgba(107, 114, 128, 0.1); }
+.replica-pedidos .stat-icon-success { background: rgba(34, 197, 94, 0.1); color: #22C55E; }
+.replica-pedidos .stat-icon-warning { background: rgba(255, 82, 29, 0.1); color: #ff521d; }
+.replica-pedidos .stat-icon-info { background: rgba(59, 130, 246, 0.1); color: #3B82F6; }
+.replica-pedidos .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; margin-bottom: 0.25rem; color: #1A1A1A; }
+.replica-pedidos .stat-value-success { color: #22C55E; }
+.replica-pedidos .stat-value-warning { color: #ff521d; }
+.replica-pedidos .stat-value-info { color: #3B82F6; }
+.replica-pedidos .stat-label { font-size: 0.875rem; color: #6B7280; font-weight: 500; }
+
+/* SEARCH */
+.replica-pedidos .search-bar-wrapper { margin-bottom: 0.5rem; }
+.replica-pedidos .search-bar {
+    background: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid #E5E7EB;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.replica-pedidos .search-icon { color: #6B7280; flex-shrink: 0; }
+.replica-pedidos .search-bar input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+    color: #1A1A1A;
+    font-size: 0.9rem;
+    min-width: 150px;
+    outline: none;
+}
+.replica-pedidos .search-bar-filters { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.replica-pedidos .filter-dropdown-inline { position: relative; min-width: 160px; }
+.replica-pedidos .filter-dropdown-inline select {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    background: #F9FAFB;
+    color: #1A1A1A;
+    font-size: 0.85rem;
+    font-weight: 500;
+    appearance: none;
+    height: 38px;
+    font-family: inherit;
+}
+.replica-pedidos .filter-dropdown-inline .dropdown-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6B7280;
+}
+.replica-pedidos .month-navigation-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #F9FAFB;
+    padding: 0.35rem;
+    border-radius: 6px;
+    border: 1px solid #E5E7EB;
+    height: 38px;
+    min-width: 200px;
+}
+.replica-pedidos .month-nav-arrow {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pedidos .month-display-inline {
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+}
+.replica-pedidos .calendar-btn {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25rem;
+}
+
+/* TABLE */
+.replica-pedidos .card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.replica-pedidos .table-card { padding: 0; overflow: hidden; }
+.replica-pedidos table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.replica-pedidos thead { background: #000; }
+.replica-pedidos th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #0A0A0A;
+}
+.replica-pedidos td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    font-size: 0.9rem;
+    color: #1A1A1A;
+}
+.replica-pedidos tbody tr:nth-child(even) { background: #FAFAFA; }
+.replica-pedidos tbody tr.row-fechada {
+    background: rgba(34, 197, 94, 0.12) !important;
+    border-left: 3px solid #22C55E;
+}
+
+.replica-pedidos .checkbox-wrapper { display: inline-flex; align-items: center; justify-content: center; position: relative; }
+.replica-pedidos .styled-checkbox { position: absolute; opacity: 0; cursor: pointer; width: 40px; height: 40px; margin: 0; }
+.replica-pedidos .checkbox-label-styled {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #F9FAFB;
+}
+.replica-pedidos .styled-checkbox:checked + .checkbox-label-styled { background: #22C55E; border-color: #22C55E; }
+.replica-pedidos .styled-checkbox:checked + .checkbox-label-styled::after { content: '✓'; color: white; font-size: 1rem; font-weight: 700; }
+
+.replica-pedidos .badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.replica-pedidos .badge.aberta { background: rgba(255, 82, 29, 0.1); color: #ff521d; border: 1px solid rgba(255, 82, 29, 0.2); }
+.replica-pedidos .badge.fechada { background: rgba(34, 197, 94, 0.1); color: #16A34A; border: 1px solid rgba(34, 197, 94, 0.2); }
+
+.replica-pedidos .actions { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; }
+.replica-pedidos .action-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    font-weight: 600;
+    border: none;
+    color: white;
+    cursor: pointer;
+    min-width: 70px;
+    margin: 0;
+}
+
+/* ═══════════ MODAIS ═══════════ */
+.replica-pedidos .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 5;
+}
+.replica-pedidos .modal-overlay.show { display: flex; }
+.replica-pedidos .modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 1600px;
+    width: 98%;
+    max-height: 95vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #E5E7EB;
+}
+.replica-pedidos .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #E5E7EB;
+}
+.replica-pedidos .modal-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.replica-pedidos .close-modal {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #dc2626;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* TABS */
+.replica-pedidos .tabs-container { margin-bottom: 1.5rem; }
+.replica-pedidos .tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid #E5E7EB;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.replica-pedidos .tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+    color: #6B7280;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    border-radius: 0;
+    font-family: inherit;
+}
+.replica-pedidos .tab-btn.active { color: #ff521d; border-bottom-color: #ff521d; }
+.replica-pedidos .tab-content { display: none; }
+.replica-pedidos .tab-content.active { display: block; }
+
+/* FORMS */
+.replica-pedidos .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 0.9rem 1rem;
+    margin-bottom: 1.2rem;
+}
+.replica-pedidos .form-group { margin-bottom: 0.4rem; min-width: 0; }
+.replica-pedidos label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #1A1A1A;
+    font-size: 0.82rem;
+}
+.replica-pedidos input,
+.replica-pedidos select,
+.replica-pedidos textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #F9FAFB;
+    color: #1A1A1A;
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+}
+
+/* ITENS TABLE */
+.replica-pedidos .items-table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin: 1rem 0;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #fff;
+}
+.replica-pedidos .items-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.replica-pedidos .items-table th,
+.replica-pedidos .items-table td {
+    padding: 10px 6px;
+    border: 1px solid #E5E7EB;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+.replica-pedidos .items-table th {
+    background: #000;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+.replica-pedidos .success.small {
+    background: #22C55E; color: #fff; padding: 8px 12px; border-radius: 6px;
+    font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer;
+}
+.replica-pedidos .danger.small {
+    background: #EF4444; color: #fff; padding: 6px 10px; border-radius: 6px;
+    font-size: 0.78rem; font-weight: 600; border: none; cursor: pointer;
+}
+
+/* INFO SECTION */
+.replica-pedidos .info-section { margin-bottom: 1.5rem; }
+.replica-pedidos .info-section h4 {
+    color: #ff521d;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #E5E7EB;
+}
+.replica-pedidos .info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+}
+.replica-pedidos .info-label { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.replica-pedidos .info-value { color: #1A1A1A; }
+
+/* MODAL ACTIONS */
+.replica-pedidos .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #E5E7EB;
+    flex-wrap: wrap;
+}
+.replica-pedidos .modal-actions button {
+    margin: 0;
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pedidos .modal-actions .secondary { background: #6B7280; color: #fff; }
+.replica-pedidos .modal-actions .save { background: #22C55E; color: #fff; order: 1; }
+.replica-pedidos .modal-actions .cancel-close { background: #dc2626; color: #fff; order: 2; }
+.replica-pedidos .modal-actions .tab-prev,
+.replica-pedidos .modal-actions .tab-next { order: 0; }
+
+/* MODAL CONFIRMAÇÃO */
+.replica-pedidos .modal-content.ir-modal-confirm {
+    max-width: 460px;
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+}
+.replica-pedidos .ir-modal-confirm .ir-close { position: absolute; top: 1rem; right: 1rem; }
+.replica-pedidos .ir-modal-confirm p { margin-bottom: 1rem; }
+.replica-pedidos .ir-modal-confirm input {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin: 0 auto;
+    max-width: 220px;
+}
+.replica-pedidos .ir-modal-confirm .ir-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+}
+.replica-pedidos .ir-modal-confirm .ir-confirm-actions button {
+    min-width: 120px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.replica-pedidos .ir-modal-confirm .ir-btn-green { background: #22C55E; }
+.replica-pedidos .ir-modal-confirm .ir-btn-red { background: #DC2626; }
+
+/* CALENDÁRIO */
+.replica-pedidos .calendar-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+.replica-pedidos .calendar-modal.show { display: flex; }
+.replica-pedidos .calendar-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #E5E7EB;
+    max-width: 400px;
+    width: 90%;
+}
+.replica-pedidos .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.replica-pedidos .calendar-header h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #1A1A1A;
+}
+.replica-pedidos .calendar-year-nav {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.replica-pedidos .calendar-months {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+.replica-pedidos .calendar-month {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1A1A1A;
+}
