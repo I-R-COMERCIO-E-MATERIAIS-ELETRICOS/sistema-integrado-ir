@@ -649,8 +649,8 @@ $('syncBtn').addEventListener('click', async () => {
 
 /* ═══════════════════════════════════════════════════════════════════════
    ANÁLISE COMPARATIVA (mobile)
-   Paginador ÚNICO com 3 páginas — cada página é um dos 3 comparativos
-   originais que antes ficavam empilhados na vertical:
+   Paginador ÚNICO (só no topo) com 3 páginas — cada página é um dos 3
+   comparativos originais:
      0 → Mês        (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
      1 → Ano        (2 cards: total do ano, total ano passado)
      2 → Mês a Mês  (tabela 12 meses × 2 anos)
@@ -793,7 +793,7 @@ function renderComparativo() {
   else if (cmpPagina === 1) conteudo = `<div class="cmp-grid">${htmlAno}</div>`;
   else conteudo = htmlTabela;
 
-  // ─── PAGINADOR ÚNICO ────────────────────────────────
+  // ─── PAGINADOR ÚNICO (só no topo) ───────────────────
   const paginador = `
     <div class="cmp-pag">
       <button type="button" class="cmp-pag-btn" onclick="cmpNav(-1)" ${cmpPagina === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
@@ -801,7 +801,7 @@ function renderComparativo() {
       <button type="button" class="cmp-pag-btn" onclick="cmpNav(1)" ${cmpPagina === CMP_TOTAL - 1 ? 'disabled' : ''} aria-label="Próximo">›</button>
     </div>`;
 
-  body.innerHTML = `${paginador}${conteudo}${paginador}`;
+  body.innerHTML = `${paginador}${conteudo}`;
 }
 
 /* ─── BOOT ─────────────────────────────────────────── */
