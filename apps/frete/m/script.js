@@ -648,16 +648,12 @@ $('syncBtn').addEventListener('click', async () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ANÁLISE COMPARATIVA (mobile)
-   Paginador ÚNICO (só no topo) com 3 páginas:
-     0 → Mês        (3 cards)
-     1 → Ano        (2 cards)
-     2 → Mês a Mês  (tabela 12 meses × 2 anos)
-   A tabela usa .cmp-tabela-wrap { overflow: hidden } → SEM scroll horizontal.
+   ANÁLISE COMPARATIVA (MOBILE) — Apenas 2 páginas: Mês e Ano
+   A tabela "Mês a Mês" foi REMOVIDA para não gerar scroll/corte no modal.
    ═══════════════════════════════════════════════════════════════════════ */
 let cmpPagina = 0;
-const CMP_TOTAL = 3;
-const CMP_LABELS = ['Mês', 'Ano', 'Mês a Mês'];
+const CMP_TOTAL = 2;
+const CMP_LABELS = ['Mês', 'Ano'];
 
 window.cmpNav = function (dir) {
   const next = Math.max(0, Math.min(CMP_TOTAL - 1, cmpPagina + dir));
@@ -690,13 +686,13 @@ function renderComparativo() {
     const frete = lista.reduce((s, f) => s + (parseFloat(f.valor_frete) || 0), 0);
     return { notas: lista.length, faturado, frete, pct: faturado > 0 ? (frete / faturado) * 100 : 0 };
   }
+  
   function somaAno(ano) {
     let notas=0, faturado=0, frete=0;
     for (let m=0;m<12;m++){ const x=metricas(m,ano); notas+=x.notas; faturado+=x.faturado; frete+=x.frete; }
     return { notas, faturado, frete, pct: faturado>0 ? (frete/faturado)*100 : 0 };
   }
 
-  // ⚠ ALTERAÇÃO AQUI: Retorna "—" em vez de textos longos para não quebrar a tabela
   function variacao(atual, base, inverso) {
     if (!base && !atual) return '<span class="cmp-neutro">—</span>';
     if (!base) return '<span class="cmp-neutro">—</span>';
@@ -705,6 +701,7 @@ function renderComparativo() {
     const subiu = dif > 0; const bom = inverso ? !subiu : subiu;
     return `<span class="${bom ? 'cmp-bom' : 'cmp-ruim'}">${subiu ? '▲ +' : '▼ −'}${fmt(Math.abs(dif))} (${subiu ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)</span>`;
   }
+  
   const card = (titulo, sub, m, base, rotBase) => `
     <div class="cmp-card">
       <div class="cmp-card-titulo">${titulo}</div>
@@ -736,63 +733,10 @@ function renderComparativo() {
     ${card('Total do ano', String(anoAtual), totAno, totAnoPass, `total de ${anoAtual-1}`)}
     ${card('Total do ano passado', String(anoAtual-1), totAnoPass)}`;
 
-  // 3) TABELA MÊS A MÊS
-  const aTab = anoAtual, aAnt = anoAtual - 1;
-  const porMes = [], porMesPass = [];
-  for (let m=0;m<12;m++){ porMes.push(metricas(m,aTab)); porMesPass.push(metricas(m,aAnt)); }
-  const somaArr = arr => arr.reduce((t,x)=>({notas:t.notas+x.notas, faturado:t.faturado+x.faturado, frete:t.frete+x.frete}),{notas:0,faturado:0,frete:0});
-  const totTab = somaArr(porMes), totTabPass = somaArr(porMesPass);
-  const pctTab = totTab.faturado > 0 ? (totTab.frete/totTab.faturado)*100 : 0;
-  let melhor = -1, pior = -1;
-  porMes.forEach((x,i) => {
-    if (x.faturado > 0) {
-      if (melhor < 0 || x.faturado > porMes[melhor].faturado) melhor = i;
-      if (pior < 0 || x.faturado < porMes[pior].faturado) pior = i;
-    }
-  });
-  const linhas = porMes.map((x,i) => {
-    const p = porMesPass[i];
-    const cls = [];
-    if (melhor !== -1 && i === melhor) cls.push('cmp-melhor-mes');
-    if (pior !== -1 && pior !== melhor && i === pior) cls.push('cmp-pior-mes');
-    if (i === mesAtual && anoAtual === aTab) cls.push('cmp-mes-atual');
-    return `<tr class="${cls.join(' ')}">
-      <td style="text-align:left;font-weight:600;">${mesesNomes[i]}</td>
-      <td>${x.notas}</td>
-      <td>${fmt(x.faturado)}</td>
-      <td>${fmt(x.frete)}</td>
-      <td>${x.faturado > 0 ? x.pct.toFixed(1)+'%' : '—'}</td>
-      <td>${fmt(p.faturado)}</td>
-      <td>${variacao(x.faturado, p.faturado, false)}</td>
-    </tr>`;
-  }).join('');
-
-  const htmlTabela = `
-    <div class="cmp-tabela-wrap">
-      <table class="cmp-tabela">
-        <thead><tr>
-          <th style="text-align:left;">Mês</th>
-          <th>Notas</th><th>Faturado ${aTab}</th><th>Frete ${aTab}</th>
-          <th>Frete/Fat</th><th>Faturado ${aAnt}</th><th>Variação</th>
-        </tr></thead>
-        <tbody>${linhas}</tbody>
-        <tfoot><tr>
-          <td style="text-align:left;">Total ${aTab}</td>
-          <td>${totTab.notas}</td>
-          <td>${fmt(totTab.faturado)}</td>
-          <td>${fmt(totTab.frete)}</td>
-          <td>${pctTab.toFixed(1)}%</td>
-          <td>${fmt(totTabPass.faturado)}</td>
-          <td>${variacao(totTab.faturado, totTabPass.faturado, false)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
-
   // ─── CONTEÚDO DA PÁGINA ATUAL ───────────────────────
   let conteudo = '';
   if (cmpPagina === 0) conteudo = `<div class="cmp-grid">${htmlMes}</div>`;
-  else if (cmpPagina === 1) conteudo = `<div class="cmp-grid">${htmlAno}</div>`;
-  else conteudo = htmlTabela;
+  else conteudo = `<div class="cmp-grid">${htmlAno}</div>`;
 
   // ─── PAGINADOR (SÓ NO TOPO) ─────────────────────────
   const paginador = `
