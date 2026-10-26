@@ -1097,10 +1097,10 @@ window.addEventListener('beforeunload', () => { sessionStorage.removeItem('alert
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODAL DASHBOARD COMPARATIVO — "Análise Comparativa"
-// 1 paginador único que alterna entre os 3 comparativos originais:
-//   0 → Mês    (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
-//   1 → Ano    (2 cards: total do ano, total ano passado)
-//   2 → Mês a Mês (tabela 12 meses × 2 anos)
+// 1 paginador único (só no topo) que alterna entre os 3 comparativos originais:
+//   0 → Mês        (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
+//   1 → Ano        (2 cards: total do ano, total ano passado)
+//   2 → Mês a Mês  (tabela 12 meses × 2 anos)
 // ═══════════════════════════════════════════════════════════════════════════
 let cmpPagina = 0;
 const CMP_TOTAL = 3;
@@ -1285,7 +1285,7 @@ function renderDashboardComparativo() {
         conteudo = tabelaHtml;
     }
 
-    // ─── PAGINADOR ÚNICO (‹ Mês › / ‹ Ano › / ‹ Mês a Mês ›) ────────────────
+    // ─── PAGINADOR ÚNICO (só no topo) ───────────────────────────────────────
     const paginador = `
         <div class="cmp-pag">
             <button type="button" class="cmp-pag-btn" onclick="cmpNav(-1)" ${cmpPagina === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
@@ -1293,11 +1293,7 @@ function renderDashboardComparativo() {
             <button type="button" class="cmp-pag-btn" onclick="cmpNav(1)" ${cmpPagina === CMP_TOTAL - 1 ? 'disabled' : ''} aria-label="Próximo">›</button>
         </div>`;
 
-    body.innerHTML = `
-        ${paginador}
-        ${conteudo}
-        ${paginador}
-    `;
+    body.innerHTML = `${paginador}${conteudo}`;
 }
 
 window.closeDashboardModal = function () {
