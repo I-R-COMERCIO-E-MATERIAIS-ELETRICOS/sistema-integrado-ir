@@ -1,3 +1,14 @@
+/* RESET AGRESSIVO PARA EVITAR VAZAMENTO DE CSS GLOBAL */
+html, body { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
+/* EVITAR QUE O CSS DO PORTAL ESTIQUE OS SVGs */
+svg { display: inline-block; vertical-align: middle; max-width: 100%; height: auto; }
+.search-icon { width: 18px !important; height: 18px !important; min-width: 18px !important; min-height: 18px !important; max-width: 18px !important; max-height: 18px !important; flex-shrink: 0 !important; }
+
+/* EVITAR QUE O CSS GLOBAL PINTE OS BOTÕES DE LARANJA */
+button { background: transparent !important; border: none !important; box-shadow: none !important; font-family: inherit; cursor: pointer; color: inherit; padding: 0; }
+
 :root {
   --primary: #FF521D;
   --bg-secondary: #F4F5F7;
@@ -17,9 +28,7 @@
   color-scheme: light only;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
 [hidden] { display: none !important; }
-
 html { min-height: 100%; background: var(--bg-secondary); }
 
 body {
@@ -38,10 +47,7 @@ body {
     max(10px, env(safe-area-inset-left));
 }
 
-/* Força a remoção de estilos padrão de botões do navegador ou do portal */
-button { font-family: inherit; cursor: pointer; background: transparent !important; border: none !important; color: inherit; }
-
-/* SEARCH & FILTERS - Forçando o layout com !important */
+/* SEARCH & FILTERS */
 .search-bar {
   display: flex !important;
   flex-direction: row !important;
@@ -53,24 +59,19 @@ button { font-family: inherit; cursor: pointer; background: transparent !importa
   border: 1px solid var(--border-color) !important;
   border-radius: 10px !important;
   flex-shrink: 0;
-  width: 100%;
+  width: 100% !important;
 }
-
-.search-icon {
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
 .search-bar input {
   flex: 1 !important;
   height: 100% !important;
   border: none !important;
   outline: none !important;
   font-family: inherit;
-  font-size: .9rem;
+  font-size: .9rem !important;
   color: var(--text-primary);
   background: transparent !important;
-  min-width: 0;
+  min-width: 0 !important;
+  padding: 0 !important;
 }
 .search-bar input::placeholder { color: var(--text-secondary); }
 
@@ -80,7 +81,7 @@ button { font-family: inherit; cursor: pointer; background: transparent !importa
   flex-wrap: wrap !important;
   gap: 6px !important;
   flex-shrink: 0;
-  width: 100%;
+  width: 100% !important;
 }
 
 .filter-select {
@@ -90,12 +91,14 @@ button { font-family: inherit; cursor: pointer; background: transparent !importa
   padding: 0 8px !important;
   border: 1px solid var(--border-color) !important;
   border-radius: 8px !important;
-  background: var(--input-bg) !important;
+  background-color: var(--input-bg) !important;
   color: var(--text-primary) !important;
   font-family: inherit;
   font-size: .8rem !important;
   outline: none;
   cursor: pointer;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
 .filter-select:focus { border-color: var(--primary) !important; }
 
@@ -109,7 +112,7 @@ button { font-family: inherit; cursor: pointer; background: transparent !importa
   height: 40px !important;
   padding: 0 6px !important;
   flex-shrink: 0;
-  width: 100%;
+  width: 100% !important;
 }
 
 .month-arrow {
@@ -285,9 +288,11 @@ button { font-family: inherit; cursor: pointer; background: transparent !importa
   width: 100%; min-height: 46px; padding: 10px 14px;
   border: 1px solid rgba(128,128,128,.2) !important; border-radius: 8px !important;
   font-family: inherit; font-size: .95rem; color: var(--text-primary);
-  background: var(--input-bg) !important; outline: none; box-sizing: border-box;
+  background-color: var(--input-bg) !important; outline: none; box-sizing: border-box;
+  appearance: none !important; -webkit-appearance: none !important;
 }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary) !important; }
+.field textarea { appearance: auto !important; -webkit-appearance: auto !important; }
 
 .modal-foot { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-color); background: #FAFAFA; }
 .modal-foot .btn { height: 44px; font-size: .9rem; min-width: 0; padding: 0 12px; }
