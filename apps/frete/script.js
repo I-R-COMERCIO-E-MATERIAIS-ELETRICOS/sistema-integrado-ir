@@ -1153,12 +1153,13 @@ function renderDashboardComparativo() {
         return { notas, faturado, frete, pct: faturado > 0 ? (frete / faturado) * 100 : 0 };
     }
 
+    // ⚠ ALTERAÇÃO AQUI: Retorna "—" em vez de textos longos para não quebrar a tabela
     function variacao(atual, base, inverso) {
-        if (!base && !atual) return '<span class="cmp-neutro">sem dados</span>';
-        if (!base) return '<span class="cmp-neutro">sem base de comparação</span>';
+        if (!base && !atual) return '<span class="cmp-neutro">—</span>';
+        if (!base) return '<span class="cmp-neutro">—</span>';
         const dif = atual - base;
         const pct = (dif / base) * 100;
-        if (Math.abs(pct) < 0.05) return '<span class="cmp-neutro">sem variação</span>';
+        if (Math.abs(pct) < 0.05) return '<span class="cmp-neutro">—</span>';
         const subiu = dif > 0;
         const bom = inverso ? !subiu : subiu;
         return `<span class="${bom ? 'cmp-bom' : 'cmp-ruim'}">${subiu ? '▲ +' : '▼ −'}${fmt(Math.abs(dif))} (${subiu ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)</span>`;
@@ -1250,7 +1251,6 @@ function renderDashboardComparativo() {
         </tr>`;
     }).join('');
 
-    // ⚠ Wrapper sem overflow-x:auto → sem scroll horizontal possível
     const tabelaHtml = `
         <div class="cmp-tabela-wrap">
             <table class="cmp-tabela">
