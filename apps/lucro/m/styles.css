@@ -1,0 +1,463 @@
+/* =========================================================
+   LUCRO REAL — MOBILE
+   Escopado em body.mobile-lucro-app
+   ========================================================= */
+html, body { margin:0!important; padding:0!important; box-sizing:border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
+body.mobile-lucro-app {
+  --primary:#FF521D;
+  --bg-page:#F4F5F7; --bg-card:#FFFFFF; --bg-input:#F7F8FA;
+  --text-primary:#111111; --text-secondary:#5B6470; --text-muted:#8B95A1;
+  --border:#E1E4E8; --border-strong:#D1D5DB;
+  --success:#22C55E; --danger:#EF4444; --info:#3B82F6; --warning:#F59E0B;
+  --radius:10px; --radius-sm:8px; --radius-lg:14px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.05);
+  --shadow-md:0 6px 20px rgba(0,0,0,.10);
+
+  min-height:100vh; min-height:100dvh;
+  font-family:'Inter', system-ui, -apple-system, sans-serif;
+  background:var(--bg-page)!important; color:var(--text-primary);
+  -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  padding:max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) calc(120px + env(safe-area-inset-bottom,0px)) max(10px, env(safe-area-inset-left));
+  display:flex; flex-direction:column; gap:8px;
+}
+
+/* Reset */
+body.mobile-lucro-app button,
+body.mobile-lucro-app input,
+body.mobile-lucro-app select,
+body.mobile-lucro-app textarea {
+  font-family:inherit; font-size:100%; margin:0;
+  border:none; background:none; color:inherit; outline:none;
+}
+body.mobile-lucro-app button {
+  padding:0; cursor:pointer;
+  color:inherit!important; background:transparent!important;
+  border:none!important; box-shadow:none!important;
+}
+body.mobile-lucro-app svg { display:inline-block!important; vertical-align:middle; flex-shrink:0; }
+
+body.mobile-lucro-app .app-shell { display:flex; flex-direction:column; gap:8px; width:100%; }
+
+/* ── Busca ── */
+body.mobile-lucro-app .search-bar {
+  display:flex!important; flex-direction:row!important; align-items:center!important;
+  gap:10px!important; height:44px!important; padding:0 14px!important;
+  background:var(--bg-card)!important; border:1px solid var(--border)!important;
+  border-radius:var(--radius)!important; width:100%!important; flex-shrink:0;
+}
+body.mobile-lucro-app .search-bar .search-icon {
+  color:var(--text-secondary);
+  width:18px!important; height:18px!important;
+  min-width:18px!important; min-height:18px!important;
+  max-width:18px!important; max-height:18px!important;
+  flex-shrink:0!important;
+}
+body.mobile-lucro-app .search-bar input {
+  flex:1!important; height:100%!important; border:none!important;
+  background:transparent!important; font-size:.92rem!important;
+  min-width:0!important; padding:0!important;
+}
+body.mobile-lucro-app .search-bar input::placeholder { color:var(--text-muted); }
+
+/* ── Filtro + mês ── */
+body.mobile-lucro-app .filter-row {
+  display:flex!important; align-items:center!important; gap:6px!important;
+  width:100%!important; flex-shrink:0;
+}
+body.mobile-lucro-app .filter-select {
+  flex:0 0 42%!important; min-width:0!important; height:38px!important;
+  padding:0 24px 0 10px!important;
+  border:1px solid var(--border)!important; border-radius:var(--radius-sm)!important;
+  background-color:var(--bg-input)!important; color:var(--text-primary)!important;
+  font-size:.8rem!important; font-weight:500; cursor:pointer;
+  appearance:none!important; -webkit-appearance:none!important;
+  background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%235B6470' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important; background-position:right 8px center!important;
+}
+body.mobile-lucro-app .filter-select:focus { border-color:var(--primary)!important; }
+
+body.mobile-lucro-app .month-nav {
+  flex:1!important; min-width:0!important;
+  display:flex!important; align-items:center!important; justify-content:space-between!important;
+  background:var(--bg-card)!important; border:1px solid var(--border)!important;
+  border-radius:var(--radius-sm)!important; height:38px!important; padding:0 4px!important;
+}
+body.mobile-lucro-app .month-arrow {
+  width:30px!important; height:30px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  border-radius:6px!important; color:var(--text-secondary)!important; flex-shrink:0;
+}
+body.mobile-lucro-app .month-arrow:active { background:var(--bg-input)!important; }
+body.mobile-lucro-app .month-display {
+  flex:1!important; min-width:0!important; height:30px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  padding:0 4px!important; color:var(--text-primary)!important;
+  font-size:.82rem!important; font-weight:700!important;
+  white-space:nowrap!important; overflow:hidden!important; text-overflow:ellipsis!important;
+  border-radius:6px!important;
+}
+body.mobile-lucro-app .month-display:active { background:var(--bg-input)!important; }
+
+/* ── Dashboard ── */
+body.mobile-lucro-app .dashboard-grid {
+  display:grid!important; grid-template-columns:1fr 1fr!important;
+  gap:8px!important; flex-shrink:0; width:100%!important;
+}
+body.mobile-lucro-app .stat-card {
+  background:var(--bg-card)!important; border:1px solid var(--border)!important;
+  border-radius:var(--radius)!important; padding:10px 12px!important;
+  display:flex!important; flex-direction:column!important; justify-content:center!important;
+  min-height:62px!important; gap:2px!important;
+}
+body.mobile-lucro-app .stat-card.clickable { cursor:pointer; }
+body.mobile-lucro-app .stat-card.clickable:active { transform:scale(.98); }
+body.mobile-lucro-app .stat-value {
+  font-size:1rem!important; font-weight:800!important; line-height:1.2!important;
+  overflow-wrap:anywhere!important;
+}
+body.mobile-lucro-app .stat-label {
+  font-size:.65rem!important; font-weight:600!important;
+  color:var(--text-secondary)!important; text-transform:uppercase;
+  letter-spacing:.04em!important;
+  display:flex!important; align-items:center!important; gap:4px!important;
+}
+body.mobile-lucro-app .stat-venda .stat-value      { color:#16A34A; }
+body.mobile-lucro-app .stat-custo .stat-value      { color:#DC2626; }
+body.mobile-lucro-app .stat-frete .stat-value      { color:#2563EB; }
+body.mobile-lucro-app .stat-imposto .stat-value    { color:#DC2626; }
+body.mobile-lucro-app .stat-lucrobruto .stat-value { color:#111111; }
+body.mobile-lucro-app .stat-comissao .stat-value   { color:#D97706; }
+body.mobile-lucro-app .stat-lucroreal {
+  grid-column:1 / -1;
+  border-color:rgba(34,197,94,.25)!important;
+}
+body.mobile-lucro-app .stat-lucroreal .stat-value {
+  font-size:1.3rem!important;
+  color:#16A34A;
+}
+body.mobile-lucro-app .stat-lucroreal .stat-value.negative { color:#DC2626; }
+body.mobile-lucro-app .stat-imposto {
+  border-color:rgba(239,68,68,.25)!important;
+}
+body.mobile-lucro-app .tag-manual {
+  display:inline-block!important;
+  padding:1px 5px!important;
+  border-radius:4px!important;
+  background:#F59E0B!important;
+  color:#FFFFFF!important;
+  font-size:.55rem!important;
+  font-weight:700!important;
+  letter-spacing:.04em!important;
+}
+
+/* ── Lista de cards ── */
+body.mobile-lucro-app .lucro-list {
+  display:flex!important; flex-direction:column!important;
+  gap:10px!important; width:100%!important;
+}
+body.mobile-lucro-app .lucro-card {
+  display:flex; flex-direction:column; background:var(--bg-card);
+  border:1px solid var(--border); border-left:4px solid transparent;
+  border-radius:var(--radius); box-shadow:var(--shadow-sm);
+  padding:12px 14px; gap:10px; width:100%; min-width:0;
+}
+body.mobile-lucro-app .lucro-card.card-positiva { border-left-color:#16A34A; }
+body.mobile-lucro-app .lucro-card.card-negativa { border-left-color:#EF4444; }
+body.mobile-lucro-app .lucro-card.card-cancelada {
+  opacity:.55; border-left-color:#9CA3AF;
+  background:#F9FAFB;
+}
+body.mobile-lucro-app .lucro-card.card-cancelada .value-text {
+  text-decoration:line-through;
+}
+
+/* Topo do card */
+body.mobile-lucro-app .card-top {
+  display:flex!important; align-items:flex-start!important; justify-content:space-between!important;
+  gap:8px!important;
+}
+body.mobile-lucro-app .card-top-left {
+  display:flex!important; flex-direction:column!important;
+  min-width:0!important; flex:1!important; gap:2px!important;
+}
+body.mobile-lucro-app .card-nf {
+  font-size:1rem!important; font-weight:800!important; line-height:1.2!important;
+  overflow-wrap:anywhere!important;
+}
+body.mobile-lucro-app .card-vend {
+  font-size:.72rem!important; color:var(--text-secondary)!important;
+  font-weight:600!important; letter-spacing:.03em!important;
+  text-transform:uppercase!important; line-height:1.2!important;
+  overflow-wrap:anywhere!important;
+}
+
+body.mobile-lucro-app .action-btn {
+  height:30px!important; padding:0 12px!important;
+  border-radius:6px!important; font-size:.72rem!important;
+  font-weight:700!important; color:#fff!important;
+  display:inline-flex!important; align-items:center!important; justify-content:center!important;
+  flex-shrink:0!important; white-space:nowrap!important;
+}
+body.mobile-lucro-app .action-btn:active { opacity:.85; transform:scale(.97); }
+body.mobile-lucro-app .action-btn.cancel { background:#EF4444!important; }
+body.mobile-lucro-app .action-btn.uncancel { background:#6B7280!important; }
+
+/* Valores */
+body.mobile-lucro-app .card-values {
+  display:flex!important; flex-direction:column!important;
+  gap:6px!important; width:100%!important;
+}
+body.mobile-lucro-app .value-row {
+  display:grid!important; grid-template-columns:1fr 1fr!important;
+  gap:8px 12px!important;
+}
+body.mobile-lucro-app .value-row.full { grid-template-columns:1fr!important; }
+body.mobile-lucro-app .value-row.highlight {
+  padding-top:8px!important;
+  margin-top:2px!important;
+  border-top:1px solid rgba(128,128,128,.12)!important;
+}
+body.mobile-lucro-app .value-cell {
+  display:flex!important; flex-direction:column!important;
+  min-width:0!important; gap:1px!important;
+}
+body.mobile-lucro-app .value-label {
+  font-size:.6rem!important; font-weight:600!important;
+  color:var(--text-secondary)!important;
+  text-transform:uppercase!important; letter-spacing:.04em!important;
+  line-height:1.2!important;
+}
+body.mobile-lucro-app .value-text {
+  font-size:.82rem!important; font-weight:500!important;
+  color:var(--text-primary)!important;
+  overflow-wrap:anywhere!important; line-height:1.25!important;
+}
+body.mobile-lucro-app .value-row.full .value-text { font-size:.9rem!important; }
+body.mobile-lucro-app .value-row.highlight .value-text { font-weight:700!important; }
+body.mobile-lucro-app .value-text.valor-negativo { color:#DC2626; font-weight:700; }
+body.mobile-lucro-app .value-text.valor-positivo { color:#16A34A; font-weight:800; }
+body.mobile-lucro-app .value-text.valor-negativo-lucro { color:#DC2626; font-weight:800; }
+
+/* Ação principal */
+body.mobile-lucro-app .card-actions-row {
+  display:flex!important; padding-top:8px!important;
+  border-top:1px solid rgba(128,128,128,.12)!important;
+}
+body.mobile-lucro-app .btn-edit-custo {
+  flex:1!important; height:36px!important;
+  border-radius:6px!important; background:#6B7280!important;
+  color:#fff!important; font-weight:700!important; font-size:.8rem!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+}
+body.mobile-lucro-app .btn-edit-custo:active { opacity:.85; transform:scale(.98); }
+
+/* ── Empty ── */
+body.mobile-lucro-app .empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:60px 24px; text-align:center; color:var(--text-secondary);
+}
+body.mobile-lucro-app .empty-icon { font-size:3rem; margin-bottom:12px; opacity:.5; }
+body.mobile-lucro-app .empty-title { font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:4px; }
+body.mobile-lucro-app .empty-desc { font-size:.85rem; }
+
+/* ── FAB ── */
+body.mobile-lucro-app .fab-group {
+  position:fixed;
+  right:calc(16px + env(safe-area-inset-right,0px));
+  bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; align-items:flex-end; gap:10px;
+  z-index:50;
+}
+body.mobile-lucro-app .fab-sync {
+  width:56px!important; height:56px!important; border-radius:50%!important;
+  background:#3B82F6!important; color:#fff!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  box-shadow:0 6px 20px rgba(59,130,246,.45)!important;
+}
+body.mobile-lucro-app .fab-sync:active { background:#2563EB!important; transform:scale(.94); }
+body.mobile-lucro-app .fab-sync.spinning svg { animation:mlSpin .6s linear infinite; }
+@keyframes mlSpin { to { transform:rotate(360deg); } }
+
+/* ── Modal base ── */
+body.mobile-lucro-app .modal {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; z-index:10000;
+  padding:max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+body.mobile-lucro-app .modal.show { display:flex; animation:mlFade .2s ease; }
+@keyframes mlFade { from{opacity:0} to{opacity:1} }
+body.mobile-lucro-app .modal-box {
+  width:100%; max-width:560px; max-height:100%;
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.3); border:1px solid var(--border);
+  animation:mlScaleIn .2s ease;
+}
+@keyframes mlScaleIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+
+body.mobile-lucro-app .modal-head {
+  flex-shrink:0; display:flex; align-items:center; gap:8px;
+  padding:10px 8px 10px 12px; border-bottom:1px solid var(--border);
+}
+body.mobile-lucro-app .modal-head-spacer { width:40px; flex-shrink:0; }
+body.mobile-lucro-app .modal-head-title {
+  flex:1; text-align:center; font-weight:700; font-size:1rem; margin:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+body.mobile-lucro-app .modal-close {
+  width:40px!important; height:40px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  border-radius:8px!important; font-size:1.2rem!important;
+  color:#dc2626!important; flex-shrink:0;
+}
+body.mobile-lucro-app .modal-close:active { background:rgba(220,38,38,.08)!important; }
+
+body.mobile-lucro-app .modal-body {
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:14px; display:flex; flex-direction:column; gap:12px;
+}
+body.mobile-lucro-app .modal-foot {
+  flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  padding:12px 16px; border-top:1px solid var(--border); background:#FAFAFA;
+}
+body.mobile-lucro-app .modal-foot.modal-foot-3 { grid-template-columns:1fr 1fr 1fr; }
+body.mobile-lucro-app .modal-foot .btn { height:44px!important; font-size:.9rem!important; padding:0 10px!important; }
+
+body.mobile-lucro-app .btn {
+  display:inline-flex!important; align-items:center!important; justify-content:center!important;
+  gap:6px!important; border-radius:var(--radius-sm)!important; font-weight:700!important;
+  color:#fff!important; padding:0 18px!important;
+}
+body.mobile-lucro-app .btn:active { opacity:.9; transform:translateY(1px); }
+body.mobile-lucro-app .btn:disabled { opacity:.6; cursor:not-allowed; }
+body.mobile-lucro-app .btn-green { background:#22C55E!important; }
+body.mobile-lucro-app .btn-red { background:#dc2626!important; }
+body.mobile-lucro-app .btn-blue { background:#3B82F6!important; }
+body.mobile-lucro-app .btn-gray { background:#6B7280!important; }
+
+body.mobile-lucro-app .field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+body.mobile-lucro-app .field label { font-size:.82rem; font-weight:500; color:var(--text-secondary); }
+body.mobile-lucro-app .field input {
+  width:100%; min-height:46px; padding:10px 14px;
+  border:1px solid var(--border-strong)!important; border-radius:var(--radius-sm)!important;
+  background-color:var(--bg-input)!important; color:var(--text-primary); font-size:.95rem;
+  appearance:none!important; -webkit-appearance:none!important;
+}
+body.mobile-lucro-app .field input:focus { border-color:var(--primary)!important; }
+
+body.mobile-lucro-app .modal-hint {
+  font-size:.82rem; color:var(--text-secondary); line-height:1.5;
+  padding:10px 12px; background:#FFFBEB; border:1px solid #FDE68A;
+  border-radius:var(--radius-sm);
+}
+body.mobile-lucro-app .modal-hint strong { color:var(--text-primary); }
+
+/* Auto info */
+body.mobile-lucro-app .auto-info {
+  display:flex; flex-direction:column; gap:8px;
+  padding:12px; background:var(--bg-input);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+}
+body.mobile-lucro-app .auto-info-title {
+  font-size:.72rem; color:var(--text-secondary);
+  font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  margin:0 0 2px 0;
+}
+body.mobile-lucro-app .auto-info-row {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  font-size:.82rem; color:var(--text-secondary);
+}
+body.mobile-lucro-app .auto-info-row small { font-size:.7rem; opacity:.7; }
+body.mobile-lucro-app .auto-info-row strong { font-size:.88rem; }
+body.mobile-lucro-app .auto-info-red { color:#DC2626; }
+body.mobile-lucro-app .auto-info-yellow { color:#D97706; }
+
+/* Confirm modal */
+body.mobile-lucro-app .modal-confirm {
+  max-width:400px; padding:2.2rem 1.6rem 1.6rem;
+  text-align:center; position:relative;
+}
+body.mobile-lucro-app .modal-confirm .modal-close.modal-close-confirm {
+  position:absolute!important;
+  top:6px!important; right:6px!important;
+  width:40px!important; height:40px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  border-radius:8px!important; font-size:1.2rem!important;
+  color:#dc2626!important;
+  background:transparent!important; border:none!important; box-shadow:none!important;
+}
+body.mobile-lucro-app .modal-confirm .modal-close.modal-close-confirm:active {
+  background:rgba(220,38,38,.08)!important;
+}
+body.mobile-lucro-app .confirm-msg {
+  font-size:1rem; font-weight:700; margin:.4rem 0 1rem;
+  line-height:1.4;
+}
+body.mobile-lucro-app .confirm-actions {
+  display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px;
+}
+body.mobile-lucro-app .confirm-actions button {
+  min-width:110px!important; height:42px!important;
+  border-radius:var(--radius-sm)!important; font-weight:700!important; color:#fff!important;
+}
+
+/* Calendar */
+body.mobile-lucro-app .modal-calendar { max-width:420px; }
+body.mobile-lucro-app .calendar-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid var(--border);
+}
+body.mobile-lucro-app .calendar-header h3 { font-size:1.2rem; font-weight:700; }
+body.mobile-lucro-app .calendar-year-nav {
+  width:40px!important; height:40px!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+  border-radius:6px!important; color:var(--text-secondary)!important;
+}
+body.mobile-lucro-app .calendar-year-nav:active { background:var(--bg-input)!important; }
+body.mobile-lucro-app .calendar-months {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:8px; padding:16px;
+}
+body.mobile-lucro-app .calendar-month {
+  padding:14px 6px!important;
+  background:var(--bg-input)!important;
+  border:1px solid var(--border)!important;
+  border-radius:var(--radius-sm)!important;
+  text-align:center!important; font-size:.82rem!important; font-weight:600!important;
+  color:var(--text-primary)!important;
+}
+body.mobile-lucro-app .calendar-month:active { transform:scale(.97); }
+body.mobile-lucro-app .calendar-month.current {
+  background:var(--primary)!important; color:#fff!important; border-color:var(--primary)!important;
+}
+
+/* Toast */
+body.mobile-lucro-app .toast {
+  position:fixed; top:calc(12px + env(safe-area-inset-top,0px));
+  left:12px; right:12px; padding:14px 20px; border-radius:10px;
+  font-weight:500; font-size:.9rem; z-index:9999999;
+  box-shadow:0 4px 12px rgba(0,0,0,.3); color:#fff;
+  display:none; text-align:center;
+  transform:translateY(-120%);
+  transition:transform .25s ease, opacity .25s ease;
+}
+body.mobile-lucro-app .toast.show { display:block; transform:translateY(0); }
+body.mobile-lucro-app .toast.success { background:#10B981; }
+body.mobile-lucro-app .toast.error { background:#EF4444; }
+body.mobile-lucro-app .toast.info { background:#3B82F6; }
+body.mobile-lucro-app .toast.warning { background:#F59E0B; }
+
+/* Breakpoint tablet/desktop */
+@media (min-width:769px) {
+  body.mobile-lucro-app { max-width:900px; margin:0 auto; padding-top:20px; }
+  body.mobile-lucro-app .fab-group { right:calc(max(16px,(100vw - 900px)/2) + env(safe-area-inset-right,0px)); }
+  body.mobile-lucro-app .dashboard-grid { grid-template-columns:repeat(4,1fr)!important; }
+  body.mobile-lucro-app .stat-lucroreal { grid-column:auto; }
+  body.mobile-lucro-app .lucro-list { display:grid!important; grid-template-columns:repeat(auto-fill, minmax(380px,1fr))!important; gap:12px!important; }
+}
