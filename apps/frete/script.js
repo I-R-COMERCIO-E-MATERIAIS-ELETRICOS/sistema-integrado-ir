@@ -1095,14 +1095,52 @@ window.closeAlertModal = function () {
 
 window.addEventListener('beforeunload', () => { sessionStorage.removeItem('alertShown'); });
 
-// ─── MODAL DASHBOARD COMPARATIVO ─────────────────────────────────────────────
-window.abrirDashboardComparativo = function () {
-    const modal = document.getElementById('dashboardModal');
-    const body = document.getElementById('dashboardModalBody');
-    if (!modal || !body) return;
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL DASHBOARD COMPARATIVO — "Análise Comparativa" com paginação
+// ═══════════════════════════════════════════════════════════════════════════
+let cmpMesPage = 0;
+let cmpAnoPage = 0;
+let cmpTabelaPage = 0;
+const CMP_MES_TOTAL_PAGES = 12;
+const CMP_ANO_TOTAL_PAGES = 5;
+const CMP_TABELA_TOTAL_PAGES = 5;
 
-    const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const mesesCurtos = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+window.abrirDashboardComparativo = function () {
+    cmpMesPage = 0;
+    cmpAnoPage = 0;
+    cmpTabelaPage = 0;
+    renderDashboardComparativo();
+    const modal = document.getElementById('dashboardModal');
+    if (modal) modal.classList.add('show');
+};
+
+window.cmpMesNav = function (dir) {
+    const next = Math.max(0, Math.min(CMP_MES_TOTAL_PAGES - 1, cmpMesPage + dir));
+    if (next === cmpMesPage) return;
+    cmpMesPage = next;
+    renderDashboardComparativo();
+};
+
+window.cmpAnoNav = function (dir) {
+    const next = Math.max(0, Math.min(CMP_ANO_TOTAL_PAGES - 1, cmpAnoPage + dir));
+    if (next === cmpAnoPage) return;
+    cmpAnoPage = next;
+    renderDashboardComparativo();
+};
+
+window.cmpTabelaNav = function (dir) {
+    const next = Math.max(0, Math.min(CMP_TABELA_TOTAL_PAGES - 1, cmpTabelaPage + dir));
+    if (next === cmpTabelaPage) return;
+    cmpTabelaPage = next;
+    renderDashboardComparativo();
+};
+
+function renderDashboardComparativo() {
+    const body = document.getElementById('dashboardModalBody');
+    if (!body) return;
+
+    const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const anoAtual = currentMonth.getFullYear();
     const mesAtual = currentMonth.getMonth();
 
@@ -1120,7 +1158,15 @@ window.abrirDashboardComparativo = function () {
         return { notas: lista.length, faturado, frete, pct: faturado > 0 ? (frete / faturado) * 100 : 0 };
     }
 
-    // variação: para frete, aumento é ruim (vermelho); para faturado, aumento é bom (verde)
+    function somaAno(ano) {
+        let notas = 0, faturado = 0, frete = 0;
+        for (let m = 0; m < 12; m++) {
+            const x = metricas(m, ano);
+            notas += x.notas; faturado += x.faturado; frete += x.frete;
+        }
+        return { notas, faturado, frete, pct: faturado > 0 ? (frete / faturado) * 100 : 0 };
+    }
+
     function variacao(atual, base, inverso) {
         if (!base && !atual) return '<span class="cmp-neutro">sem dados</span>';
         if (!base) return '<span class="cmp-neutro">sem base de comparação</span>';
@@ -1132,21 +1178,14 @@ window.abrirDashboardComparativo = function () {
         return `<span class="${bom ? 'cmp-bom' : 'cmp-ruim'}">${subiu ? '▲ +' : '▼ −'}${fmt(Math.abs(dif))} (${subiu ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)</span>`;
     }
 
-    const mesAntIdx = mesAtual === 0 ? 11 : mesAtual - 1;
-    const anoMesAnt = mesAtual === 0 ? anoAtual - 1 : anoAtual;
-    const atual = metricas(mesAtual, anoAtual);
-    const anterior = metricas(mesAntIdx, anoMesAnt);
-    const mesmoMesAnoPassado = metricas(mesAtual, anoAtual - 1);
-
-    const porMes = [], porMesPassado = [];
-    for (let m = 0; m < 12; m++) { porMes.push(metricas(m, anoAtual)); porMesPassado.push(metricas(m, anoAtual - 1)); }
-    const soma = arr => arr.reduce((t, x) => ({ notas: t.notas + x.notas, faturado: t.faturado + x.faturado, frete: t.frete + x.frete }), { notas: 0, faturado: 0, frete: 0 });
-    const totAno = soma(porMes), totAnoPassado = soma(porMesPassado);
-    const pctAno = totAno.faturado > 0 ? (totAno.frete / totAno.faturado) * 100 : 0;
-    const pctAnoPassado = totAnoPassado.faturado > 0 ? (totAnoPassado.frete / totAnoPassado.faturado) * 100 : 0;
-
-    let melhorIdx = -1;
-    porMes.forEach((x, i) => { if (x.faturado > 0 && (melhorIdx < 0 || x.faturado > porMes[melhorIdx].faturado)) melhorIdx = i; });
+    function paginacao(page, total, navFn) {
+        return `
+            <div class="cmp-pag">
+                <button type="button" class="cmp-pag-btn" onclick="${navFn}(-1)" ${page === 0 ? 'disabled' : ''} aria-label="Página anterior">‹</button>
+                <span class="cmp-pag-info">Página ${page + 1} de ${total}</span>
+                <button type="button" class="cmp-pag-btn" onclick="${navFn}(1)" ${page === total - 1 ? 'disabled' : ''} aria-label="Próxima página">›</button>
+            </div>`;
+    }
 
     const cartao = (titulo, sub, m, base, rotuloBase) => `
         <div class="cmp-card">
@@ -1162,11 +1201,70 @@ window.abrirDashboardComparativo = function () {
             <div class="cmp-linha"><span>Frete</span>${variacao(m.frete, base.frete, true)}</div>` : ''}
         </div>`;
 
+    // SEÇÃO 1: MÊS
+    const mesRef = new Date(anoAtual, mesAtual - cmpMesPage, 1);
+    const mesRefIdx = mesRef.getMonth();
+    const anoRef = mesRef.getFullYear();
+    const mesAntRef = new Date(anoRef, mesRefIdx - 1, 1);
+    const mesAntRefIdx = mesAntRef.getMonth();
+    const anoMesAntRef = mesAntRef.getFullYear();
+
+    const atual = metricas(mesRefIdx, anoRef);
+    const anterior = metricas(mesAntRefIdx, anoMesAntRef);
+    const mesmoMesAnoPassado = metricas(mesRefIdx, anoRef - 1);
+
+    const cartaoMesHtml = `
+        ${cartao('Mês selecionado', `${mesesNomes[mesRefIdx]}/${anoRef}`, atual, anterior, `${mesesNomes[mesAntRefIdx]}/${anoMesAntRef} (mês anterior)`)}
+        ${cartao('Mês anterior', `${mesesNomes[mesAntRefIdx]}/${anoMesAntRef}`, anterior)}
+        ${cartao('Mesmo mês, ano passado', `${mesesNomes[mesRefIdx]}/${anoRef - 1}`, mesmoMesAnoPassado)}
+    `;
+
+    // SEÇÃO 2: ANO
+    const anoRefAno = anoAtual - cmpAnoPage;
+    const totalAno = somaAno(anoRefAno);
+    const totalAnoPassado = somaAno(anoRefAno - 1);
+
+    const cartaoAnoHtml = `
+        ${cartao('Total do ano', String(anoRefAno), totalAno, totalAnoPassado, `total de ${anoRefAno - 1}`)}
+        ${cartao('Total do ano passado', String(anoRefAno - 1), totalAnoPassado)}
+    `;
+
+    // SEÇÃO 3: MÊS A MÊS
+    const anoTabela = anoAtual - cmpTabelaPage;
+    const anoAnteriorTabela = anoTabela - 1;
+
+    const porMes = [];
+    const porMesPassado = [];
+    for (let m = 0; m < 12; m++) {
+        porMes.push(metricas(m, anoTabela));
+        porMesPassado.push(metricas(m, anoAnteriorTabela));
+    }
+
+    const somaArr = arr => arr.reduce(
+        (t, x) => ({ notas: t.notas + x.notas, faturado: t.faturado + x.faturado, frete: t.frete + x.frete }),
+        { notas: 0, faturado: 0, frete: 0 }
+    );
+    const totTabela = somaArr(porMes);
+    const totTabelaPassado = somaArr(porMesPassado);
+    const pctTabela = totTabela.faturado > 0 ? (totTabela.frete / totTabela.faturado) * 100 : 0;
+
+    let melhorIdx = -1;
+    let piorIdx = -1;
+    porMes.forEach((x, i) => {
+        if (x.faturado > 0) {
+            if (melhorIdx < 0 || x.faturado > porMes[melhorIdx].faturado) melhorIdx = i;
+            if (piorIdx < 0 || x.faturado < porMes[piorIdx].faturado) piorIdx = i;
+        }
+    });
+
     const linhasMeses = porMes.map((x, i) => {
         const p = porMesPassado[i];
-        const destaque = i === mesAtual ? ' class="cmp-mes-atual"' : '';
-        return `<tr${destaque}>
-            <td style="text-align:left;font-weight:600;">${mesesNomes[i]}${i === melhorIdx ? ' <span class="cmp-tag">melhor mês</span>' : ''}</td>
+        const classes = [];
+        if (melhorIdx !== -1 && i === melhorIdx) classes.push('cmp-melhor-mes');
+        if (piorIdx !== -1 && piorIdx !== melhorIdx && i === piorIdx) classes.push('cmp-pior-mes');
+        if (i === mesAtual && anoAtual === anoTabela) classes.push('cmp-mes-atual');
+        return `<tr class="${classes.join(' ')}">
+            <td style="text-align:left;font-weight:600;">${mesesNomes[i]}</td>
             <td>${x.notas}</td>
             <td>${fmt(x.faturado)}</td>
             <td>${fmt(x.frete)}</td>
@@ -1176,40 +1274,49 @@ window.abrirDashboardComparativo = function () {
         </tr>`;
     }).join('');
 
-    body.innerHTML = `
-        <h4 class="cmp-secao">Mês: ${mesesNomes[mesAtual]} de ${anoAtual}</h4>
-        <p class="cmp-ajuda">Valores de notas de envio emitidas em cada período. Verde = melhora, vermelho = piora (para o frete, valor maior é pior).</p>
-        <div class="cmp-grid">
-            ${cartao('Mês selecionado', `${mesesNomes[mesAtual]}/${anoAtual}`, atual, anterior, `${mesesNomes[mesAntIdx]}/${anoMesAnt} (mês anterior)`)}
-            ${cartao('Mês anterior', `${mesesNomes[mesAntIdx]}/${anoMesAnt}`, anterior)}
-            ${cartao('Mesmo mês, ano passado', `${mesesNomes[mesAtual]}/${anoAtual - 1}`, mesmoMesAnoPassado)}
-        </div>
-        <div class="cmp-vs" style="margin:0.6rem 0 1.6rem;">Mês selecionado comparado a ${mesesNomes[mesAtual]}/${anoAtual - 1}:
-            faturado ${variacao(atual.faturado, mesmoMesAnoPassado.faturado, false)} · frete ${variacao(atual.frete, mesmoMesAnoPassado.frete, true)}</div>
-
-        <h4 class="cmp-secao">Ano de ${anoAtual}</h4>
-        <div class="cmp-grid">
-            ${cartao('Total do ano', String(anoAtual), { ...totAno, pct: pctAno }, { ...totAnoPassado, pct: pctAnoPassado }, `total de ${anoAtual - 1}`)}
-            ${cartao('Total do ano passado', String(anoAtual - 1), { ...totAnoPassado, pct: pctAnoPassado })}
-        </div>
-
-        <h4 class="cmp-secao">Mês a mês — ${anoAtual} × ${anoAtual - 1}</h4>
+    const tabelaHtml = `
         <div style="overflow-x:auto;">
             <table class="cmp-tabela">
                 <thead><tr>
-                    <th style="text-align:left;">Mês</th><th>Notas</th><th>Faturado ${anoAtual}</th><th>Frete ${anoAtual}</th>
-                    <th>Frete / Fat.</th><th>Faturado ${anoAtual - 1}</th><th>Variação do faturado</th>
+                    <th style="text-align:left;">Mês</th>
+                    <th>Notas</th>
+                    <th>Faturado ${anoTabela}</th>
+                    <th>Frete ${anoTabela}</th>
+                    <th>Frete / Fat.</th>
+                    <th>Faturado ${anoAnteriorTabela}</th>
+                    <th>Variação do faturado</th>
                 </tr></thead>
                 <tbody>${linhasMeses}</tbody>
                 <tfoot><tr>
-                    <td style="text-align:left;">Total ${anoAtual}</td><td>${totAno.notas}</td><td>${fmt(totAno.faturado)}</td><td>${fmt(totAno.frete)}</td>
-                    <td>${pctAno.toFixed(1)}%</td><td>${fmt(totAnoPassado.faturado)}</td><td>${variacao(totAno.faturado, totAnoPassado.faturado, false)}</td>
+                    <td style="text-align:left;">Total ${anoTabela}</td>
+                    <td>${totTabela.notas}</td>
+                    <td>${fmt(totTabela.faturado)}</td>
+                    <td>${fmt(totTabela.frete)}</td>
+                    <td>${pctTabela.toFixed(1)}%</td>
+                    <td>${fmt(totTabelaPassado.faturado)}</td>
+                    <td>${variacao(totTabela.faturado, totTabelaPassado.faturado, false)}</td>
                 </tr></tfoot>
             </table>
         </div>`;
 
-    modal.classList.add('show');
-};
+    body.innerHTML = `
+        <h4 class="cmp-secao">Mês</h4>
+        <p class="cmp-ajuda">Valores de notas de envio emitidas em cada período. Verde = melhora, vermelho = piora (para o frete, valor maior é pior).</p>
+        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav')}
+        <div class="cmp-grid">${cartaoMesHtml}</div>
+        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav')}
+
+        <h4 class="cmp-secao">Ano</h4>
+        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav')}
+        <div class="cmp-grid">${cartaoAnoHtml}</div>
+        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav')}
+
+        <h4 class="cmp-secao">Mês a mês — ${anoTabela} × ${anoAnteriorTabela}</h4>
+        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav')}
+        ${tabelaHtml}
+        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav')}
+    `;
+}
 
 window.closeDashboardModal = function () {
     const modal = document.getElementById('dashboardModal');
