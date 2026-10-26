@@ -137,6 +137,7 @@ const ROUTE_TO_MODULE = {
     '/api/estoque/grupos':   'estoque',
     '/api/estoque':          ['faturamento', 'estoque'],
     '/api/licitacoes':       'licitacoes'
+    // ─── novo módulo: adicione aqui se tiver API própria ───
 };
 
 const SHARED_PATHS = ['/api/me', '/api/vendedores', '/api/notifications', '/api/verify-session'];
@@ -211,8 +212,12 @@ app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { do
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra',
     'transportadoras', 'cotacoes', 'faturamento', 'frete', 'receber',
-    'pagar', 'lucro', 'licitacoes', 'estoque'
+    'pagar', 'lucro', 'licitacoes', 'estoque',
+    'lampada'   // ─── novo módulo ───
 ];
+
+// Módulos ocultos no mobile (front filtra + servidor bloqueia URL direta)
+const MOBILE_BLOCKED_MODULES = ['lampada'];
 
 function isBackendFile(filePath) {
     const rel = path.relative(__dirname, filePath).replace(/\\/g, '/');
@@ -238,6 +243,11 @@ APPS.forEach(appName => {
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
         const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
         const forceDesktop = req.query && (req.query.force === 'desktop' || req.query.v === 'desktop');
+
+        // ─── Bloqueia módulos marcados como indisponíveis no mobile ───
+        if (!forceDesktop && isMobileUA && MOBILE_BLOCKED_MODULES.includes(appName)) {
+            return res.redirect(302, '/portal/m');
+        }
 
         if (!forceDesktop && isMobileUA && hasMobile()) {
             const originalUrl = req.originalUrl || req.url || '';
@@ -348,6 +358,8 @@ app.use('/api/receber', require('./apps/receber/routes')(supabase));
 app.use('/api', require('./apps/lucro/routes')(supabase));
 app.use('/api', require('./apps/pagar/routes')(supabase));
 app.use('/api', require('./apps/estoque/routes')(supabase));
+// ─── novo módulo: adicione aqui se tiver API própria ───
+// app.use('/api/lampada', require('./apps/lampada/routes')(supabase));
 
 // ─── VERIFICAÇÃO DE SESSÃO ───────────────────────────────────────────────────
 app.post('/api/verify-session', async (req, res) => {
