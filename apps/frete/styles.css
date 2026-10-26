@@ -395,6 +395,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .cmp-bom { color: #16A34A; font-weight: 600; }
 .cmp-ruim { color: #DC2626; font-weight: 600; }
 .cmp-neutro { color: var(--text-secondary); }
+.cmp-tabela { width: 100%; min-width: 540px; }
 .cmp-tabela td, .cmp-tabela th { text-align: center; padding: 9px 10px; white-space: nowrap; }
 .cmp-tabela tbody tr { border-bottom: 1px solid var(--border-color); }
 .cmp-tabela tr.cmp-mes-atual { background: rgba(255, 82, 29, 0.08); }
@@ -402,8 +403,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .cmp-tag { font-size: 0.68rem; background: rgba(34,197,94,.15); color: #16A34A; padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PAGINAÇÃO ‹ Mês › / ‹ Ano › / ‹ Mês a Mês ›
-   Setas ‹ › flanqueando o rótulo central da seção
+   PAGINAÇÃO ‹ Mês › / ‹ Ano › / ‹ Mês a Mês › — só no topo
    ═══════════════════════════════════════════════════════════════════════════ */
 .cmp-pag {
     display: flex;
@@ -411,7 +411,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     justify-content: center;
     gap: 0.9rem;
     padding: 0.4rem 0;
-    margin: 0.4rem 0;
+    margin: 0.4rem 0 0.8rem 0;
 }
 .cmp-pag-btn {
     background: var(--bg-card);
@@ -458,3 +458,51 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 /* Destaques da tabela Mês a mês — apenas preenchimento, sem texto */
 .cmp-melhor-mes { background: rgba(34, 197, 94, 0.14) !important; }
 .cmp-pior-mes   { background: rgba(239, 68, 68, 0.12) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE DO MODAL "ANÁLISE COMPARATIVA"
+   Ajusta padding do modal, tamanho dos botões, fontes dos cards e da tabela
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+    .dashboard-comparativo { padding: 1.5rem; }
+}
+
+@media (max-width: 900px) {
+    .dashboard-comparativo { max-width: 100% !important; padding: 1.25rem; }
+    .cmp-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+    .cmp-tabela th, .cmp-tabela td { padding: 8px 9px; font-size: 0.82rem; }
+}
+
+@media (max-width: 768px) {
+    .dashboard-comparativo { padding: 1rem; }
+    .cmp-pag { gap: 0.6rem; margin: 0.3rem 0 0.7rem 0; }
+    .cmp-pag-btn { width: 34px; height: 34px; font-size: 1.15rem; }
+    .cmp-pag-info { font-size: 0.85rem; min-width: 96px; padding: 5px 10px; }
+    .cmp-card { padding: 0.85rem 0.95rem; }
+    .cmp-card-titulo { font-size: 0.9rem; }
+    .cmp-card-sub { font-size: 0.76rem; margin-bottom: 0.55rem; }
+    .cmp-linha { font-size: 0.82rem; padding: 3px 0; }
+    .cmp-secao { font-size: 0.92rem; }
+    .cmp-tabela th, .cmp-tabela td { padding: 7px 8px; font-size: 0.78rem; }
+    .cmp-tabela { min-width: 520px; }
+    .modal-header { margin-bottom: 1.1rem; padding-bottom: 0.85rem; }
+    .modal-title { font-size: 1.2rem; }
+}
+
+@media (max-width: 480px) {
+    .dashboard-comparativo { padding: 0.85rem 0.7rem; border-radius: 12px; }
+    .cmp-pag { gap: 0.5rem; margin: 0.25rem 0 0.6rem 0; }
+    .cmp-pag-btn { width: 30px; height: 30px; font-size: 1rem; }
+    .cmp-pag-info { font-size: 0.78rem; min-width: 84px; padding: 4px 8px; }
+    .cmp-card { padding: 0.7rem 0.8rem; border-radius: 10px; }
+    .cmp-card-titulo { font-size: 0.85rem; }
+    .cmp-card-sub { font-size: 0.72rem; margin-bottom: 0.5rem; }
+    .cmp-linha { font-size: 0.76rem; padding: 2px 0; }
+    .cmp-vs { font-size: 0.74rem; }
+    .cmp-tabela th, .cmp-tabela td { padding: 6px 6px; font-size: 0.72rem; }
+    .cmp-tabela th { font-size: 0.66rem; }
+    .cmp-tabela { min-width: 500px; }
+    .modal-header { margin-bottom: 0.9rem; padding-bottom: 0.7rem; }
+    .modal-title { font-size: 1.1rem; }
+    .close-modal { font-size: 1.3rem; width: 28px; height: 28px; }
+}
