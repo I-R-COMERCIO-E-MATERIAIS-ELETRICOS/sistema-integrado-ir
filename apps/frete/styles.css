@@ -380,11 +380,11 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ANÁLISE COMPARATIVA — TOTALMENTE FLEXÍVEL, SEM SCROLL VERTICAL NO MODAL
+   ANÁLISE COMPARATIVA — FLEXÍVEL, ROLAGEM CONTROLADA, SEM CORTE
    ═══════════════════════════════════════════════════════════════════════════ */
 .dashboard-comparativo { 
     max-width: 1100px !important; 
-    max-height: 94vh;
+    max-height: 92vh; /* Garante que o modal não passe da tela */
     display: flex;
     flex-direction: column;
     padding: 1.25rem 1.5rem;
@@ -393,6 +393,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .dashboard-comparativo .modal-header { 
     margin-bottom: 0.5rem; 
     padding-bottom: 0.5rem; 
+    flex-shrink: 0;
 }
 
 .dashboard-comparativo .modal-title { 
@@ -401,18 +402,19 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 
 .dashboard-comparativo .modal-body { 
     flex: 1; 
-    overflow: hidden; /* Corta qualquer coisa que tente passar do limite */
     display: flex; 
     flex-direction: column; 
     padding: 0;
+    overflow: hidden; /* Bloqueia scroll no body, o scroll será apenas na tabela se necessário */
 }
 
 .dashboard-comparativo .modal-actions {
     margin-top: 0.5rem;
     padding-top: 0.5rem;
+    flex-shrink: 0;
 }
 
-/* Paginação compacta */
+/* Paginação */
 .cmp-pag {
     display: flex; align-items: center; justify-content: center;
     gap: 0.9rem; padding: 0.1rem 0; margin: 0.1rem 0 0.5rem 0;
@@ -436,7 +438,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     border: 1px solid var(--border-color); border-radius: 6px; line-height: 1.3;
 }
 
-/* Cards de Mês/Ano preenchem o espaço flexível */
+/* Cards de Mês/Ano */
 .cmp-grid { 
     flex: 1;
     display: flex;
@@ -462,11 +464,12 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .cmp-ruim { color: #DC2626; font-weight: 600; }
 .cmp-neutro { color: var(--text-secondary); }
 
-/* WRAPPER — flexível e esconde transbordo */
+/* WRAPPER — Rolagem se necessário, mas tenta esconder */
 .cmp-tabela-wrap {
     flex: 1;
     width: 100%;
-    overflow: hidden;
+    overflow-y: auto; /* Se ainda faltar espaço, cria rolagem apenas na tabela */
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     margin: 0;
@@ -476,16 +479,15 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 /* TABELA COMPACTA (PREENCHE O ESPAÇO) */
 .cmp-tabela {
     width: 100%;
-    height: 100%; /* Força a tabela a preencher o wrapper */
     max-width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.75rem;
 }
 .cmp-tabela th, .cmp-tabela td {
-    padding: 2px 4px; /* Padding vertical mínimo (2px) */
+    padding: 4px 4px; /* Padding vertical pequeno para as linhas */
     text-align: center;
-    white-space: normal;
+    white-space: normal; /* Permite quebrar apenas se for extremo */
     overflow-wrap: break-word;
     border-bottom: 1px solid var(--border-color);
     font-variant-numeric: tabular-nums;
@@ -501,6 +503,9 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #000000 !important;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 /* Larguras das colunas */
 .cmp-tabela th:nth-child(1), .cmp-tabela td:nth-child(1) { width: 15%; }
@@ -525,6 +530,6 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 @media (max-width: 768px) {
     .cmp-pag-btn { width: 32px; height: 32px; font-size: 1.05rem; }
     .cmp-tabela { font-size: 0.7rem; }
-    .cmp-tabela th, .cmp-tabela td { padding: 2px 2px; }
+    .cmp-tabela th, .cmp-tabela td { padding: 3px 2px; }
     .cmp-tabela th { font-size: 0.65rem; }
 }
