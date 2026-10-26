@@ -480,13 +480,11 @@ function abrirSelecaoTipo() {
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal show" id="tipoCadastroModal">
       <div class="modal-box modal-confirm">
+        <button type="button" class="modal-close modal-close-confirm" onclick="window.fecharTipo()" aria-label="Fechar">✕</button>
         <div class="confirm-msg">Qual é o tipo de cadastro?</div>
         <div class="confirm-actions">
           <button type="button" class="btn btn-blue" onclick="window.escolherTipo('simple')">Simples</button>
           <button type="button" class="btn btn-green" onclick="window.escolherTipo('parcelado')">Parcelado</button>
-        </div>
-        <div style="margin-top:12px;">
-          <button type="button" class="btn btn-gray" style="width:100%;height:38px;font-size:.82rem;" onclick="window.fecharTipo()">Cancelar</button>
         </div>
       </div>
     </div>`);
