@@ -647,31 +647,30 @@ $('syncBtn').addEventListener('click', async () => {
   finally { setTimeout(() => b.classList.remove('spinning'), 600); }
 });
 
-/* ─── ANÁLISE COMPARATIVA (mobile) ─────────────────── */
-let cmpMesPage = 0, cmpAnoPage = 0, cmpTabelaPage = 0;
-const CMP_MES_TOTAL = 12, CMP_ANO_TOTAL = 5, CMP_TABELA_TOTAL = 5;
+/* ═══════════════════════════════════════════════════════════════════════
+   ANÁLISE COMPARATIVA (mobile)
+   Paginador ÚNICO com 3 páginas — cada página é um dos 3 comparativos
+   originais que antes ficavam empilhados na vertical:
+     0 → Mês        (3 cards: mês selecionado, mês anterior, mesmo mês ano passado)
+     1 → Ano        (2 cards: total do ano, total ano passado)
+     2 → Mês a Mês  (tabela 12 meses × 2 anos)
+   ═══════════════════════════════════════════════════════════════════════ */
+let cmpPagina = 0;
+const CMP_TOTAL = 3;
+const CMP_LABELS = ['Mês', 'Ano', 'Mês a Mês'];
+
+window.cmpNav = function (dir) {
+  const next = Math.max(0, Math.min(CMP_TOTAL - 1, cmpPagina + dir));
+  if (next === cmpPagina) return;
+  cmpPagina = next;
+  renderComparativo();
+};
 
 $('cmpBtn').addEventListener('click', () => {
-  cmpMesPage = 0; cmpAnoPage = 0; cmpTabelaPage = 0;
+  cmpPagina = 0;
   renderComparativo();
   open('dashboardModal');
 });
-
-window.cmpMesNav = function (dir) {
-  const next = Math.max(0, Math.min(CMP_MES_TOTAL - 1, cmpMesPage + dir));
-  if (next === cmpMesPage) return;
-  cmpMesPage = next; renderComparativo();
-};
-window.cmpAnoNav = function (dir) {
-  const next = Math.max(0, Math.min(CMP_ANO_TOTAL - 1, cmpAnoPage + dir));
-  if (next === cmpAnoPage) return;
-  cmpAnoPage = next; renderComparativo();
-};
-window.cmpTabelaNav = function (dir) {
-  const next = Math.max(0, Math.min(CMP_TABELA_TOTAL - 1, cmpTabelaPage + dir));
-  if (next === cmpTabelaPage) return;
-  cmpTabelaPage = next; renderComparativo();
-};
 
 function renderComparativo() {
   const body = $('dashboardModalBody'); if (!body) return;
@@ -704,13 +703,6 @@ function renderComparativo() {
     const subiu = dif > 0; const bom = inverso ? !subiu : subiu;
     return `<span class="${bom ? 'cmp-bom' : 'cmp-ruim'}">${subiu ? '▲ +' : '▼ −'}${fmt(Math.abs(dif))} (${subiu ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)</span>`;
   }
-  function pag(page, total, fn) {
-    return `<div class="cmp-pag">
-      <button type="button" class="cmp-pag-btn" onclick="${fn}(-1)" ${page === 0 ? 'disabled' : ''}>‹</button>
-      <span class="cmp-pag-info">Página ${page+1} de ${total}</span>
-      <button type="button" class="cmp-pag-btn" onclick="${fn}(1)" ${page === total-1 ? 'disabled' : ''}>›</button>
-    </div>`;
-  }
   const card = (titulo, sub, m, base, rotBase) => `
     <div class="cmp-card">
       <div class="cmp-card-titulo">${titulo}</div>
@@ -724,8 +716,9 @@ function renderComparativo() {
         <div class="cmp-linha"><span>Frete</span>${variacao(m.frete, base.frete, true)}</div>` : ''}
     </div>`;
 
-  // MÊS
-  const mesRef = new Date(anoAtual, mesAtual - cmpMesPage, 1);
+  // ─── CÁLCULO DOS 3 COMPARATIVOS ─────────────────────
+  // 1) MÊS
+  const mesRef = new Date(anoAtual, mesAtual, 1);
   const mIdx = mesRef.getMonth(), aRef = mesRef.getFullYear();
   const mA = new Date(aRef, mIdx - 1, 1);
   const atual = metricas(mIdx, aRef);
@@ -736,15 +729,14 @@ function renderComparativo() {
     ${card('Mês anterior', `${mesesNomes[mA.getMonth()]}/${mA.getFullYear()}`, anterior)}
     ${card('Mesmo mês, ano passado', `${mesesNomes[mIdx]}/${aRef - 1}`, mesmoAno)}`;
 
-  // ANO
-  const aRefAno = anoAtual - cmpAnoPage;
-  const totAno = somaAno(aRefAno), totAnoPass = somaAno(aRefAno - 1);
+  // 2) ANO
+  const totAno = somaAno(anoAtual), totAnoPass = somaAno(anoAtual - 1);
   const htmlAno = `
-    ${card('Total do ano', String(aRefAno), totAno, totAnoPass, `total de ${aRefAno-1}`)}
-    ${card('Total do ano passado', String(aRefAno-1), totAnoPass)}`;
+    ${card('Total do ano', String(anoAtual), totAno, totAnoPass, `total de ${anoAtual-1}`)}
+    ${card('Total do ano passado', String(anoAtual-1), totAnoPass)}`;
 
-  // TABELA
-  const aTab = anoAtual - cmpTabelaPage, aAnt = aTab - 1;
+  // 3) TABELA MÊS A MÊS
+  const aTab = anoAtual, aAnt = anoAtual - 1;
   const porMes = [], porMesPass = [];
   for (let m=0;m<12;m++){ porMes.push(metricas(m,aTab)); porMesPass.push(metricas(m,aAnt)); }
   const somaArr = arr => arr.reduce((t,x)=>({notas:t.notas+x.notas, faturado:t.faturado+x.faturado, frete:t.frete+x.frete}),{notas:0,faturado:0,frete:0});
@@ -774,20 +766,7 @@ function renderComparativo() {
     </tr>`;
   }).join('');
 
-  body.innerHTML = `
-    <h4 class="cmp-secao">Mês</h4>
-    <p class="cmp-ajuda">Verde = melhora · Vermelho = piora (frete maior é pior).</p>
-    ${pag(cmpMesPage, CMP_MES_TOTAL, 'cmpMesNav')}
-    <div class="cmp-grid">${htmlMes}</div>
-    ${pag(cmpMesPage, CMP_MES_TOTAL, 'cmpMesNav')}
-
-    <h4 class="cmp-secao">Ano</h4>
-    ${pag(cmpAnoPage, CMP_ANO_TOTAL, 'cmpAnoNav')}
-    <div class="cmp-grid">${htmlAno}</div>
-    ${pag(cmpAnoPage, CMP_ANO_TOTAL, 'cmpAnoNav')}
-
-    <h4 class="cmp-secao">Mês a mês — ${aTab} × ${aAnt}</h4>
-    ${pag(cmpTabelaPage, CMP_TABELA_TOTAL, 'cmpTabelaNav')}
+  const htmlTabela = `
     <div style="overflow-x:auto;">
       <table class="cmp-tabela">
         <thead><tr>
@@ -806,9 +785,23 @@ function renderComparativo() {
           <td>${variacao(totTab.faturado, totTabPass.faturado, false)}</td>
         </tr></tfoot>
       </table>
-    </div>
-    ${pag(cmpTabelaPage, CMP_TABELA_TOTAL, 'cmpTabelaNav')}
-  `;
+    </div>`;
+
+  // ─── CONTEÚDO DA PÁGINA ATUAL ───────────────────────
+  let conteudo = '';
+  if (cmpPagina === 0) conteudo = `<div class="cmp-grid">${htmlMes}</div>`;
+  else if (cmpPagina === 1) conteudo = `<div class="cmp-grid">${htmlAno}</div>`;
+  else conteudo = htmlTabela;
+
+  // ─── PAGINADOR ÚNICO ────────────────────────────────
+  const paginador = `
+    <div class="cmp-pag">
+      <button type="button" class="cmp-pag-btn" onclick="cmpNav(-1)" ${cmpPagina === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
+      <span class="cmp-pag-info">${CMP_LABELS[cmpPagina]}</span>
+      <button type="button" class="cmp-pag-btn" onclick="cmpNav(1)" ${cmpPagina === CMP_TOTAL - 1 ? 'disabled' : ''} aria-label="Próximo">›</button>
+    </div>`;
+
+  body.innerHTML = `${paginador}${conteudo}${paginador}`;
 }
 
 /* ─── BOOT ─────────────────────────────────────────── */
