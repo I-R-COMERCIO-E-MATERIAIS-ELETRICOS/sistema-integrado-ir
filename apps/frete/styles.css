@@ -403,7 +403,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PAGINAÇÃO ‹ Mês › / ‹ Ano › / ‹ Mês a Mês ›
-   Setas + rótulo central indicando a seção
+   Setas ‹ › flanqueando o rótulo central da seção
    ═══════════════════════════════════════════════════════════════════════════ */
 .cmp-pag {
     display: flex;
@@ -427,7 +427,7 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, transform 0.15s, color 0.2s;
+    transition: background 0.2s, transform 0.15s, color 0.2s, border-color 0.2s;
     padding: 0;
     line-height: 1;
 }
@@ -446,10 +446,9 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: 0.02em;
-    text-transform: none;
     min-width: 120px;
     text-align: center;
-    padding: 4px 8px;
+    padding: 6px 12px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 6px;
