@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F5F7">
+  <meta name="color-scheme" content="light only">
+  <title>Lucro Real</title>
+  <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS crítico inline -->
+  <style>
+    .search-icon { width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;max-width:18px!important;max-height:18px!important;flex-shrink:0!important }
+    .month-arrow,.month-display,.icon-btn,.modal-close,.btn,.calendar-year-nav,.fab-sync { background:transparent!important;border:none!important;box-shadow:none!important }
+    .btn-green{background:#22C55E!important;color:#fff!important}
+    .btn-red{background:#dc2626!important;color:#fff!important}
+    .btn-blue{background:#3B82F6!important;color:#fff!important}
+    .btn-gray{background:#6B7280!important;color:#fff!important}
+    .fab-sync{background:#3B82F6!important;color:#fff!important;box-shadow:0 6px 20px rgba(59,130,246,.45)!important}
+    .calendar-month.current{background:#FF521D!important;color:#fff!important}
+    .filter-select{appearance:none!important;-webkit-appearance:none!important}
+  </style>
+
+  <link rel="stylesheet" href="/lucro/m/styles.css">
+</head>
+<body class="mobile-lucro-app">
+
+<div class="app-shell">
+
+  <!-- Busca -->
+  <div class="search-bar">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="search" placeholder="NF ou vendedor..." autocomplete="off">
+  </div>
+
+  <!-- Filtro vendedor + navegação de mês -->
+  <div class="filter-row">
+    <select id="filterVendedor" class="filter-select"><option value="">Vendedor</option></select>
+    <div class="month-nav">
+      <button type="button" id="monthPrev" class="month-arrow" aria-label="Mês anterior">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button type="button" id="calendarBtn" class="month-display" aria-label="Selecionar mês">
+        <span id="currentMonth">Carregando...</span>
+      </button>
+      <button type="button" id="monthNext" class="month-arrow" aria-label="Próximo mês">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dashboard (7 cards) -->
+  <div class="dashboard-grid">
+    <div class="stat-card stat-venda">
+      <div class="stat-value" id="totalVenda">R$ 0,00</div>
+      <div class="stat-label">Venda</div>
+    </div>
+    <div class="stat-card stat-custo">
+      <div class="stat-value" id="totalCusto">R$ 0,00</div>
+      <div class="stat-label">Custo</div>
+    </div>
+    <div class="stat-card stat-frete">
+      <div class="stat-value" id="totalFrete">R$ 0,00</div>
+      <div class="stat-label">Frete</div>
+    </div>
+    <div class="stat-card stat-imposto clickable" id="cardImposto" role="button" tabindex="0">
+      <div class="stat-value" id="totalImposto">R$ 0,00</div>
+      <div class="stat-label">Imp. Fed <span id="impostoManualTag" class="tag-manual" style="display:none;">MANUAL</span></div>
+    </div>
+    <div class="stat-card stat-lucrobruto">
+      <div class="stat-value" id="totalLucroBruto">R$ 0,00</div>
+      <div class="stat-label">Lucro Bruto</div>
+    </div>
+    <div class="stat-card stat-comissao">
+      <div class="stat-value" id="totalComissao">R$ 0,00</div>
+      <div class="stat-label">Comissão</div>
+    </div>
+    <div class="stat-card stat-lucroreal clickable" id="cardLucroReal" role="button" tabindex="0">
+      <div class="stat-value" id="totalLucroReal">R$ 0,00</div>
+      <div class="stat-label">Lucro Real</div>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div class="lucro-list" id="lucroList"></div>
+
+  <div class="empty-state" id="emptyState" hidden>
+    <div class="empty-icon">💼</div>
+    <div class="empty-title">Nenhum registro</div>
+    <div class="empty-desc">Toque em <b>⟳</b> para sincronizar.</div>
+  </div>
+</div>
+
+<!-- FAB sincronizar -->
+<div class="fab-group">
+  <button class="fab-sync" id="syncBtn" type="button" aria-label="Sincronizar">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+      <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Modal: Editar Custo -->
+<div class="modal" id="editCustoModal" aria-hidden="true">
+  <div class="modal-box">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Editar Custo — NF <span id="editNF"></span></h2>
+      <button class="modal-close" type="button" data-close="editCustoModal" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="field">
+        <label for="editCusto">Custo (R$)</label>
+        <input type="number" id="editCusto" step="0.01" min="0" max="5000000" inputmode="decimal">
+      </div>
+      <div class="auto-info">
+        <p class="auto-info-title">Calculados automaticamente</p>
+        <div class="auto-info-row">
+          <span>Imposto Federal <small>(11% da venda)</small></span>
+          <strong class="auto-info-red" id="editImpostoInfo">R$ 0,00</strong>
+        </div>
+        <div class="auto-info-row">
+          <span>Comissão <small>(1,25% da venda)</small></span>
+          <strong class="auto-info-yellow" id="editComissaoInfo">R$ 0,00</strong>
+        </div>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-green" id="saveEditBtn">Salvar</button>
+      <button type="button" class="btn btn-red" data-close="editCustoModal">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Modal: Custo Fixo Mensal -->
+<div class="modal" id="custoFixoModal" aria-hidden="true">
+  <div class="modal-box">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Custo Fixo Mensal</h2>
+      <button class="modal-close" type="button" data-close="custoFixoModal" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="field">
+        <label for="custoFixoInput">Valor (R$)</label>
+        <input type="number" id="custoFixoInput" step="0.01" min="0" value="0" inputmode="decimal">
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-green" id="saveCustoFixoBtn">Salvar</button>
+      <button type="button" class="btn btn-red" data-close="custoFixoModal">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Modal: Imposto Federal Total -->
+<div class="modal" id="impostoModal" aria-hidden="true">
+  <div class="modal-box">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Imposto Federal Total</h2>
+      <button class="modal-close" type="button" data-close="impostoModal" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="modal-hint">O padrão é <strong>11% por NF</strong>. Ao salvar manualmente, o cálculo automático é desativado para este mês.</p>
+      <div class="field">
+        <label for="impostoInput">Valor total (R$)</label>
+        <input type="number" id="impostoInput" step="0.01" min="0" value="0" inputmode="decimal">
+      </div>
+    </div>
+    <footer class="modal-foot modal-foot-3">
+      <button type="button" class="btn btn-gray" id="calcImpostoBtn" title="Voltar ao cálculo automático">Auto</button>
+      <button type="button" class="btn btn-green" id="saveImpostoBtn">Salvar</button>
+      <button type="button" class="btn btn-red" data-close="impostoModal">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Modal: Confirm Cancel NF -->
+<div class="modal" id="cancelNFModal" aria-hidden="true">
+  <div class="modal-box modal-confirm">
+    <button type="button" class="modal-close modal-close-confirm" data-close="cancelNFModal" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="cancelNFMsg">Deseja cancelar esta NF?</div>
+    <div class="confirm-actions">
+      <button type="button" class="btn btn-red" id="confirmCancelBtn">Sim, Cancelar</button>
+      <button type="button" class="btn btn-green" data-close="cancelNFModal">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Calendário -->
+<div class="modal" id="calendarModal" aria-hidden="true">
+  <div class="modal-box modal-calendar">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Selecionar Mês</h2>
+      <button class="modal-close" type="button" data-close="calendarModal" aria-label="Fechar">✕</button>
+    </header>
+    <div class="calendar-header">
+      <button type="button" class="calendar-year-nav" id="calendarPrevYear" aria-label="Ano anterior">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h3 id="calendarYear">2026</h3>
+      <button type="button" class="calendar-year-nav" id="calendarNextYear" aria-label="Próximo ano">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="calendar-months" id="calendarMonths"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="/lucro/m/script.js"></script>
+</body>
+</html>
