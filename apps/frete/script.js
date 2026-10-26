@@ -1096,7 +1096,7 @@ window.closeAlertModal = function () {
 window.addEventListener('beforeunload', () => { sessionStorage.removeItem('alertShown'); });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MODAL DASHBOARD COMPARATIVO — "Análise Comparativa" com paginação
+// MODAL DASHBOARD COMPARATIVO — "Análise Comparativa" com paginação < Seção >
 // ═══════════════════════════════════════════════════════════════════════════
 let cmpMesPage = 0;
 let cmpAnoPage = 0;
@@ -1178,12 +1178,13 @@ function renderDashboardComparativo() {
         return `<span class="${bom ? 'cmp-bom' : 'cmp-ruim'}">${subiu ? '▲ +' : '▼ −'}${fmt(Math.abs(dif))} (${subiu ? '+' : '−'}${Math.abs(pct).toFixed(1)}%)</span>`;
     }
 
-    function paginacao(page, total, navFn) {
+    // ═══ PAGINAÇÃO ‹ Seção › ═══
+    function paginacao(page, total, navFn, label) {
         return `
             <div class="cmp-pag">
-                <button type="button" class="cmp-pag-btn" onclick="${navFn}(-1)" ${page === 0 ? 'disabled' : ''} aria-label="Página anterior">‹</button>
-                <span class="cmp-pag-info">Página ${page + 1} de ${total}</span>
-                <button type="button" class="cmp-pag-btn" onclick="${navFn}(1)" ${page === total - 1 ? 'disabled' : ''} aria-label="Próxima página">›</button>
+                <button type="button" class="cmp-pag-btn" onclick="${navFn}(-1)" ${page === 0 ? 'disabled' : ''} aria-label="Anterior">‹</button>
+                <span class="cmp-pag-info">${label}</span>
+                <button type="button" class="cmp-pag-btn" onclick="${navFn}(1)" ${page === total - 1 ? 'disabled' : ''} aria-label="Próximo">›</button>
             </div>`;
     }
 
@@ -1302,19 +1303,19 @@ function renderDashboardComparativo() {
     body.innerHTML = `
         <h4 class="cmp-secao">Mês</h4>
         <p class="cmp-ajuda">Valores de notas de envio emitidas em cada período. Verde = melhora, vermelho = piora (para o frete, valor maior é pior).</p>
-        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav')}
+        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav', 'Mês')}
         <div class="cmp-grid">${cartaoMesHtml}</div>
-        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav')}
+        ${paginacao(cmpMesPage, CMP_MES_TOTAL_PAGES, 'cmpMesNav', 'Mês')}
 
         <h4 class="cmp-secao">Ano</h4>
-        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav')}
+        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav', 'Ano')}
         <div class="cmp-grid">${cartaoAnoHtml}</div>
-        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav')}
+        ${paginacao(cmpAnoPage, CMP_ANO_TOTAL_PAGES, 'cmpAnoNav', 'Ano')}
 
         <h4 class="cmp-secao">Mês a mês — ${anoTabela} × ${anoAnteriorTabela}</h4>
-        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav')}
+        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav', 'Mês a Mês')}
         ${tabelaHtml}
-        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav')}
+        ${paginacao(cmpTabelaPage, CMP_TABELA_TOTAL_PAGES, 'cmpTabelaNav', 'Mês a Mês')}
     `;
 }
 
