@@ -379,7 +379,9 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
     .actions-cell { min-width: auto; }
 }
 
-/* Comparativo mensal e anual */
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANÁLISE COMPARATIVA
+   ═══════════════════════════════════════════════════════════════════════════ */
 .dashboard-comparativo { max-width: 1100px !important; }
 .cmp-secao { margin: 0.4rem 0 0.5rem; font-size: 1rem; color: var(--text-primary); }
 .cmp-ajuda { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.9rem; }
@@ -398,3 +400,62 @@ button.small { padding: 8px 12px; font-size: 0.85rem; }
 .cmp-tabela tr.cmp-mes-atual { background: rgba(255, 82, 29, 0.08); }
 .cmp-tabela tfoot td { font-weight: 700; border-top: 2px solid var(--border-color); }
 .cmp-tag { font-size: 0.68rem; background: rgba(34,197,94,.15); color: #16A34A; padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGINAÇÃO ‹ Mês › / ‹ Ano › / ‹ Mês a Mês ›
+   Setas + rótulo central indicando a seção
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cmp-pag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    padding: 0.4rem 0;
+    margin: 0.4rem 0;
+}
+.cmp-pag-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.15s, color 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+.cmp-pag-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    transform: none;
+}
+.cmp-pag-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.cmp-pag-info {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+    text-transform: none;
+    min-width: 120px;
+    text-align: center;
+    padding: 4px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    line-height: 1.3;
+}
+
+/* Destaques da tabela Mês a mês — apenas preenchimento, sem texto */
+.cmp-melhor-mes { background: rgba(34, 197, 94, 0.14) !important; }
+.cmp-pior-mes   { background: rgba(239, 68, 68, 0.12) !important; }
