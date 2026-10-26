@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#F4F5F7">
+    <meta name="color-scheme" content="light only">
+    <title>Contas a Receber</title>
+    <link rel="icon" type="image/png" href="/apps/imagens/IR%20ICONE.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script>const PORTAL_URL = window.location.origin;</script>
+</head>
+<body>
+
+<div class="search-bar">
+  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="search" id="searchInput" placeholder="NF, órgão, vendedor, banco..." autocomplete="off">
+</div>
+
+<div class="filters">
+  <select id="filterVendedor" class="filter-select"><option value="">Vendedor</option></select>
+  <select id="filterBanco" class="filter-select"><option value="">Banco</option></select>
+  <select id="filterStatus" class="filter-select">
+    <option value="">Status</option>
+    <option value="A RECEBER">A Receber</option>
+    <option value="PAGO">Pago</option>
+  </select>
+</div>
+
+<div class="month-nav">
+  <button type="button" id="monthPrev" class="month-arrow" aria-label="Mês anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button type="button" id="calendarBtn" class="month-display" aria-label="Selecionar mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    <span id="currentMonth">Carregando...</span>
+  </button>
+  <button type="button" id="monthNext" class="month-arrow" aria-label="Próximo mês">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+</div>
+
+<div class="dashboard-grid">
+  <div class="stat-card stat-success">
+    <div class="stat-value" id="statPago">R$ 0,00</div>
+    <div class="stat-label">Pago</div>
+  </div>
+  <div class="stat-card stat-danger" id="cardVencido">
+    <div class="stat-value" id="statVencido">0</div>
+    <div class="stat-label">Alerta</div>
+    <div class="pulse-badge" id="pulseBadgeVencido" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+    </div>
+  </div>
+  <div class="stat-card stat-info">
+    <div class="stat-value" id="statReceber">R$ 0,00</div>
+    <div class="stat-label">A Receber</div>
+  </div>
+  <div class="stat-card stat-money">
+    <div class="stat-value" id="statFaturado">R$ 0,00</div>
+    <div class="stat-label">Faturado</div>
+  </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="empty-state" id="emptyState" hidden>
+  <div class="empty-title">Nenhuma conta encontrada</div>
+  <div class="empty-desc">Toque em <b>+</b> para registrar.</div>
+</div>
+
+<div class="fab-group">
+  <div class="icons-row">
+    <button class="icon-btn" id="syncBtn" type="button" aria-label="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+        <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="pdfBtn" type="button" aria-label="Gerar PDF de Comissão">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+      </svg>
+    </button>
+  </div>
+  <button class="fab-register" id="addBtn" type="button" aria-label="Nova Conta">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<!-- MODAL: FORM -->
+<div class="modal" id="formModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="formTitle">Nova Conta</h2>
+      <button class="modal-close" data-close="formModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-tab="geral" type="button">Geral</button>
+      <button class="modal-tab" data-tab="valores" type="button">Valores</button>
+      <button class="modal-tab" data-tab="parcelas" type="button">Parcelas</button>
+      <button class="modal-tab" data-tab="obs" type="button">Observações</button>
+    </div>
+
+    <div class="modal-body">
+      <form id="contaForm">
+        <input type="hidden" id="editId" value="">
+        
+        <!-- ABA GERAL -->
+        <section class="tab-pane active" data-pane="geral">
+          <div class="field"><label>Número NF *</label><input type="text" id="f_numero_nf" required></div>
+          <div class="field"><label>Órgão *</label><input type="text" id="f_orgao" required></div>
+          <div class="field"><label>Vendedor *</label><select id="f_vendedor" required></select></div>
+          <div class="field"><label>Banco</label><input type="text" id="f_banco"></div>
+          <div class="field">
+            <label>Tipo NF</label>
+            <select id="f_tipo_nf">
+              <option value="ENVIO">Envio</option>
+              <option value="CANCELADA">Cancelada</option>
+              <option value="REMESSA DE AMOSTRA">Remessa de Amostra</option>
+              <option value="SIMPLES REMESSA">Simples Remessa</option>
+              <option value="DEVOLUÇÃO">Devolução</option>
+              <option value="DEVOLVIDA">Devolvida</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="f_status">
+              <option value="A RECEBER">A Receber</option>
+              <option value="PAGO">Pago</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- ABA VALORES -->
+        <section class="tab-pane" data-pane="valores">
+          <div class="field"><label>Valor NF (R$)</label><input type="number" id="f_valor" step="0.01" min="0"></div>
+          <div class="field"><label>Valor Pago Total (R$)</label><input type="number" id="f_valor_pago" step="0.01" min="0"></div>
+          <div class="field"><label>Data Emissão *</label><input type="date" id="f_data_emissao" required></div>
+          <div class="field"><label>Vencimento</label><input type="date" id="f_data_vencimento"></div>
+          <div class="field"><label>Data Pagamento</label><input type="date" id="f_data_pagamento"></div>
+          <div class="field" style="margin-top:8px;">
+            <button type="button" id="btnDesconto" class="btn-desconto" onclick="toggleDesconto()">CONFIRMAR DESCONTO</button>
+          </div>
+        </section>
+
+        <!-- ABA PARCELAS -->
+        <section class="tab-pane" data-pane="parcelas">
+          <button type="button" class="btn btn-green" onclick="adicionarParcelaForm()" style="margin-bottom:12px; width:100%;">
+            Adicionar Parcela
+          </button>
+          <div id="parcelasFormList" class="observacoes-list" style="background:transparent; border:none; padding:0;"></div>
+        </section>
+
+        <!-- ABA OBS -->
+        <section class="tab-pane" data-pane="obs">
+          <div class="observacoes-list" id="obsFormList"></div>
+          <div class="nova-observacao">
+            <textarea id="novaObsInput" rows="2" placeholder="Nova observação..."></textarea>
+            <button type="button" class="btn-add-obs" onclick="adicionarObsForm()">Adicionar Observação</button>
+          </div>
+        </section>
+      </form>
+    </div>
+
+    <footer class="modal-foot">
+      <button class="btn btn-green" id="btnSave" type="submit" form="contaForm">Salvar</button>
+      <button class="btn btn-red" data-close="formModal" type="button">Cancelar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: VIEW -->
+<div class="modal" id="viewModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" id="viewTitle">Detalhes</h2>
+      <button class="modal-close" data-close="viewModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    
+    <div class="modal-tabs" role="tablist">
+      <button class="modal-tab active" data-vtab="vgeral" type="button">Geral</button>
+      <button class="modal-tab" data-vtab="vvalores" type="button">Valores</button>
+      <button class="modal-tab" data-vtab="vparcelas" type="button">Parcelas</button>
+      <button class="modal-tab" data-vtab="vobs" type="button">Obs</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="tab-pane active" data-vpane="vgeral" id="vgeral"></div>
+      <div class="tab-pane" data-vpane="vvalores" id="vvalores"></div>
+      <div class="tab-pane" data-vpane="vparcelas" id="vparcelas"></div>
+      <div class="tab-pane" data-vpane="vobs" id="vobs"></div>
+    </div>
+    
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="viewModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRM CHECKBOX -->
+<div class="modal" id="confirmPagModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="confirmPagModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="confirmPagMsg">O pagamento será parcelado?</div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="btnSim">Sim</button>
+      <button class="btn btn-red" id="btnNao">Não</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DELETE -->
+<div class="modal" id="deleteModal" aria-hidden="true">
+  <div class="modal-box modal-confirm" role="dialog" aria-modal="true">
+    <button class="modal-close ir-close" data-close="deleteModal" type="button" aria-label="Fechar">✕</button>
+    <div class="confirm-msg" id="deleteMsg">Deseja excluir?</div>
+    <div class="confirm-actions">
+      <button class="btn btn-green" id="confirmDeleteBtn" type="button">Sim</button>
+      <button class="btn btn-red" data-close="deleteModal" type="button">Não</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VENCIDOS (ALERTA) -->
+<div class="modal" id="vencidosModal" aria-hidden="true">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title" style="color:var(--danger-color)">Vencidos</h2>
+      <button class="modal-close" data-close="vencidosModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body" id="vencidosModalBody"></div>
+    <footer class="modal-foot">
+      <button class="btn btn-red" data-close="vencidosModal" type="button">Fechar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- MODAL: CALENDÁRIO -->
+<div class="modal" id="calendarModal" aria-hidden="true">
+  <div class="modal-box modal-calendar" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <div class="modal-head-spacer"></div>
+      <h2 class="modal-head-title">Mês</h2>
+      <button class="modal-close" data-close="calendarModal" type="button" aria-label="Fechar">✕</button>
+    </header>
+    <div class="calendar-header">
+      <button type="button" id="calendarPrevYear" class="calendar-year-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h3 id="calendarYear">2026</h3>
+      <button type="button" id="calendarNextYear" class="calendar-year-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="calendar-months" id="calendarMonths"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/shared/ir-common.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
