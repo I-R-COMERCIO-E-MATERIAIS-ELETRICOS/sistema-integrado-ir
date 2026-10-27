@@ -47,8 +47,7 @@ module.exports = function (supabase, supabaseAdmin) {
         { id: 'receber',        name: 'Contas a Receber',         url: '/receber',        available: true },
         { id: 'pagar',          name: 'Contas a Pagar',           url: '/pagar',          available: true },
         { id: 'lucro',          name: 'Lucro Real',               url: '/lucro',          available: true },
-        // ─── novo módulo (oculto no mobile) ───
-        { id: 'tutorial',        name: 'Tutorial',                  url: '/tutorial',     available: true, mobileHidden: true }
+        { id: 'tutorial',       name: 'Tutorial',                 url: '/tutorial',       available: true, mobileHidden: true }
     ];
 
     const APPS_ROOT = path.join(__dirname, '..');
