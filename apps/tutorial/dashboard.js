@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         card.addEventListener('click', () => {
-            // Navega para a subpasta do tutorial (ex: ./compra/index.html)
+            // Redireciona para a subpasta do tutorial, e não para a aplicação real
             window.location.href = `./${modId}/index.html`;
         });
 
