@@ -25,7 +25,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 });
 const supabaseAdmin = supabase;
 
-// ─── MIDDLEWARES ──────────────────────────────────────────────────────────────
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
@@ -58,7 +57,6 @@ setInterval(() => {
     }
 }, 3600000);
 
-// ─── HEALTH CHECKS ───────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
     try {
         const { error } = await supabaseAdmin.from('profiles').select('count', { count: 'exact', head: true });
@@ -69,7 +67,6 @@ app.get('/health', async (req, res) => {
 });
 app.get('/api/health', (req, res) => res.redirect('/health'));
 
-// ─── AUTENTICAÇÃO CENTRAL ────────────────────────────────────────────────────
 const PUBLIC_PATHS = [
     '/', '/health', '/api/health', '/app', '/portal', '/portal/',
     '/login-autenticacao', '/login-autenticacao/',
@@ -178,7 +175,6 @@ async function verificarAutenticacao(req, res, next) {
     }
 }
 
-// ─── CONFIGURAÇÃO DO SUPABASE PARA FRONTEND ─────────────────────────────────
 app.get('/api/supabase-config', (req, res) => {
     const url = process.env.SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
@@ -186,17 +182,16 @@ app.get('/api/supabase-config', (req, res) => {
     res.json({ url, anonKey });
 });
 
-// ─── IMAGENS COMPARTILHADAS ──────────────────────────────────────────────────
 app.use('/shared', express.static(path.join(__dirname, 'shared'), { dotfiles: 'deny' }));
 app.use('/apps/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
 app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS E TUTORIAIS ──────────────────────────────
+// ─── ARQUIVOS ESTÁTICOS (AQUI É O PULO DO GATO) ──────────────────────────────
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra',
     'transportadoras', 'cotacoes', 'faturamento', 'frete', 'receber',
     'pagar', 'lucro', 'licitacoes', 'estoque', 
-    'tutorial' // O tutorial inteiro é servido daqui
+    'tutorial' // Pasta do tutorial
 ];
 
 const MOBILE_BLOCKED_MODULES = ['tutorial'];
@@ -216,7 +211,7 @@ APPS.forEach(appName => {
     const mobileIndexPath = path.join(appPath, 'm', 'index.html');
     const hasMobile = () => fs.existsSync(mobileIndexPath);
 
-    // Redirecionamento mobile
+    // Redirecionamento para mobile (se houver versão m/)
     app.get(`/${appName}`, (req, res, next) => {
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
         const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
@@ -235,7 +230,7 @@ APPS.forEach(appName => {
         next();
     });
 
-    // O express.static serve o index.html E todas as subpastas (ex: /tutorial/compra/)
+    // O express.static serve o index.html raiz e TODAS as subpastas (ex: /tutorial/licitacoes/)
     app.use(`/${appName}`, express.static(appPath, {
         index: 'index.html',
         dotfiles: 'deny',
@@ -252,7 +247,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'apps', 'login-aute
 app.use('/api/auth', require('./apps/login-autenticacao/routes')(supabase, supabaseAdmin));
 app.use('/api/portal', require('./apps/portal/routes')(supabase, supabaseAdmin));
 
-// ─── MIDDLEWARE DE AUTENTICAÇÃO PARA TODAS AS ROTAS /api ─────────────────────
+// ─── MIDDLEWARE DE AUTENTICAÇÃO ──────────────────────────────────────────────
 app.use('/api', verificarAutenticacao);
 
 app.use('/api/usuarios', require('./apps/usuarios/routes')(supabase, supabaseAdmin));
@@ -333,7 +328,6 @@ app.use((error, req, res, next) => {
     res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// ─── INICIAR ─────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ I.R. Comércio - Servidor Central rodando na porta ${PORT}`);
     console.log(`✅ Database: Supabase conectado`);
