@@ -43,11 +43,7 @@ function registrarAcesso(req, res, next) {
     const xForwardedFor = req.headers['x-forwarded-for'];
     const clientIP = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.socket.remoteAddress;
     const cleanIP = (clientIP || '').replace('::ffff:', '');
-    fs.appendFile(
-        logFilePath,
-        `[${new Date().toISOString()}] ${cleanIP} - ${req.method} ${req.path}\n`,
-        () => {}
-    );
+    fs.appendFile(logFilePath, `[${new Date().toISOString()}] ${cleanIP} - ${req.method} ${req.path}\n`, () => {});
     accessCount++;
     uniqueIPs.add(cleanIP);
     next();
@@ -62,15 +58,11 @@ setInterval(() => {
     }
 }, 3600000);
 
-// ─── HEALTH CHECKS (públicos) ────────────────────────────────────────────────
+// ─── HEALTH CHECKS ───────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
     try {
         const { error } = await supabaseAdmin.from('profiles').select('count', { count: 'exact', head: true });
-        res.json({
-            status: error ? 'unhealthy' : 'healthy',
-            database: error ? 'disconnected' : 'connected',
-            timestamp: new Date().toISOString()
-        });
+        res.json({ status: error ? 'unhealthy' : 'healthy', database: error ? 'disconnected' : 'connected', timestamp: new Date().toISOString() });
     } catch {
         res.json({ status: 'unhealthy', timestamp: new Date().toISOString() });
     }
@@ -89,26 +81,18 @@ function verifySessionToken(token) {
     if (!token || typeof token !== 'string' || !token.includes('.')) return null;
     const [body, sig] = token.split('.');
     try {
-        const expected = crypto
-            .createHmac('sha256', process.env.SESSION_SECRET)
-            .update(body)
-            .digest('base64')
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET).update(body).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const a = Buffer.from(sig);
         const b = Buffer.from(expected);
         if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-        const payload = JSON.parse(
-            Buffer.from(body.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(body.length / 4) * 4, '='), 'base64').toString('utf8')
-        );
+        const payload = JSON.parse(Buffer.from(body.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(body.length / 4) * 4, '='), 'base64').toString('utf8'));
         if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
         return payload;
     } catch { return null; }
 }
 
 function horarioBrasilia() {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-    }).formatToParts(new Date());
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
     const get = t => parts.find(p => p.type === t)?.value;
     return { day: get('weekday'), minutes: Number(get('hour')) * 60 + Number(get('minute')) };
 }
@@ -207,11 +191,12 @@ app.use('/shared', express.static(path.join(__dirname, 'shared'), { dotfiles: 'd
 app.use('/apps/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
 app.use('/imagens', express.static(path.join(__dirname, 'apps', 'imagens'), { dotfiles: 'deny', maxAge: '7d' }));
 
-// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS ──────────────────────────────────────────
+// ─── ARQUIVOS ESTÁTICOS DOS MÓDULOS E TUTORIAIS ──────────────────────────────
 const APPS = [
     'login-autenticacao', 'portal', 'usuarios', 'precos', 'compra',
     'transportadoras', 'cotacoes', 'faturamento', 'frete', 'receber',
-    'pagar', 'lucro', 'licitacoes', 'estoque', 'tutorial'
+    'pagar', 'lucro', 'licitacoes', 'estoque', 
+    'tutorial' // O tutorial inteiro é servido daqui
 ];
 
 const MOBILE_BLOCKED_MODULES = ['tutorial'];
@@ -231,11 +216,8 @@ APPS.forEach(appName => {
     const mobileIndexPath = path.join(appPath, 'm', 'index.html');
     const hasMobile = () => fs.existsSync(mobileIndexPath);
 
-    app.use(`/${appName}/assets`, express.static(appPath, {
-        setHeaders: (res, filePath) => { if (isBackendFile(filePath)) res.status(404).end(); }
-    }));
-
-    const serveDesktopIndex = (req, res) => {
+    // Redirecionamento mobile
+    app.get(`/${appName}`, (req, res, next) => {
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
         const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
         const forceDesktop = req.query && (req.query.force === 'desktop' || req.query.v === 'desktop');
@@ -250,56 +232,17 @@ APPS.forEach(appName => {
             const qs = qi >= 0 ? originalUrl.substring(qi) : '';
             return res.redirect(302, `/${appName}/m${qs}`);
         }
-        res.sendFile(path.join(appPath, 'index.html'));
-    };
-    app.get(`/${appName}`,  serveDesktopIndex);
-    app.get(`/${appName}/`, serveDesktopIndex);
+        next();
+    });
 
-    const serveMobileIndex = (req, res) => {
-        if (!hasMobile()) return res.redirect(302, `/${appName}`);
-        res.sendFile(mobileIndexPath);
-    };
-    app.get(`/${appName}/m`,  serveMobileIndex);
-    app.get(`/${appName}/m/`, serveMobileIndex);
-
+    // O express.static serve o index.html E todas as subpastas (ex: /tutorial/compra/)
     app.use(`/${appName}`, express.static(appPath, {
-        index: false,
+        index: 'index.html',
         dotfiles: 'deny',
         setHeaders: (res, filePath) => { if (isBackendFile(filePath)) res.status(404).end(); }
     }));
 
     console.log(`✅ Servindo /${appName}${hasMobile() ? `  (mobile: /${appName}/m)` : ''}`);
-});
-
-// ─── FALLBACK DE ASSETS CORRIGIDO ───────────────────────────────────────────
-app.use((req, res, next) => {
-    if (!STATIC_EXTENSIONS.test(req.path)) return next();
-    
-    // CORREÇÃO CRÍTICA: Se o caminho já começa com o nome de um app válido, 
-    // deixa o express.static acima lidar com ele. Não faz fallback.
-    const firstSegment = req.path.split('/').filter(Boolean)[0];
-    if (APPS.includes(firstSegment)) return next();
-
-    const referer = req.get('Referer') || '';
-    let matchedApp = null;
-    try {
-        const refererUrl = new URL(referer);
-        const refererSegments = refererUrl.pathname.split('/').filter(Boolean);
-        for (const appName of APPS) {
-            if (refererSegments[0] === appName) {
-                matchedApp = appName;
-                break;
-            }
-        }
-    } catch (e) {
-        return next();
-    }
-    if (!matchedApp) return next();
-    const appPath = path.join(__dirname, 'apps', matchedApp);
-    const fileName = req.path.replace(/^\//, '');
-    const filePath = path.join(appPath, fileName);
-    if (fs.existsSync(filePath) && !isBackendFile(filePath)) return res.sendFile(filePath);
-    next();
 });
 
 // ─── ROTA RAIZ ───────────────────────────────────────────────────────────────
@@ -309,7 +252,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'apps', 'login-aute
 app.use('/api/auth', require('./apps/login-autenticacao/routes')(supabase, supabaseAdmin));
 app.use('/api/portal', require('./apps/portal/routes')(supabase, supabaseAdmin));
 
-// ─── MIDDLEWARE DE AUTENTICAÇÃO ──────────────────────────────────────────────
+// ─── MIDDLEWARE DE AUTENTICAÇÃO PARA TODAS AS ROTAS /api ─────────────────────
 app.use('/api', verificarAutenticacao);
 
 app.use('/api/usuarios', require('./apps/usuarios/routes')(supabase, supabaseAdmin));
@@ -319,19 +262,14 @@ const { primeiroNome } = require('./lib/helpers');
 
 app.get('/api/me', (req, res) => {
     const u = req.user || {};
-    res.json({
-        id: u.id, name: u.name, first_name: primeiroNome(u), username: u.username,
-        sector: u.sector, is_admin: !!u.is_admin, apps: u.apps || []
-    });
+    res.json({ id: u.id, name: u.name, first_name: primeiroNome(u), username: u.username, sector: u.sector, is_admin: !!u.is_admin, apps: u.apps || [] });
 });
 
 app.get('/api/vendedores', async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin.from('profiles').select('name, username, sector, is_admin, is_active').eq('is_active', true);
         if (error) throw error;
-        const nomes = (data || [])
-            .filter(p => p.is_admin || /^(SETOR DE )?VENDAS$/i.test(String(p.sector || '').trim()))
-            .map(p => primeiroNome(p)).filter(Boolean);
+        const nomes = (data || []).filter(p => p.is_admin || /^(SETOR DE )?VENDAS$/i.test(String(p.sector || '').trim())).map(p => primeiroNome(p)).filter(Boolean);
         res.json([...new Set(nomes)].sort());
     } catch (err) { res.status(500).json({ error: 'Erro ao listar vendedores' }); }
 });
@@ -381,7 +319,6 @@ app.post('/api/verify-session', async (req, res) => {
 
         return res.json({ valid: true, session: profile });
     } catch (err) {
-        console.error('Erro ao validar sessão:', err.message);
         return res.status(500).json({ valid: false });
     }
 });
@@ -408,7 +345,4 @@ app.listen(PORT, '0.0.0.0', () => {
         const mobileTag = fs.existsSync(mobilePath) ? ' [mobile ✓]' : '';
         console.log(`  ${status} /${appName}${mobileTag}`);
     });
-    console.log(`\n📝 Logs salvos em: acessos.log`);
-    console.log('\n📱 Módulos com versão mobile (pasta m/) são servidos automaticamente');
-    console.log('   para usuários mobile em /<modulo>/m. Force desktop com ?force=desktop.\n');
 });
