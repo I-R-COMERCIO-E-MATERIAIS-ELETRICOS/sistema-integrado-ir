@@ -9,7 +9,8 @@ const MODULE_INFO = {
     estoque:         { name: 'Estoque',               desc: 'Controle de itens, quantidades e movimentações' },
     frete:           { name: 'Controle de Frete',     desc: 'Registro e acompanhamento das entregas e fretes' },
     receber:         { name: 'Contas a Receber',      desc: 'Gestão de recebimentos, parcelas e comissões' },
-    pagar:           { name: 'Contas a Pagar',        desc: 'Controle de despesas, vencimentos e pagamentos' }
+    pagar:           { name: 'Contas a Pagar',        desc: 'Controle de despesas, vencimentos e pagamentos' },
+    lucro:           { name: 'Lucro Real',            desc: 'Análise de lucro, custos fixos e monitoramento' }
 };
 
 const MODULE_ICONS = {
@@ -23,7 +24,8 @@ const MODULE_ICONS = {
     estoque:         '<svg viewBox="0 0 24 24"><path d="M21 8V5a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0L4 3.27A2 2 0 0 0 3 5v14a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 19V8Z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>',
     frete:           '<svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>',
     receber:         '<svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="14"/><polyline points="7 9 12 14 17 9"/><path d="M20 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></svg>',
-    pagar:           '<svg viewBox="0 0 24 24"><line x1="12" y1="14" x2="12" y2="2"/><polyline points="7 7 12 2 17 7"/><path d="M20 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></svg>'
+    pagar:           '<svg viewBox="0 0 24 24"><line x1="12" y1="14" x2="12" y2="2"/><polyline points="7 7 12 2 17 7"/><path d="M20 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></svg>',
+    lucro:           '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'
 };
 
 document.addEventListener('DOMContentLoaded', () => {
