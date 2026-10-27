@@ -1,8 +1,5 @@
 // ============================================================
 // Portal Mobile · I.R. Comércio
-// Carrossel inferior + drawer lateral esquerdo (sem X, sem
-// info do usuário). Fecha ao clicar em qualquer lugar (backdrop)
-// ou ao selecionar um módulo.
 // ============================================================
 
 const MODULE_ICONS = {
@@ -17,14 +14,14 @@ const MODULE_ICONS = {
     estoque:          '<svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
     receber:          '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
     pagar:            '<svg viewBox="0 0 24 24"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>',
-    lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+    lucro:            '<svg viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'
 };
 
 const SHORT_NAMES = {
     usuarios: 'Usuários', licitacoes: 'Licitações', precos: 'Preços',
     compra: 'Compras', transportadoras: 'Transp.', cotacoes: 'Cotações',
     faturamento: 'Faturam.', frete: 'Frete', estoque: 'Estoque',
-    receber: 'Receber', pagar: 'Pagar', lucro: 'Lucro',
+    receber: 'Receber', pagar: 'Pagar', lucro: 'Lucro'
 };
 
 let accessToken = null;
@@ -55,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderDrawer();
         showGreeting();
 
-        const primeiro = modules.find(m => m.allowed);
+        const primeiro = modules.find(m => m.allowed && !m.mobileHidden);
         if (primeiro) openModule(primeiro);
 
         if (!userInfo.is_admin) agendarAvisoExpediente();
@@ -79,11 +76,10 @@ function limparSessao() {
     try { sessionStorage.removeItem('irToken'); sessionStorage.removeItem('irUser'); } catch (_) {}
 }
 
-/* ─── CARROSSEL ─────────────────────────────────────────────── */
 function renderCarousel() {
     const carousel = document.getElementById('carousel');
     carousel.innerHTML = '';
-    const visiveis = modules.filter(m => m.allowed || !m.adminOnly);
+    const visiveis = modules.filter(m => !m.mobileHidden && (m.allowed || !m.adminOnly));
     if (!visiveis.length) {
         carousel.innerHTML = '<div class="empty-carousel">Nenhum módulo disponível</div>';
         return;
@@ -106,11 +102,11 @@ function renderCarousel() {
     });
 }
 
-/* ─── DRAWER (esquerda, sem X, fecha em backdrop) ───────────── */
 function renderDrawer() {
     const nav = document.getElementById('drawerNav');
     nav.innerHTML = '';
     modules.forEach(m => {
+        if (m.mobileHidden) return;
         if (m.adminOnly && !userInfo.is_admin) return;
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -146,7 +142,6 @@ function closeDrawer() {
     document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
 }
 
-/* ─── MÓDULO (iframe) ──────────────────────────────────────── */
 function openModule(mod) {
     activeModuleId = mod.id;
     document.querySelectorAll('.carousel-item').forEach(i => i.classList.remove('active'));
@@ -207,7 +202,6 @@ window.addEventListener('message', (event) => {
     }
 });
 
-/* ─── LOGOUT ───────────────────────────────────────────────── */
 async function confirmarLogout() {
     let ok;
     if (window.IR && typeof IR.confirm === 'function') {
@@ -219,7 +213,6 @@ async function confirmarLogout() {
     limparSessao(); location.replace('/');
 }
 
-/* ─── SAUDAÇÃO ─────────────────────────────────────────────── */
 function showGreeting() {
     const text = document.getElementById('greetingText');
     const overlay = document.getElementById('greeting');
@@ -234,7 +227,6 @@ function showGreeting() {
     setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 2600);
 }
 
-/* ─── EXPEDIENTE ───────────────────────────────────────────── */
 function agendarAvisoExpediente() {
     const tick = () => {
         const br = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
